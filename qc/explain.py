@@ -1,4 +1,4 @@
-"""Four audience texts from one Evidence by fixed templates (PLAN_v3 §3.8). No language model."""
+"""Four audience texts from one Evidence by fixed templates (PLAN_v4 §3.8). No language model."""
 
 from pathlib import Path
 

@@ -46,7 +46,7 @@ def black_level(image: np.ndarray) -> float:
 
 
 def load_field(batch: str, image_id: str, paths: dict[str, Path]) -> Field:
-    """strip_id = "<height>_<xres>" groups tiles cut from one strip (PLAN_v1 §2). Provenance only, never a feature."""
+    """strip_id = "<height>_<xres>" groups tiles cut from one strip (PLAN_v4 §1.1). Provenance only, never a feature."""
     channels, black, px_um, xres = {}, {}, np.nan, np.nan
     for detector, path in paths.items():
         channels[detector], px_um, xres = load_image(path)

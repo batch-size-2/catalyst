@@ -4,7 +4,7 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 
 ## Read first
 
-1. `AGENTS.md` (rules and commands), `README.md` (what is built), `docs/PLAN_v3.md` (the team plan; code deviations are listed in README → Decision algorithm → "Deviations from PLAN_v3").
+1. `AGENTS.md` (rules and commands), `README.md` (what is built), `docs/PLAN_v4.md` (the team plan, self-contained; **what to do next is its §4**. How the code got there from the v3 design is in README → Decision algorithm → "Changes from the v3 design").
 2. Starting point: PR #4, branch `PtrkH/compare-v3`, commits `5a56b18` (contract) and `8469686` (statistics). If PR #4 has been merged, branch from `main`; otherwise continue on `PtrkH/compare-v3` or branch from it. Nothing else is in flight: an earlier attempt at step 2 below was interrupted before writing any files.
 
 ## Ground rules from the user
@@ -26,9 +26,9 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 - **The data is real, the batches are synthetic.** Images were assigned to batches by some morphology pattern. Strips (tiles cut from one long image, `strip_id`) don't matter.
 - **Batch_3 is the baseline**: what the supplier "promised". Batch_1 and Batch_2 show the kinds of variation to detect; they aren't better or worse. A manufacturer is wary of anything too far outside the baseline's SD, in either direction.
 - **Judging:** can we say what is different about the batches and sort held-back images into the right batch? Then an unknown batch N can be called in or out of distribution.
-- **Data still to come:**
-  - **9 held-back images** (27 files: BSE, ETD/SE, InLens, same format as now) from the 3 known batches. The split is unknown. They are our only honest test: keep them unseen until attribution is frozen.
-  - **Tomorrow, at the presentation: 2 images, "which batch do they belong to, and WHY".** Batch attribution and its explanation are the centrepiece.
+- **Unseen data (updated 3 Oct, evening; PLAN_v4 §1.3):**
+  - **Arrived:** folder `Hackathon-Polaron-test`, 9 files = **3 samples** (BSE, ETD, InLens each), not the nine images we expected. The split is unknown. Not opened and not scored: keep them unseen until attribution is frozen.
+  - **Still to come:** "further images coming just before the judging" (task designer). Earlier we were told 2 images at the presentation, "which batch do they belong to, and WHY". Batch attribution and its explanation are the centrepiece, and the path for those images must be one command on a frozen model.
 
 ## Done (step 1, branch `PtrkH/image-unit`)
 
@@ -94,12 +94,14 @@ Done, see Done. The dictionary file comes with `pat/ml-v3` (her format: name, un
 
 Done, see Done.
 
-### 6. When Pat's features land (with the user)
+### 6. Freeze, score, rehearse (with the user)
 
-1. Run `uv run python -m qc.measure`, then Pat's attribution fit.
-2. Read the ranking and the nested evaluations; set `margins` per key quantity.
-3. Freeze, then score the held-out images as in step 2's protocol.
-4. Before the presentation, rehearse `predict` on 2 images.
+Pat's features have landed. The order of work for both sides is now in **PLAN_v4 §4**. The software side's part:
+
+1. Show the judged answer in the app (PLAN_v4 §4 step 6, §6): the bet, the tier with its record, the two stages, the prediction set and the reasons as sentences.
+2. After Pat freezes the model (`rules-frozen`), the 3 dropped samples are scored once and the output committed unchanged.
+3. Rehearse the path for the last-minute images through the app, timed, on known images. Nothing is refit on the day.
+4. Set `margins` per key quantity only before the freeze, from the ranking and the nested evaluations.
 
 ## Open with Pat (not for the agent to do)
 
@@ -109,6 +111,6 @@ Listed in PR #4, section "For Pat":
 - **When `pat/ml-v3` lands:** `run()` must pass `split_tables(tables.kpis, tables.particles, tables.imaging)` (her `measure()` returns `Tables`).
 - **KPI_UNITS:** add `si_graphite_ratio` and the other descriptors, then regenerate the fixture with `uv run python -m tests.synth`.
 - **Attribution JSON layout:** if Pat changes her output, `web/src/types.ts` and both attribution fixtures must follow it.
-- **PLAN_v4 (draft) §6 items for Patrik after her branch lands:** attribution block in `Evidence`, `run()` calling her `predict` on the batch's feature rows, and one template sentence each on attribution and familiarity.
+- **PLAN_v4 §6 items for Patrik:** show the new attribution fields (reason sentences, confidence tier with its record, the two stages, the prediction set), make the "Unlike any known batch" badge print `predicted_distance` and `predicted_threshold`, mirror the fields in `web/src/types.ts` and both fixtures, one template sentence each on attribution and familiarity, silicon content %, and the controls into `run()`. The attribution block is not part of `Evidence`.
 - **Her other pieces:** the dictionary content, image pre-processing, particle types, controls.
 - **Plan change:** rule 2 is replaced by Pat-owned batch attribution; the software side wraps her output.

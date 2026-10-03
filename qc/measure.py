@@ -436,7 +436,7 @@ def _particle_row(
 
 
 def imaging(channels: dict[str, np.ndarray], px_um: float = 0.025) -> dict[str, dict[str, float]]:
-    """Per-channel imaging descriptors (PLAN_v3 §3.3); a failed channel comes back all-NaN."""
+    """Per-channel imaging descriptors (PLAN_v4 §3.3); a failed channel comes back all-NaN."""
     keys = ["black_level", "p1", "p50", "p99", "noise", "sharpness", "saturated_frac", "curtaining_index"]
     out = {}
     for name, img in channels.items():

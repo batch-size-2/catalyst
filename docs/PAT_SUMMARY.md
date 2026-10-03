@@ -1,6 +1,6 @@
 # Pat's ML work: what is done, what is next, what to clarify
 
-Written 3 Oct 2026, late evening, after a review of the code, the fitted model and the results. Plain language. All numbers come from [PLAN_v4.md](PLAN_v4.md) §12–12.2. How the ML code works and what other code can rely on is in [AGENT_HANDOVER.md](AGENT_HANDOVER.md).
+Written 3 Oct 2026, late evening, after a review of the code, the fitted model and the results; updated at 21:00 with the task designer's replies to our five questions. Plain language. All numbers come from [PLAN_v4.md](PLAN_v4.md) §12–12.2. The order of work for both of us is in PLAN_v4 §4. How the ML code works and what other code can rely on is in [AGENT_HANDOVER.md](AGENT_HANDOVER.md).
 
 ## 1. How we are judged
 
@@ -10,7 +10,20 @@ The task designer (Steve Kench) said on 3 Oct:
 - We are judged on the assignment, the **confidence**, and the **explanation**.
 - The goal is "different from the baseline, and in what way". Getting the batch right is how "in what way" is measured.
 
-Still to come: the held-back images to sort into the three batches, and 2 images at the presentation ("which batch, and why").
+The unseen images:
+
+- **Arrived on 3 Oct:** the folder `Hackathon-Polaron-test` with 9 files, which is **3 samples** (3 detectors each): `3e122cbj`, `fn0mhxef`, `xrv9xvzb`. We had expected nine images, three per batch. They have not been opened; only their file names were listed. They are not linked into `data/` yet.
+- **Still to come:** "further images coming just before the judging" (Steve, 3 Oct evening). Earlier we were told 2 images at the presentation ("which batch, and why"). How many come, and from which batches, is not known.
+
+Steve's replies of 3 Oct evening, and what each changes (PLAN_v4 §1.4):
+
+| Reply | New? | What it changes |
+|---|---|---|
+| Batch_3 is the baseline | No | Nothing |
+| The images are real; the batches were sampled from one dataset and "backward engineered" | No | Nothing. It makes a designed microscope difference between batches unlikely (our reading) |
+| The unseen set has "dropped, with further images coming just before the judging" | **Yes** | The freeze is now urgent. The 3-per-batch assumption is gone. The last images leave no time to refit |
+| The bright particles are silicon; "the content % is for you to figure out" | Partly | Show silicon content as a percentage. It does not sort the batches: 8.3 / 5.7 / 6.2 area %, and Batch_1 is 6.3 without strip 2316 |
+| Same detectors; "normalised as best as possible by the user; preprocessing is up to you" | **Yes** | We may normalise between images. Test it on the named textures before the freeze |
 
 ## 2. What we have done
 
@@ -46,7 +59,7 @@ One sample is three files (BSE, ETD or SE, InLens). They are loaded together as 
 | Many rehearsals | The nine-image rehearsal can be repeated over many draws, to see the spread |
 | Tests | 67 pass. The full evaluation reproduces every earlier number |
 
-The PLAN_v4 draft is updated to match (Rule 11 "always a bet", Rule 2 amended, results in §12.2). It still needs Patrik's review.
+PLAN_v4 is now the only plan and is self-contained (v0–v3 were deleted; they are in git history). It carries Rule 11 "always a bet", the amended Rule 2 and the results in §12.2. Patrik has agreed to it.
 
 ## 3. What the results say
 
@@ -58,7 +71,7 @@ Chance is 0.33 for three batches. A result only counts if it beats the score wit
 | Which of the three batches? | 0.64 (null 0.54) | Just |
 | Batch_1 or Batch_2? | Not separable with anything reliable | **No** |
 | Rehearsal, 9 held-out images, repeated 20 times | 0.63 on average, from 4 of 9 to 8 of 9 | One rehearsal means little |
-| Same, forcing 3 images per batch | 0.78 on average | Helps, if the test really is 3 per batch |
+| Same, forcing 3 images per batch | 0.78 on average | Helps only if the test is 3 per batch. The drop has 3 samples and an unknown split, so do not count on it |
 | Prediction sets on unseen images | Held the right batch 89% of the time, about 2 batches per set | Yes |
 
 What was tried for Batch_1 vs Batch_2, all on held-out strips:
@@ -88,55 +101,72 @@ These are weak points in what exists today.
 6. **Batch_1 is the weak class everywhere** (about 3 of 7 right). Strip 2316 looks like nothing else and reads as Batch_3 when held out.
 7. **A possible confound for Batch_3 too.** Batch_3 was imaged with a different InLens black level. The deep features stretch the contrast first, which reduces this, but it is not ruled out.
 8. **The app does not show the new fields yet.** It still prints code names, and its "Unlike any known batch" badge prints the baseline distance.
-9. **Two shared files changed and it was not us.** `AGENTS.md` and `docs/APP.md` have uncommitted edits that remove the "don't upload the images" rule and the "no language model" rule. Check who made them before committing.
+9. **Two earlier rules are dropped (3 Oct).** "No language model measures, decides or explains" and "images stay on our machines" no longer apply (PLAN_v4 §2, Rules 3 and 5); `AGENTS.md` and `docs/APP.md` no longer carry them. Nothing in the code has changed because of it: everything still runs locally and the texts still come from templates.
 
-## 5. What to do next to improve the model
+## 5. What to do next
 
-In order. Steps 1–3 are cheap and should come before any new modelling.
+The same order as PLAN_v4 §4, in plain words. The unseen images have started to arrive, so the freeze comes first and everything else is cut to fit before it.
 
-1. **Look at the shared strips side by side.** Strips 2080, 2148 and 2156 have images in both Batch_1 and Batch_2. These pairs are the cleanest comparison there is: same strip, different batch. Look at them by eye, and list the features that differ in the same direction in all three strips. An earlier hint: silicon patchiness (`si_dispersion_cv`) was higher in Batch_2 in 4 of 5 shared strips.
-2. **Decide which model to freeze** (see section 6), or combine them: use the staged model's first stage for confidence and the deep model for the call.
-3. **Get the answers from Steve** (section 6). Two of them change the model directly.
-4. **Try the ETD detector properly.** Do not concatenate it with InLens (that gave 0.64). Fit one model per detector and average their probabilities. Test it with the "best of all tries" null. Only keep it if Steve says microscope differences count, or it survives that null.
-5. **Try other tile sizes.** Tiles are about 11 µm now. The Batch_1 / Batch_2 difference may live at a finer scale (about 5 µm) or a coarser one (about 22 µm). Also try DINOv2-base or DINOv3 once.
-6. **Remove the microscope from the named textures.** Stretch each detector image the same way the deep features do, then recompute the texture features and test again.
-7. **Measure what the eye sees in step 1.** Likely candidates (AGENT_HANDOVER §6): cracks inside particles, binder amount, porosity split into "between particles" and "inside particles", porous silicon.
-8. **Add example-based reasons.** For each call, show the nearest known tiles ("looks like these"). This also covers the four deep components with no translation.
-9. **After the held-back images are scored, add them to training.** More images per batch is the real limit: Batch_1 and Batch_2 have 7 images each, from 6 strips.
+**Before the freeze (tonight, with a time box agreed with Patrik):**
 
-A rule for all of this: decide the short list of things to try **before** looking at results, and compare the best one against the best-of-the-list null. With 31 images, trying many things and keeping the winner will fool us.
+1. **Settle the two decisions still open** (section 6): when to freeze, and which model.
+2. **Work through one short list, fixed before looking at any result:**
+   - **Shared strips side by side.** Strips 2080, 2148 and 2156 have images in both Batch_1 and Batch_2: same strip, different batch. Look at them by eye and list the features that differ in the same direction in all three. An earlier hint: silicon patchiness (`si_dispersion_cv`) was higher in Batch_2 in 4 of 5 shared strips.
+   - **Remove the microscope from the named textures.** Steve said preprocessing is ours. Stretch each detector image the way the deep features already do, recompute the texture features and test again. This is the cheapest check on whether "Batch_3 or not" is material or microscope.
+   - **One model per detector.** Do not concatenate ETD with InLens (that gave 0.64). Fit one model per detector and average their probabilities.
+   - **Other tile sizes.** About 5 µm and about 22 µm, against the 11 µm of today.
 
-Then freeze and score:
+   Compare the best of the list against the best-of-the-list null. With 31 images, trying many things and keeping the winner will fool us. ETD and the imaging features only go into the model if they survive that null: Steve's replies make a designed microscope difference unlikely.
+3. **Choose the model to freeze**: flat deep, staged, or the staged first stage for the confidence with the deep model for the call.
+4. **Rehearse, fit, freeze.**
+
+**After the freeze:**
+
+5. **Score the 3 dropped samples, once.** Link the folder into `data/` under its own name, run, copy the output to `results/` and commit it unchanged. No `--balanced`. Time the run for one sample.
+6. **Rehearse the last-minute images** with Patrik: the same single command on known images, through the app, timed. Nothing is refit on the day.
+7. **When the last images arrive:** the same command on their folder; present the call, its confidence and its reasons.
 
 ```bash
 uv sync --extra deep
-uv run python -m qc.attribute --dry-run --repeats 30     # rehearsal, with spread
-uv run python -m qc.attribute --fit --families deep      # or: --fit --staged reg,edge,tex,par,kpi:deep
+uv run --extra deep python -m qc.attribute --dry-run --repeats 30     # rehearsal, with spread
+uv run --extra deep python -m qc.attribute --fit --families deep      # or: --fit --staged reg,edge,tex,par,kpi:deep
+git add config/attribution_model.json && git commit                   # then:
 git tag rules-frozen
-uv run python -m qc.attribute --images data/<drop>       # once; commit the output unchanged
+uv run --extra deep python -m qc.attribute --images data/Hackathon-Polaron-test   # once
+mkdir -p results && cp out/attribution/Hackathon-Polaron-test.json results/        # commit unchanged
 ```
+
+**Only if time is left** (none of it is needed for the judged test):
+
+- Example-based reasons: for each call, the nearest known tiles ("looks like these"). This also covers the four deep components with no translation.
+- Measure what the eye sees in the shared strips (AGENT_HANDOVER §6): cracks inside particles, binder amount, porosity split into "between particles" and "inside particles", porous silicon.
+- DINOv2-base or DINOv3, once.
+- If the true batches of the unseen images are given, add them to training. More images per batch is the real limit: Batch_1 and Batch_2 have 7 images each, from 6 strips.
 
 ## 6. Things to clarify
 
 ### With Steve
 
-1. **How many held-back images are there?** The folder `Hackathon-Polaron-test` has 9 files, which is **3 samples** (3 detectors each): `3e122cbj`, `fn0mhxef`, `xrv9xvzb`. Earlier we were told 9 images, 3 per batch. Is it 3 samples (one per batch?), or are 6 samples still to come?
-2. **Is the split equal across batches?** If yes, we submit the balanced assignment, which was worth about +0.15 in rehearsals.
-3. **Does a microscope difference count as a batch difference?** If yes, the ETD detector and the imaging features can go into the model.
-4. **Are the held-back images from strips we already have, or new ones?** We never use the strip as a feature, but it tells us which accuracy estimate applies.
+Answered on 3 Oct evening: Batch_3 is the baseline; the batches were assembled from one dataset; the bright particles are silicon; the unseen images use the same detectors; the first unseen images have dropped and more come just before judging.
+
+Still open:
+
+1. **How many more images come before judging, and from which batches?** The drop has 3 samples, not nine. If the full set is three per batch, the balanced assignment was worth about +0.15 in rehearsals; without a confirmed split we do not use it.
+2. **Are the unseen images from strips we already have, or new ones?** We never use the strip as a feature, but it tells us which accuracy estimate applies.
+3. **Does a microscope difference count as a batch difference?** Our reading of the replies is no. If yes, the ETD detector and the imaging features can go into the model.
+4. **Is each image scored, or the set? Does a low-confidence call that is right count the same?** We always take a bet either way.
 5. **Are the top and bottom 5% of each image meaningful?** We cut them from most measurements.
 
 ### With Patrik
 
 1. **Which model to freeze**: more accurate (deep only) or more honest about its confidence (staged). Both are judged.
-2. **The PLAN_v4 changes**: Rule 11 (always a bet) and the amended Rule 2 (deep features allowed if every reason is translated).
-3. **The app**: show `reasons[].text`, `confidence_tier` with `confidence_record`, `stage_baseline`, `stage_variation`, `prediction_set`; make the badge print `predicted_distance` and `predicted_threshold`; update `web/src/types.ts` and the two attribution fixtures. Nothing the app reads today was renamed.
-4. **The edits to `AGENTS.md` and `docs/APP.md`** (section 4, point 9).
+2. **The time box** for the last model work before the freeze (section 5, step 2).
+3. **The app**: silicon content as a percentage in the compare view; show `reasons[].text`, `confidence_tier` with `confidence_record`, `stage_baseline`, `stage_variation`, `prediction_set`; make the badge print `predicted_distance` and `predicted_threshold`; update `web/src/types.ts` and the two attribution fixtures. Nothing the app reads today was renamed.
 
 ### For Pat to decide
 
 - Whether to commit the fitted model now (it is not frozen) so the app's Sort view works.
-- Whether the held-back samples are scored now as 3, or only once the full set and the answers above are in. They have not been opened; only their file names were listed.
+- Decided (3 Oct, 21:30): the 3 dropped samples are scored right after the freeze, once. They have not been opened; only their file names were listed.
 
 ## 7. Later, if time allows
 
@@ -152,6 +182,6 @@ A quick search, not a full review. Nothing found is specific to sorting silicon-
 - The model family stays. Frozen foundation-model features with a small model on top is the current approach for small materials datasets ([Whitman & Latypov 2025](https://arxiv.org/abs/2501.18637)). Reviews of explainable ML in battery production keep favouring interpretable models on named features.
 - Supervised defect detectors (CNNs trained on labelled cracks, inclusions and coating faults) do not fit: we have no defect labels, 31 images, and batches that are not defined by defects.
 - Particle-level DINOv2 embeddings on SEM ([arXiv 2508.03235](https://arxiv.org/abs/2508.03235)) and two-point statistics with PCA ([arXiv 2405.18396](https://arxiv.org/pdf/2405.18396)): both tried here, neither separated Batch_1 from Batch_2.
-- Example textures instead of heatmaps for SEM: [Palmer et al. 2021](https://arxiv.org/abs/2111.03729). Not built yet (step 8).
+- Example textures instead of heatmaps for SEM: [Palmer et al. 2021](https://arxiv.org/abs/2111.03729). Not built yet (section 5, only if time is left).
 - Prediction sets: [conformal predictors](https://proceedings.mlr.press/v105/johansson19a.html). Built.
-- DINOv3: [arXiv 2508.10104](https://arxiv.org/html/2508.10104v1). Not tried yet (step 5).
+- DINOv3: [arXiv 2508.10104](https://arxiv.org/html/2508.10104v1). Not tried yet (section 5, only if time is left).

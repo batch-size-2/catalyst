@@ -1,4 +1,4 @@
-"""Synthetic controls with a known answer, built from reference images (PLAN_v3 §3.7, §3.13).
+"""Synthetic controls with a known answer, built from reference images (PLAN_v4 §3.7, §3.13).
 
 Each control is a batch of transformed reference fields; the comparison must come out as the
 control's kind says (negative -> SIMILAR, positive -> DIFFERENT with the expected driver).
@@ -244,7 +244,7 @@ def _pos_si_scale(field: Field, rng: np.random.Generator, factor: float = 1.5) -
 def iter_controls(
     fields: list[Field], px_um: float, seed: int = 0, n_strips: int = 3
 ) -> Iterator[Control]:
-    """Yields the PLAN_v3 §3.7 controls one at a time (one control's fields in memory)."""
+    """Yields the PLAN_v4 §3.7 controls one at a time (one control's fields in memory)."""
     rng = np.random.default_rng(seed)
     strips = sorted({f.strip_id for f in fields})
     n_src = min(n_strips, len(strips) - 2)
@@ -280,7 +280,7 @@ def make_controls(fields: list[Field], px_um: float, seed: int = 0, n_strips: in
 
 
 def shared_strip_controls(fields: list[Field], px_um: float, seed: int = 0) -> list[Control]:
-    """PLAN_v3 §3.13: test batches that share split strips with the reference (kept_in_reference)."""
+    """PLAN_v4 §3.13: test batches that share split strips with the reference (kept_in_reference)."""
     rng = np.random.default_rng(seed)
     by_strip: dict[str, list[Field]] = {}
     for f in fields:
