@@ -238,7 +238,7 @@ Reading: the current features can say "looks like the promised Batch_3, or not",
 | Batch_1 vs Batch_2 alone (exploration) | 0.57 against a null p95 of 0.71: not separable |
 | Dry run `--families deep` (same 9 images as §12) | 6/9 unconstrained, 3/9 balanced; every probability about 0.34 because the inner CV picks `C` = 0.01 |
 
-Reading: the deep family is the first one above its null for the three-way question, and Batch_2 has a fine-scale InLens look of its own. Batch_1 is still confused with the other two (strip 2316 reads as Batch_3), and the near-uniform probabilities mean any single call is weak. Full `--evaluate` numbers per family set will be added after the run.
+Reading: the deep family is the first one above its null for the three-way question, and Batch_2 has a fine-scale InLens look of its own. Batch_1 is still confused with the other two (strip 2316 reads as Batch_3), and the near-uniform probabilities mean any single call is weak. In the full `--evaluate` run (nested `C`, 200 segment shuffles per set; the other eight sets are unchanged from §12): `deep` 0.64 against a per-set null p95 of 0.54; `deep+material` (1,716 features) 0.46 against 0.50, so adding the material families to the deep ones dilutes them.
 
 ## 13. Evidence for the new decisions
 
