@@ -237,16 +237,20 @@ def _stage_features(df: pd.DataFrame, families, staged) -> list[str] | tuple[lis
     return (usable_features(df, staged[0]), usable_features(df, staged[1])) if staged else usable_features(df, families)
 
 
-def _fit_parts(df: pd.DataFrame, features, baseline: str | None, seed: int = 0, nested: bool = True, C: float | None = None) -> dict[str, dict]:
+def _fit_parts(df: pd.DataFrame, features, baseline: str | None, seed: int = 0, nested: bool = True, C: float | dict | None = None) -> dict[str, dict]:
     """{"all": part} for one three-way model, or {"baseline": part, "variation": part} when `features`
-    is a pair: baseline-or-not on every row, then which variation on the rows that are not baseline."""
+    is a pair: baseline-or-not on every row, then which variation on the rows that are not baseline.
+
+    `C` is one value for every part, or a per-part dict like the "C" of a saved staged model
+    ({"baseline": ..., "variation": ...})."""
     y, groups = df["batch"].to_numpy(str), df["strip_id"].map(strip_group).to_numpy(str)
+    per = lambda role: C.get(role) if isinstance(C, dict) else C
     if not isinstance(features, tuple):
-        return {"all": _fit_part(df, y, groups, features, seed, nested, C)}
+        return {"all": _fit_part(df, y, groups, features, seed, nested, per("all"))}
     rest = y != str(baseline)
     return {
-        "baseline": _fit_part(df, np.where(rest, other_label(baseline), str(baseline)), groups, features[0], seed, nested, C),
-        "variation": _fit_part(df[rest], y[rest], groups[rest], features[1], seed, nested, C),
+        "baseline": _fit_part(df, np.where(rest, other_label(baseline), str(baseline)), groups, features[0], seed, nested, per("baseline")),
+        "variation": _fit_part(df[rest], y[rest], groups[rest], features[1], seed, nested, per("variation")),
     }
 
 

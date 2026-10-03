@@ -267,6 +267,27 @@ def test_repeated_dry_runs_report_spread_and_held_out_confidence(table):
     assert res["prediction_set"]["mean_size"] >= 1 and set(res["per_batch_accuracy"]) == {"Batch_1", "Batch_2", "Batch_3"}
 
 
+def test_fit_parts_takes_a_per_stage_fixed_c(deep_table):
+    """T1 needs the frozen recipe refit with the JSON's fixed per-stage C (dict form, added there)."""
+    staged = (F.MATERIAL_FAMILIES, ("deep",))
+    features = A._stage_features(deep_table, F.MATERIAL_FAMILIES, staged)
+    classes = sorted(deep_table["batch"].astype(str).unique())
+    parts = A._fit_parts(deep_table, features, "Batch_3", nested=False, C={"baseline": 0.03, "variation": 0.01})
+    assert parts["baseline"]["C"] == 0.03 and parts["variation"]["C"] == 0.01
+    # a dict whose stages agree is exactly a scalar C: dict support changes nothing else
+    scalar = A._fit_parts(deep_table, features, "Batch_3", nested=False, C=0.05)
+    same = A._fit_parts(deep_table, features, "Batch_3", nested=False, C={"baseline": 0.05, "variation": 0.05})
+    assert np.allclose(
+        A._parts_proba(scalar, deep_table, classes, "Batch_3"),
+        A._parts_proba(same, deep_table, classes, "Batch_3"),
+    )
+    # the default path (C=None) is unchanged: C still comes from the nested search
+    default = A._fit_parts(deep_table, features, "Batch_3")
+    assert default["baseline"]["C"] in A.C_GRID and default["variation"]["C"] in A.C_GRID
+    model = A.fit_model(deep_table, "Batch_3", staged=staged, C={"baseline": 0.03, "variation": 0.01})
+    assert model["C"] == {"baseline": 0.03, "variation": 0.01}
+
+
 def test_describe_gives_plain_names():
     assert F.describe("kpi_si_d50_um", {"si_d50_um": {"name": "median silicon particle size"}}) == "median silicon particle size"
     assert F.describe("reg_si_frac_sd") == "silicon fraction, spread between regions"
