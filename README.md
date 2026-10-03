@@ -24,6 +24,54 @@ uv run streamlit run app.py   # dashboard: ingest a batch folder, see verdict, K
 
 Stack: Python 3.11 + uv · numpy / pandas / scipy / scikit-image / tifffile · pydantic · Streamlit + plotly.
 
+## Architecture
+
+> Keep this diagram in sync with the code. Any PR that adds, removes, renames or rewires a module, contract function, output file or data flow updates it in the same PR (see [AGENTS.md](AGENTS.md)).
+
+```mermaid
+flowchart LR
+  subgraph IN["Inputs"]
+    D["data/{batch}/img_{id}_{detector}.tif<br/>BSE · ETD/SE · InLens, 0.025 µm/px"]
+    CFG["config/decision.yaml<br/>baseline · band_coverage · ci_level · reject_lower_bound"]
+  end
+
+  subgraph GLUE["Shared glue"]
+    IO["qc/io.py<br/>load_field → Field<br/>alias detectors · crop edges · px_um · strip_id"]
+    RUN["qc/run.py · run()<br/>measure baseline + batch → judge → write outputs"]
+  end
+
+  subgraph ML["ML · qc/measure.py"]
+    SEG["segment(field) → mask<br/>pore · graphite · Si · binder"]
+    KPI["kpis(field, mask) → dict<br/>names + units in schema.KPI_UNITS"]
+  end
+
+  subgraph BE["Backend · qc/judge.py"]
+    J["judge(baseline_df, batch_df, cfg) → Evidence<br/>tile vs tolerance band → binomial on non-conforming"]
+  end
+
+  subgraph OUT["out/ (gitignored)"]
+    T["kpis.csv<br/>one row per tile"]
+    E["evidence/{batch}.json"]
+    P["previews/{batch}/{id}.png"]
+  end
+
+  UI["app.py · Streamlit<br/>ingest · verdict · KPI chart · tile gallery"]
+  CLI["python -m qc.run --batch ..."]
+
+  D --> IO --> RUN
+  RUN --> SEG --> KPI --> RUN
+  RUN --> T --> J
+  CFG --> J
+  RUN --> P
+  J --> E
+  E --> UI
+  P --> UI
+  UI -- "Run QC" --> RUN
+  CLI --> RUN
+```
+
+`qc/schema.py` is the contract every box above imports: `Field`, `Phase` labels, `KPI_UNITS`, `KPI_TABLE_COLUMNS`, the `Evidence` model and the `out/` paths. The dashboard only reads `out/`; it never calls ML or backend code directly, only `run()`.
+
 ## Who owns what
 
 | File | Owner |
