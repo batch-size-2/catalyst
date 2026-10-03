@@ -477,6 +477,62 @@ def _imaging_channel(img: np.ndarray, px_um: float) -> dict[str, float]:
     }
 
 
+# --- report-only materials descriptors (docs/experiments/T13.md); not in kpis(), features or the verdict ---
+
+SI_CLASSES = ("dense", "porous", "dim_ragged")
+DIM_CONTRAST, RAGGED_SOLIDITY, POROUS_VOID = 1.75, 0.85, 0.1
+BINDER_BANDS = 10
+HPORE_MIN_UM, HPORE_MIN_ASPECT, HPORE_MAX_TILT_DEG = 5.0, 5.0, 20.0
+
+
+def si_class(parts: pd.DataFrame, texture_max: float) -> pd.Series:
+    """Rule-based class per particle: dim_ragged (the strip 2316 kind), else porous, else dense."""
+    dim = (parts["contrast_ratio"] < DIM_CONTRAST) & (parts["solidity"] < RAGGED_SOLIDITY)
+    porous = (parts["void_frac"] > POROUS_VOID) | (parts["texture"] > texture_max)
+    return pd.Series(np.where(dim, "dim_ragged", np.where(porous, "porous", "dense")), index=parts.index)
+
+
+def si_class_shares(parts: pd.DataFrame, texture_max: float) -> dict[str, float]:
+    """Area share of each rule-based Si class; NaN when there are no particles."""
+    area = pd.to_numeric(parts.get("area_um2"), errors="coerce") if len(parts) else pd.Series(dtype=float)
+    total = float(area.sum()) if len(parts) else 0.0
+    if not total:
+        return {f"si_share_{c}": float("nan") for c in SI_CLASSES}
+    cls = si_class(parts, texture_max)
+    return {f"si_share_{c}": float(area[cls == c].sum() / total) for c in SI_CLASSES}
+
+
+def binder_profile(mask: np.ndarray) -> dict[str, float]:
+    """BINDER share of the analysed area, and its normalised top-to-bottom slope over BINDER_BANDS bands."""
+    band = mask[valid_rows(mask.shape[0])]
+    valid = band != Phase.IGNORE
+    n = int(valid.sum())
+    if not n:
+        return {"binder_area_frac": float("nan"), "binder_slope": float("nan")}
+    binder = band == Phase.BINDER
+    edges = np.linspace(0, band.shape[0], BINDER_BANDS + 1).astype(int)
+    fr = np.array([binder[a:b].sum() / max(valid[a:b].sum(), 1) for a, b in zip(edges[:-1], edges[1:])])
+    depth = (np.arange(BINDER_BANDS) + 0.5) / BINDER_BANDS
+    slope = np.polyfit(depth, fr, 1)[0] / fr.mean() if fr.mean() > 0 else float("nan")
+    return {"binder_area_frac": float(binder.sum() / n), "binder_slope": float(slope)}
+
+
+def horizontal_pores(mask: np.ndarray, px_um: float) -> dict[str, float]:
+    """Long, thin, near-horizontal pore regions (cracks, layer separation) at work resolution."""
+    work = mask[::WORK_STEP, ::WORK_STEP][valid_rows(mask[::WORK_STEP].shape[0])]
+    px = px_um * WORK_STEP
+    valid_um2 = float((work != Phase.IGNORE).sum()) * px**2
+    pore = work == Phase.PORE
+    if not valid_um2 or not pore.any():
+        return {"hpore_per_1e4um2": float("nan") if not valid_um2 else 0.0, "hpore_area_frac": 0.0}
+    count, area = 0, 0
+    for p in regionprops(label(pore, connectivity=2)):
+        major, minor = p.axis_major_length, p.axis_minor_length
+        if major * px > HPORE_MIN_UM and major > HPORE_MIN_ASPECT * max(minor, 1e-9) and abs(np.degrees(p.orientation)) >= 90 - HPORE_MAX_TILT_DEG:
+            count, area = count + 1, area + p.area
+    return {"hpore_per_1e4um2": float(count / valid_um2 * 1e4), "hpore_area_frac": float(area / pore.sum())}
+
+
 if __name__ == "__main__":
     import sys
     from pathlib import Path
