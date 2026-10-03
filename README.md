@@ -11,6 +11,28 @@ A decision layer on top of SEM microstructure analysis: compare incoming batches
 
 Day 1 working plan and technical design: [docs/PLAN_v0.md](docs/PLAN_v0.md).
 
-## Status
+## Quickstart
 
-Early skeleton — see the plan for the interface contract, folder layout, and milestones.
+```bash
+brew install uv          # once
+uv sync
+uv run pytest            # contract tests, keep green
+uv run python -m qc.measure                               # data/<batch>/*.tif -> out/kpis.csv
+uv run python -m qc.decide tests/fixtures/kpis_fake.csv   # kpis.csv -> out/evidence/<batch>.json
+uv run streamlit run app.py
+```
+
+Stack: Python 3.11 + uv · numpy / pandas / scipy / scikit-image / tifffile · pydantic · Streamlit.
+
+## Who owns what
+
+| File | Owner |
+|---|---|
+| `qc/schema.py` | **Both.** The contract: phase labels, KPI names + units, Evidence JSON |
+| `qc/measure.py` (`segment`, `kpis`) | ML |
+| `qc/decide.py` (`compare`, `verdict`), `app.py`, `config/decision.yaml` | Backend |
+| `qc/io.py` | Shared helper |
+
+The handoff is `out/kpis.csv`: one row per field of view, columns `batch, image_id, px_um, <KPIs>`. Backend can build against `tests/fixtures/kpis_fake.csv` without touching images.
+
+Data layout: `data/<batch>/<image_id>_<detector>.tif`. There are 3 detectors per field (`BSE`, `ETD`, `Inlens`). Pixel size is read from the TIFF resolution tags (examples: 0.025 µm/px).

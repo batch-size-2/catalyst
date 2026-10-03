@@ -1,0 +1,28 @@
+[project]
+name = "catalyst"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "imagecodecs>=2026.3.6",
+    "numpy>=2.4.6",
+    "pandas>=3.0.6",
+    "plotly>=7.1.0",
+    "pydantic>=2.13.5",
+    "pyyaml>=6.0.3",
+    "scikit-image>=0.26.0",
+    "scipy>=1.17.1",
+    "streamlit>=1.64.0",
+    "tifffile>=2026.3.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.uv]
+exclude-newer = "2026-09-26T00:00:00Z"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
