@@ -170,6 +170,7 @@ export default function Compare({ routeBatch }: { routeBatch?: string }) {
         <>
           <Hero evidence={evidence.data} tile={heroTile} batch={selected} />
           <Counts evidence={evidence.data} config={config.data} tiles={batchTiles} />
+          <WhatsDifferent evidence={evidence.data} config={config.data} />
           <Differences evidence={evidence.data} config={config.data} dict={dict.data} />
           <TileBands evidence={evidence.data} tiles={tiles.data ?? []} batch={selected} dict={dict.data} />
           <Galleries evidence={evidence.data} tiles={tiles.data ?? []} batch={selected} />
@@ -381,7 +382,7 @@ function Differences({
       </div>
       <div className="overflow-x-auto">
         <div className="min-w-[820px]">
-          <div className="lbl grid grid-cols-[220px_minmax(0,1fr)_150px_96px] items-end gap-5 border-b border-cx-line py-2">
+          <div className="lbl grid grid-cols-[220px_minmax(0,1fr)_150px_150px_96px] items-end gap-5 border-b border-cx-line py-2">
             <span>Property</span>
             <div className="mono relative h-3.5 text-[10px]">
               <span className="absolute left-0">−4σ</span>
@@ -391,6 +392,7 @@ function Differences({
               <span className="absolute right-0">+4σ</span>
             </div>
             <span className="text-right">Baseline → {batchLabel(evidence.batch)}</span>
+            <span className="text-right">Spread (SD ×)</span>
             <span className="text-right">Status</span>
           </div>
           {evidence.differences.map((d) => {
@@ -404,7 +406,7 @@ function Differences({
             return (
               <div
                 key={d.name}
-                className={`grid min-h-[54px] grid-cols-[220px_minmax(0,1fr)_150px_96px] items-center gap-5 border-b border-cx-line-soft ${isPaused ? "opacity-55" : ""}`}
+                className={`grid min-h-[54px] grid-cols-[220px_minmax(0,1fr)_150px_150px_96px] items-center gap-5 border-b border-cx-line-soft ${isPaused ? "opacity-55" : ""}`}
               >
                 <div className="flex min-w-0 flex-col gap-[3px]">
                   <span className="flex items-center gap-2 text-sm">
@@ -447,6 +449,7 @@ function Differences({
                 {notMeasured ? (
                   <>
                     <span className="mono text-right text-[13px] text-cx-faint">not measured</span>
+                    <span />
                     <span className="justify-self-end" />
                   </>
                 ) : (
@@ -460,6 +463,7 @@ function Differences({
                         {d.p != null ? ` p ${Number(d.p.toPrecision(2))}` : isPaused ? "imaging changed" : ""}
                       </span>
                     </div>
+                    <Spread d={d} other={evidence.other_unit.variance_ratios?.[d.name]} otherUnit={evidence.other_unit.unit} />
                     <span
                       className={`inline-flex min-h-[26px] items-center justify-self-end rounded-full px-2.5 text-xs ${chip.className}`}
                     >
@@ -475,8 +479,124 @@ function Differences({
       <p className="m-0 pt-3 text-[13px] leading-normal text-cx-faint">
         Different = interval clears the tolerance and family-wise p &lt; {config.alpha}. Similar = interval
         sits inside the tolerance. Anything else is unclear, and we say so. Brightness-based properties
-        pause when imaging changed.
+        pause when imaging changed. Spread = batch SD / baseline SD per {evidence.unit}, with its{" "}
+        {Math.round(config.ci_level * 100)}% F interval and the {evidence.other_unit.unit} view beside it;
+        reported only, never part of the verdict.
       </p>
+    </Panel>
+  );
+}
+
+const ratio = (r: number) => `${r.toFixed(1)}×`;
+
+function Spread({
+  d,
+  other,
+  otherUnit,
+}: {
+  d: Difference;
+  other: import("../types").VarianceRatio | undefined;
+  otherUnit: string;
+}) {
+  if (d.variance_ratio == null) return <span />;
+  const [lo, hi] = d.variance_ratio_interval ?? [null, null];
+  return (
+    <div className="flex flex-col items-end gap-[3px]">
+      <span className="mono text-[13px]">{ratio(d.variance_ratio)}</span>
+      <span className="mono text-[11px] text-cx-faint">
+        {lo != null && hi != null ? `${lo.toFixed(1)}–${hi.toFixed(1)}` : ""}
+        {other?.ratio != null ? ` · ${otherUnit} ${ratio(other.ratio)}` : ""}
+      </span>
+    </div>
+  );
+}
+
+const SILICON_ROWS = [
+  ["si_area_frac", "Share of the image area"],
+  ["si_solid_frac", "Share of the solid: Si / (Si + graphite + binder)"],
+] as const;
+
+function WhatsDifferent({ evidence, config }: { evidence: Evidence; config: import("../types").Config }) {
+  const statements = evidence.explanations.statements ?? [];
+  const pictures = evidence.explanations.pictures ?? [];
+  const silicon = evidence.silicon_content ?? { batch: [], baseline: [] };
+  const spread = evidence.differences.find((d) => d.name === "si_area_frac");
+  const otherSpread = evidence.other_unit.variance_ratios?.si_area_frac;
+  const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+  const cell = (side: "batch" | "baseline", name: string) => {
+    const d = silicon[side].find((x) => x.name === name);
+    if (d?.value == null) return <span className="mono text-[13px] text-cx-faint">—</span>;
+    return (
+      <span className="flex flex-col items-end gap-[3px]">
+        <span className="mono text-[15px]">{pct(d.value)}</span>
+        <span className="mono text-[11px] text-cx-faint">
+          {d.interval ? `${pct(d.interval[0])}–${pct(d.interval[1])}` : "no interval"}
+        </span>
+      </span>
+    );
+  };
+  if (!statements.length && !silicon.batch.length) return null;
+  return (
+    <Panel className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 className="m-0 text-lg font-medium tracking-[-0.01em]">What's different</h2>
+        <span className="text-[13px] text-cx-faint">From this batch's evidence · fixed statements</span>
+      </div>
+      {statements.length > 0 && (
+        <ul className="m-0 flex max-w-[900px] list-none flex-col gap-2 p-0">
+          {statements.map((sentence, i) => (
+            <li key={i} className={`flex gap-2.5 leading-[1.55] ${i === statements.length - 1 ? "text-sm text-cx-muted" : "text-base text-cx-text"}`}>
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cx-orange/70" />
+              <span>{sentence}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {pictures.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          {pictures.map((pic) => (
+            <figure key={`${pic.image_id}-${pic.detector}`} className="m-0 flex flex-col gap-2">
+              <img
+                src={imageUrl(evidence.batch, pic.image_id, pic.detector, 2048)}
+                alt={pic.caption}
+                loading="lazy"
+                className="block aspect-[16/10] w-full rounded-[14px] border border-cx-line object-cover"
+              />
+              <figcaption className="text-[13px] text-cx-muted">
+                {pic.caption}{" "}<span className="mono ml-1 text-cx-faint">{pic.image_id} · {pic.detector}</span>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
+      {silicon.batch.length > 0 && (
+        <div className="flex flex-col gap-1 border-t border-cx-line-soft pt-4">
+          <div className="lbl grid grid-cols-[minmax(0,1fr)_150px_150px_170px] items-end gap-5 border-b border-cx-line py-2">
+            <span>Silicon content · mean, {Math.round(config.ci_level * 100)}% interval</span>
+            <span className="text-right">{batchLabel(evidence.batch)}</span>
+            <span className="text-right">{batchLabel(evidence.baseline)} (baseline)</span>
+            <span className="text-right">Spread (SD ×)</span>
+          </div>
+          {SILICON_ROWS.map(([name, text]) => (
+            <div key={name} className="grid min-h-[54px] grid-cols-[minmax(0,1fr)_150px_150px_170px] items-center gap-5 border-b border-cx-line-soft">
+              <span className="flex flex-col gap-[3px]">
+                <span className="text-sm">{text}</span>
+                <span className="mono text-[11px] text-cx-faint">{name}</span>
+              </span>
+              <span className="justify-self-end">{cell("batch", name)}</span>
+              <span className="justify-self-end">{cell("baseline", name)}</span>
+              {name === "si_area_frac" && spread ? (
+                <Spread d={spread} other={otherSpread} otherUnit={evidence.other_unit.unit} />
+              ) : (
+                <span />
+              )}
+            </div>
+          ))}
+          {evidence.explanations.silicon_note && (
+            <p className="m-0 pt-2 text-[13px] leading-normal text-cx-faint">{evidence.explanations.silicon_note}</p>
+          )}
+        </div>
+      )}
     </Panel>
   );
 }

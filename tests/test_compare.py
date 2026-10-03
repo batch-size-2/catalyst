@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.stats import f as f_dist
 from scipy.stats import t as t_dist
 
 from qc.decide import contradictions, evaluate, split_tables, units_to_settle
@@ -187,3 +188,57 @@ def test_determinism_and_random_branch():
 def test_units_to_settle_hand_checked():
     assert units_to_settle(0.0, 1.0, 3, 7, 1.0, 0.9) == 3
     assert units_to_settle(1.0, 1.0, 3, 7, 1.0, 0.9) is None
+
+
+def test_variance_ratio_matches_scipy_f_and_stays_out_of_the_verdict():
+    b, r = [0.1, 0.5, 0.9, 1.3, 0.2], [0.4, 0.5, 0.6, 0.45, 0.55, 0.5]
+    rows = one_column("b", {f"s{i}": v for i, v in enumerate(b)}) + \
+        one_column("r", {f"t{i}": v for i, v in enumerate(r)})
+    cfg = CFG | {"key_descriptors": ["test_q"], "margins": {"test_q": 1.0}}
+    evidence = evaluate(split_tables(pd.DataFrame(rows)), "b", cfg)
+    d = next(d for d in evidence.differences if d.name == "test_q")
+    ratio = np.std(b, ddof=1) / np.std(r, ddof=1)
+    lo, hi = (ratio / np.sqrt(f_dist.ppf(q, len(b) - 1, len(r) - 1)) for q in (0.95, 0.05))
+    assert np.isclose(d.variance_ratio, ratio) and np.allclose(d.variance_ratio_interval, (lo, hi))
+    assert lo < ratio < hi
+    # one image per strip here, so the strip view gives the same ratio
+    other = evidence.other_unit.variance_ratios["test_q"]
+    assert np.isclose(other.ratio, ratio) and other.n == (len(b), len(r))
+    # only key quantities and si_area_frac get it
+    assert set(evidence.other_unit.variance_ratios) == {"test_q", "si_area_frac"}
+    assert evidence.other_unit.variance_ratios["si_area_frac"].ratio is None  # not measured here
+
+    # a batch with the reference's mean and 3x its spread: the ratio sees it, the verdict path does not
+    spread = [{"batch": "b", "image_id": f"b{i}", "strip_id": f"s{i}", "test_q": 0.5 + 3 * (v - 0.5)}
+               for i, v in enumerate(r)]
+    rows = spread + one_column("r", {f"t{i}": v for i, v in enumerate(r)})
+    evidence = evaluate(split_tables(pd.DataFrame(rows)), "b", cfg)
+    d = next(d for d in evidence.differences if d.name == "test_q")
+    assert np.isclose(d.variance_ratio, 3.0) and d.status != "DIFFERENT"
+    assert not any("SD" in reason or "variance" in reason for reason in evidence.reasons)
+
+
+def test_variance_ratio_needs_two_values_and_baseline_spread():
+    rows = one_column("b", {"s0": 1.0}) + one_column("r", {"t0": 0.0, "t1": 1.0, "t2": 2.0})
+    cfg = CFG | {"key_descriptors": ["test_q"], "margins": {"test_q": 1.0}}
+    d = next(d for d in evaluate(split_tables(pd.DataFrame(rows)), "b", cfg).differences if d.name == "test_q")
+    assert d.variance_ratio is None and d.variance_ratio_interval is None
+    rows = one_column("b", {"s0": 1.0, "s1": 2.0}) + one_column("r", {"t0": 1.0, "t1": 1.0})
+    d = next(d for d in evaluate(split_tables(pd.DataFrame(rows)), "b", cfg).differences if d.name == "test_q")
+    assert d.variance_ratio is None
+
+
+def test_silicon_content_is_area_and_solid_share():
+    rows = [
+        {"batch": "r", "image_id": "r0", "strip_id": "a", "si_area_frac": 0.06, "porosity_apparent": 0.10},
+        {"batch": "r", "image_id": "r1", "strip_id": "b", "si_area_frac": 0.08, "porosity_apparent": 0.20},
+        {"batch": "b", "image_id": "b0", "strip_id": "c", "si_area_frac": 0.09, "porosity_apparent": 0.10},
+        {"batch": "b", "image_id": "b1", "strip_id": "c", "si_area_frac": 0.12, "porosity_apparent": 0.20},
+    ]
+    content = evaluate(split_tables(pd.DataFrame(rows)), "b", CFG).silicon_content
+    area, solid = content.batch
+    assert (area.name, solid.name) == ("si_area_frac", "si_solid_frac") and solid.unit == "fraction"
+    assert np.isclose(area.value, 0.105) and np.isclose(solid.value, (0.09 / 0.9 + 0.12 / 0.8) / 2)
+    assert area.interval[0] < area.value < area.interval[1]
+    assert np.isclose(content.baseline[1].value, (0.06 / 0.9 + 0.08 / 0.8) / 2)
+    assert set(solid.by_strip) == {"c"}

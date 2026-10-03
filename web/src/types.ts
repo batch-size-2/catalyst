@@ -27,6 +27,15 @@ export interface Difference {
   p: number | null;
   status: Status;
   n_segments: [number, number];
+  variance_ratio: number | null;               // report-only: batch SD / baseline SD
+  variance_ratio_interval: Range | null;       // ci_level F interval on it
+}
+
+/** Batch SD / baseline SD at one unit. Report-only: never in the verdict. */
+export interface VarianceRatio {
+  ratio: number | null;
+  interval: Range | null;
+  n: [number, number];
 }
 
 export interface Power {
@@ -42,6 +51,7 @@ export interface UnitView {
   power: Power;
   statuses: Record<string, Status>;
   contradictions: string[];
+  variance_ratios: Record<string, VarianceRatio>;
 }
 
 export interface Odd {
@@ -88,11 +98,26 @@ export interface Fingerprint {
   type_shares: Descriptor[];
 }
 
+/** Silicon content % (PLAN_v4 §3.8): si_area_frac and si_solid_frac = Si / (Si + graphite + binder). */
+export interface SiliconContent {
+  batch: Descriptor[];
+  baseline: Descriptor[];
+}
+
+export interface Picture {
+  image_id: string;
+  detector: string;
+  caption: string;
+}
+
 export interface Explanations {
   operator: string;
   engineer: string;
   scientist: string;
   manager: string;
+  statements: string[];    // "What's different": fixed batch statements filled from the evidence
+  silicon_note: string;
+  pictures: Picture[];
 }
 
 export interface InputFile {
@@ -127,6 +152,7 @@ export interface Evidence {
   imaging: ImagingCheck;
   controls: Controls;
   fingerprint: Fingerprint;
+  silicon_content: SiliconContent;
   n_images: Record<string, number>;
   explanations: Explanations;
   provenance: Provenance | null;

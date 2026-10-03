@@ -4,9 +4,31 @@ from pathlib import Path
 
 import yaml
 
-from qc.schema import Evidence, Explanations
+from qc.schema import Evidence, Explanations, Picture
 
 DICTIONARY_PATH = Path("config/kpi_dictionary.yaml")
+# "What's different" (TICKETS T5, review §8.3, docs/experiments/T13.md): fixed statements per known batch,
+# filled from the evidence; other batches get a generic one from the variance ratio and the drivers.
+BATCH_STATEMENTS = {
+    "Batch_1": ("Batch_1 holds a different silicon population in 2 of {n} images (strip 2316: dimmer, more "
+                "ragged particles); the other {n_rest} match the baseline.",
+                "It is the most variable batch: silicon SD {variance_ratio:.1f}× the baseline's."),
+    "Batch_2": ("Batch_2 is not materially different from the baseline in anything we measure.",),
+}
+GENERIC_STATEMENTS = ("{batch}: silicon SD {variance_ratio:.1f}× the baseline's.",
+                      "Largest shift against its margin: {driver}, which {status}.")
+BASELINE_STATEMENTS = ("{batch} is the baseline, compared here with itself.",)
+IMAGING_STATEMENT = ("Imaging differences are shown separately. The batch-sorting model's signal is also "
+                     "predicted by how the images were acquired (docs/experiments/T9.md).")
+SILICON_NOTE = "Area fraction ≈ volume fraction. Silicon content does not sort the batches."
+SPREAD_QUANTITY = "si_area_frac"
+# (strip prefix, detector, caption): shown beside the statements when the batch has an image of that strip
+BATCH_PICTURES = {
+    "Batch_1": [("2080", "InLens", "Strip 2080, InLens: one of the five Batch_1 images that match the baseline; "
+                                   "its neighbours on this strip are in Batch_2 and Batch_3."),
+                ("2316", "BSE", "Strip 2316, BSE: the different silicon population, dimmer and more ragged "
+                                "particles.")],
+}
 GRAPHITE_MAH_G, SIOX_MAH_G, SI_MAH_G = 372, 1500, 3600
 SI_EXPANSION, GRAPHITE_EXPANSION = 2.8, 0.1
 BRUGGEMAN = 1.5
@@ -76,6 +98,43 @@ def top_quantities(evidence: Evidence, n: int | None = 3):
     names.extend(d.name for d in evidence.differences if d.name in by_name and d.name not in names)
     top = [by_name[q] for q in names]
     return top if n is None else top[:n]
+
+
+def fill(templates: tuple[str, ...], values: dict) -> list[str]:
+    """Format each template; drop the ones whose numbers the evidence does not have."""
+    out = []
+    for template in templates:
+        try:
+            out.append(template.format(**values))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def statements(evidence: Evidence, dictionary: dict) -> list[str]:
+    """The "What's different" statements: fixed texts per known batch, else a generic one."""
+    spread = next((d for d in evidence.differences if d.name == SPREAD_QUANTITY), None)
+    n = evidence.n_images.get("batch")
+    top = top_quantities(evidence, 1)
+    values = {k: v for k, v in {
+        "batch": evidence.batch, "n": n, "n_rest": n - 2 if n else None,
+        "variance_ratio": spread.variance_ratio if spread else None,
+        "driver": label(top[0].name, dictionary) if top else None,
+        "status": STATUS_PHRASES[top[0].status] if top else None,
+    }.items() if v is not None}
+    templates = (BASELINE_STATEMENTS if evidence.batch == evidence.baseline
+                 else BATCH_STATEMENTS.get(evidence.batch, GENERIC_STATEMENTS))
+    return [*fill(templates, values), IMAGING_STATEMENT]
+
+
+def pictures(evidence: Evidence) -> list[Picture]:
+    out = []
+    for prefix, detector, caption in BATCH_PICTURES.get(evidence.batch, []):
+        segment = next((s for s in evidence.fingerprint.segments
+                        if s.strip_id.split("_")[0] == prefix and s.image_ids), None)
+        if segment:
+            out.append(Picture(image_id=segment.image_ids[0], detector=detector, caption=caption))
+    return out
 
 
 def explain(evidence: Evidence, dictionary: dict) -> Explanations:
@@ -205,4 +264,6 @@ def explain(evidence: Evidence, dictionary: dict) -> Explanations:
         manager.append("These ranges are indicative, from textbook relations, not predictions.")
 
     return Explanations(operator=operator, engineer=" ".join(engineer), scientist=" ".join(scientist),
-                        manager=" ".join(manager))
+                        manager=" ".join(manager), statements=statements(evidence, dictionary),
+                        silicon_note=SILICON_NOTE if evidence.silicon_content.batch else "",
+                        pictures=pictures(evidence))

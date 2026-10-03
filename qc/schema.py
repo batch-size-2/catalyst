@@ -122,6 +122,16 @@ class Difference(BaseModel):
     p: float | None = None               # family-wise permutation p (max-|T| over used key quantities)
     status: Status = "UNCLEAR"
     n_segments: tuple[int, int]          # (batch, reference) segments with a value
+    variance_ratio: float | None = None  # report-only: batch SD / reference SD of the segment values
+    variance_ratio_interval: Range | None = None  # ci_level F interval on it (key quantities and si_area_frac)
+
+
+class VarianceRatio(BaseModel):
+    """Batch SD / reference SD at one unit. Report-only: it never enters the verdict."""
+
+    ratio: float | None
+    interval: Range | None = None        # ci_level: F(n1 - 1, n2 - 1) interval on the variance ratio, square-rooted
+    n: tuple[int, int]                   # (batch, reference) values
 
 
 class Power(BaseModel):
@@ -139,6 +149,7 @@ class UnitView(BaseModel):
     power: Power
     statuses: dict[str, Status]          # used key quantity -> status at this unit
     contradictions: list[str] = []       # used key quantities DIFFERENT at one unit and SIMILAR at the other
+    variance_ratios: dict[str, VarianceRatio] = {}  # report-only, at this unit; same quantities as Difference
 
 
 class Odd(BaseModel):
@@ -185,11 +196,28 @@ class Fingerprint(BaseModel):
     type_shares: list[Descriptor] = []
 
 
+class SiliconContent(BaseModel):
+    """Silicon content % (PLAN_v4 §3.8): si_area_frac and si_solid_frac = si_area_frac / (1 - porosity_apparent),
+    i.e. Si / (Si + graphite + binder). Report-only; values and intervals at the driving unit."""
+
+    batch: list[Descriptor] = []
+    baseline: list[Descriptor] = []
+
+
+class Picture(BaseModel):
+    image_id: str                        # an image of the evaluated batch
+    detector: str
+    caption: str
+
+
 class Explanations(BaseModel):
     operator: str = ""
     engineer: str = ""
     scientist: str = ""
     manager: str = ""
+    statements: list[str] = []           # "What's different": fixed batch statements filled from the evidence
+    silicon_note: str = ""
+    pictures: list[Picture] = []         # images that go with the statements
 
 
 class InputFile(BaseModel):
@@ -224,6 +252,7 @@ class Evidence(BaseModel):
     imaging: ImagingCheck = ImagingCheck()
     controls: Controls = Controls()
     fingerprint: Fingerprint
+    silicon_content: SiliconContent = SiliconContent()
     n_images: dict[str, int]             # {"batch": n, "baseline": n}
     explanations: Explanations = Explanations()
     provenance: Provenance | None = None
