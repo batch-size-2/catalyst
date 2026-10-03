@@ -37,6 +37,12 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 - `nearest_batch`, `image_groups` and `variance_split` were removed; `extra_needed`, `odd_sd`, `Odd` and `odd_images` were added.
 - The UI, evidence fixture (strict round-trip test) and README were updated.
 
+## Done (step 2, branch `PtrkH/attribution-contract`)
+
+- Proposed the `Attribution` contract and added a fully populated fixture with strict round-trip validation.
+- Added the runner glue and thin API endpoints, including the 501 response while Pat's module is unavailable.
+- Updated the README architecture, infrastructure, API, attribution and ownership sections.
+
 ## Done (PR #4)
 
 - **Evidence contract**: `qc/schema.py`, mirrored in `web/src/types.ts`; full example in `tests/fixtures/evidence_example.json`.
@@ -56,16 +62,7 @@ Done, see Done.
 
 ### 2. Wrap Pat's batch attribution (decided 3 Oct: Pat owns it)
 
-Pat builds the attribution model in `qc/attribute.py`, on features from `qc/features.py` (`out/features.csv`); see `docs/AGENT_HANDOVER.md` on branch `pat/ml-v3`. The software side builds no classifier. It:
-- proposes the output contract in `qc/schema.py`: `Attribution`, written to `out/attribution/<run>.json`, mirrored in `web/src/types.ts`, with `tests/fixtures/attribution_example.json`. Pat confirms or changes it;
-- adds the API: `GET /api/attribution`, `GET /api/attribution/{run}`, `POST /api/attribution/{run}` (NDJSON progress; calls Pat's `predict` when `qc.attribute` exists, else 501);
-- builds the views in step 5 against the fixture.
-
-**Held-out protocol** (put it in the README):
-1. Put the new images in their own folders under `data/`, never inside the known batch folders.
-2. Freeze the model, then `git tag rules-frozen`.
-3. Predict once.
-4. Commit the output unchanged.
+Done, see Done. Pending: Pat confirms the contract.
 
 ### 3. Plumbing for Pat's outputs (no edits to her files)
 

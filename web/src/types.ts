@@ -1,8 +1,9 @@
-/** Mirrors qc/schema.py (Evidence) and qc/api.py (BatchSummary, run events). Update together. */
+/** Mirrors qc/schema.py (Evidence, Attribution) and qc/api.py (BatchSummary, run events). Update together. */
 
 export type Verdict = "ACCEPT" | "INVESTIGATE" | "REJECT";
 export type Status = "SIMILAR" | "DIFFERENT" | "UNCLEAR";
 export type Unit = "image" | "strip";
+export type AttributionScheme = "leave-one-strip-out" | "leave-one-image-out" | "held-out";
 export type Range = [number, number];
 
 export interface Segment {
@@ -133,6 +134,60 @@ export interface Evidence {
   config_version: string;
 }
 
+export interface FeatureProfile {
+  name: string;
+  unit: string;
+  family: string | null;
+  used: boolean;
+  eta2: number | null;
+  mean: Record<string, number | null>;
+  sd: Record<string, number | null>;
+}
+
+export interface FeatureCall {
+  name: string;
+  value: number | null;
+  z: Record<string, number | null>;
+  contribution: number | null;
+}
+
+export interface ImageCall {
+  image_id: string;
+  folder: string;
+  strip_id: string | null;
+  predicted: string;
+  probabilities: Record<string, number>;
+  assigned: string | null;
+  truth: string | null;
+  features: FeatureCall[];
+  nearest: string[];
+  heatmap: string | null;
+  outside_baseline: string[];
+  unfamiliar: boolean;
+  why: string[];
+}
+
+export interface Evaluation {
+  scheme: AttributionScheme;
+  n: number;
+  accuracy: number;
+  balanced_accuracy: number;
+  null_95: number | null;
+  confusion: Record<string, Record<string, number>>;
+}
+
+export interface Attribution {
+  run: string;
+  batches: string[];
+  baseline: string;
+  model: InputFile | null;
+  features: FeatureProfile[];
+  evaluations: Evaluation[];
+  clustering_ari: number | null;
+  calls: ImageCall[];
+  provenance: Provenance | null;
+}
+
 export interface BatchSummary {
   name: string;
   has_images: boolean;
@@ -150,4 +205,9 @@ export interface Config {
 export type RunEvent =
   | { type: "progress"; done: number; total: number; tile: string }
   | { type: "done"; evidence: Evidence }
+  | { type: "error"; message: string };
+
+export type AttributionEvent =
+  | { type: "progress"; done: number; total: number; tile: string }
+  | { type: "done"; attribution: Attribution }
   | { type: "error"; message: string };

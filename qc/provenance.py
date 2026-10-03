@@ -8,7 +8,7 @@ from pathlib import Path
 
 from qc.schema import InputFile, Provenance
 
-CONFIG_FILES = ("particle_types.json", "kpi_dictionary.yaml")
+CONFIG_FILES = ("particle_types.json", "kpi_dictionary.yaml", "attribution_model.json")
 
 
 def sha256(data: bytes | str | Path) -> str:

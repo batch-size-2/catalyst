@@ -1,0 +1,156 @@
+{
+  "run": "example_drop",
+  "batches": ["Batch_1", "Batch_2", "Batch_3"],
+  "baseline": "Batch_3",
+  "model": {
+    "path": "config/attribution_model.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "features": [
+    {
+      "name": "si_dispersion_cv",
+      "unit": "ratio",
+      "family": "kpi",
+      "used": true,
+      "eta2": 0.39,
+      "mean": {"Batch_1": 0.71, "Batch_2": 0.89, "Batch_3": 0.62},
+      "sd": {"Batch_1": 0.1, "Batch_2": 0.1, "Batch_3": 0.1}
+    },
+    {
+      "name": "si_graphite_ratio",
+      "unit": "ratio",
+      "family": "regional",
+      "used": true,
+      "eta2": 0.31,
+      "mean": {"Batch_1": 0.12, "Batch_2": 0.16, "Batch_3": 0.1},
+      "sd": {"Batch_1": 0.02, "Batch_2": 0.02, "Batch_3": 0.02}
+    },
+    {
+      "name": "si_d50_um",
+      "unit": "um",
+      "family": "kpi",
+      "used": true,
+      "eta2": 0.18,
+      "mean": {"Batch_1": 3.2, "Batch_2": 3.5, "Batch_3": 3.0},
+      "sd": {"Batch_1": 0.2, "Batch_2": 0.2, "Batch_3": 0.2}
+    },
+    {
+      "name": "porosity_apparent",
+      "unit": "fraction",
+      "family": "kpi",
+      "used": false,
+      "eta2": 0.05,
+      "mean": {"Batch_1": 0.11, "Batch_2": 0.12, "Batch_3": 0.1},
+      "sd": {"Batch_1": 0.02, "Batch_2": 0.02, "Batch_3": 0.02}
+    }
+  ],
+  "evaluations": [
+    {
+      "scheme": "leave-one-strip-out",
+      "n": 31,
+      "accuracy": 0.806,
+      "balanced_accuracy": 0.806,
+      "null_95": 0.452,
+      "confusion": {
+        "Batch_1": {"Batch_1": 9, "Batch_2": 1, "Batch_3": 1},
+        "Batch_2": {"Batch_1": 1, "Batch_2": 8, "Batch_3": 1},
+        "Batch_3": {"Batch_1": 1, "Batch_2": 1, "Batch_3": 8}
+      }
+    },
+    {
+      "scheme": "leave-one-image-out",
+      "n": 31,
+      "accuracy": 0.839,
+      "balanced_accuracy": 0.836,
+      "null_95": null,
+      "confusion": {
+        "Batch_1": {"Batch_1": 10, "Batch_2": 1, "Batch_3": 0},
+        "Batch_2": {"Batch_1": 1, "Batch_2": 8, "Batch_3": 1},
+        "Batch_3": {"Batch_1": 1, "Batch_2": 1, "Batch_3": 8}
+      }
+    }
+  ],
+  "clustering_ari": 0.61,
+  "calls": [
+    {
+      "image_id": "drop_01",
+      "folder": "drop",
+      "strip_id": "S1",
+      "predicted": "Batch_2",
+      "probabilities": {"Batch_1": 0.14, "Batch_2": 0.81, "Batch_3": 0.05},
+      "assigned": "Batch_2",
+      "truth": null,
+      "features": [
+        {
+          "name": "si_dispersion_cv",
+          "value": 0.91,
+          "z": {"Batch_1": 2.0, "Batch_2": 0.2, "Batch_3": 2.9},
+          "contribution": 0.36
+        },
+        {
+          "name": "si_graphite_ratio",
+          "value": 0.159,
+          "z": {"Batch_1": 1.95, "Batch_2": -0.05, "Batch_3": 2.95},
+          "contribution": 0.21
+        },
+        {
+          "name": "si_d50_um",
+          "value": 3.48,
+          "z": {"Batch_1": 1.4, "Batch_2": -0.1, "Batch_3": 2.4},
+          "contribution": 0.08
+        }
+      ],
+      "nearest": ["Batch_2/known_03", "Batch_2/known_07"],
+      "heatmap": "out/attribution/example_drop/drop_01.png",
+      "outside_baseline": [],
+      "unfamiliar": false,
+      "why": [
+        "Closest to Batch_2 (81%); next is Batch_1 (14%).",
+        "si_dispersion_cv = 0.91 ratio: 0.2 SD from Batch_2's mean, 2.0 SD from Batch_1's (baseline 2.9 SD)."
+      ]
+    },
+    {
+      "image_id": "drop_02",
+      "folder": "drop",
+      "strip_id": null,
+      "predicted": "Batch_3",
+      "probabilities": {"Batch_1": 0.2, "Batch_2": 0.25, "Batch_3": 0.55},
+      "assigned": null,
+      "truth": null,
+      "features": [
+        {
+          "name": "si_dispersion_cv",
+          "value": 1.35,
+          "z": {"Batch_1": 6.4, "Batch_2": 4.6, "Batch_3": 7.3},
+          "contribution": 0.04
+        }
+      ],
+      "nearest": [],
+      "heatmap": "out/attribution/example_drop/drop_02.png",
+      "outside_baseline": ["si_dispersion_cv"],
+      "unfamiliar": true,
+      "why": [
+        "Closest to Batch_3 (55%); next is Batch_2 (25%).",
+        "si_dispersion_cv = 1.35 ratio: 7.3 SD from Batch_3's mean.",
+        "Outside the Batch_3 baseline range on si_dispersion_cv."
+      ]
+    }
+  ],
+  "provenance": {
+    "inputs": [
+      {
+        "path": "drop/drop_01_BSE.tif",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "git_commit": "85e308fa70d1eda5e9c23e058b889d65c7f23ebb",
+    "git_dirty": false,
+    "config_sha256": {
+      "decision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "attribution_model.json": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "rules_frozen_commit": null,
+    "rules_frozen_date": null,
+    "created_at": "2026-10-03T16:00:00+00:00"
+  }
+}

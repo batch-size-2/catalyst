@@ -49,13 +49,17 @@ flowchart LR
 
   subgraph GLUE["Shared glue"]
     IO["qc/io.py<br/>load_field → Field<br/>alias detectors · crop edges · px_um · strip_id · black_level"]
-    RUN["qc/run.py · run()<br/>measure baseline + batch → evaluate → write outputs"]
+    RUN["qc/run.py · run() / attribute()<br/>measure + evaluate · wrap Pat's predict()"]
     PROV["qc/provenance.py<br/>input + config hashes · git state · rules-frozen tag"]
   end
 
   subgraph ML["ML · qc/measure.py"]
     SEG["segment(channels, px_um) → mask<br/>pore · graphite · Si · binder · ignore"]
     KPI["kpis(mask, px_um, channels) → dict<br/>names + units in schema.KPI_UNITS"]
+  end
+
+  subgraph ATTRIB["ML · Pat's qc/attribute.py (planned)"]
+    PREDICT["predict(dirs, progress) → Attribution"]
   end
 
   subgraph BE["Backend · qc/decide.py"]
@@ -65,25 +69,29 @@ flowchart LR
   subgraph OUT["out/ (gitignored)"]
     T["kpis.csv<br/>one row per image, incl. area_um2"]
     E["evidence/{batch}.json"]
+    A["attribution/{run}.json"]
     P["masks/{batch}/{id}.png"]
   end
 
-  API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · masks<br/>POST upload · run (NDJSON progress)"]
+  API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · masks · attribution<br/>POST upload · run · attribution (NDJSON progress)"]
   WEB["web/ · Vite + React :5173<br/>ingest · verdict · differences · strip gallery · provenance"]
   CLI["python -m qc.run / qc.measure"]
 
   D --> IO --> RUN
   RUN --> SEG --> KPI --> RUN
+  RUN -. "attribute() calls" .-> PREDICT --> A
   RUN --> T --> J
   CFG --> J
   RUN --> P
   RUN --> PROV --> E
   J --> E
   E --> API
+  A --> API
   P --> API
   API -- "/api via Vite proxy" --> WEB
   WEB -- "upload + run" --> API
   API -- "run()" --> RUN
+  API -- "attribute()" --> RUN
   CLI --> RUN
 ```
 
@@ -96,7 +104,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | Process | Command | Port | Role |
 |---|---|---|---|
 | Pipeline (CLI) | `uv run python -m qc.run --batch …` | – | Measure → compare → write `out/`. This is what we freeze and run on the unseen batch |
-| API | `uv run uvicorn qc.api:app --reload` | 8000 | Thin FastAPI wrapper: reads `out/`, saves uploads to `data/`, calls `run()`. No QC logic |
+| API | `uv run uvicorn qc.api:app --reload` | 8000 | Thin FastAPI wrapper: reads `out/`, saves uploads to `data/`, calls `run()` / `attribute()`. No QC logic |
 | Web UI | `cd web && npm run dev` | 5173 | Vite + React + TypeScript + Tailwind. Talks only to `/api` (proxied to :8000 by `web/vite.config.ts`) |
 
 **Folders**
@@ -106,12 +114,15 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `data/<batch>/` | no | Input TIFFs (or symlinks to them). One folder per batch; the folder name is the batch name |
 | `EXAMPLE BATCHES FOR LOCAL REFERENCE/` | no | The 1.6 GB of Polaron images. Don't upload anywhere without Polaron's OK (PLAN_v1 §1, rule 5) |
 | `config/decision.yaml` | yes | Decision settings. Frozen with `git tag rules-frozen` before the unseen batch |
+| `config/attribution_model.json` | yes | Pat's frozen attribution model; hashed into provenance when present |
 | `out/kpis.csv` | no | KPI table, one row per image (incl. `area_um2`, the analysed area), all batches measured so far |
 | `out/particles.csv`, `out/imaging.csv` | no | Planned (§3.1): one row per Si particle, and per image and channel |
 | `out/masks/<batch>/<image_id>.png` | no | BSE with phase overlay (4× downsampled), for eyeballing and the UI |
-| `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads only this and the masks |
+| `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads this, attribution output and masks |
+| `out/attribution/<run>.json` | no | Attribution output from Pat's model, exposed by the API |
 | `tests/fixtures/kpis_fake.csv` | yes | Synthetic KPI table (`tests/synth.py`), so the backend and UI can be built with no images |
 | `tests/fixtures/evidence_example.json` | yes | Hand-made, fully populated Evidence. To view it in the UI: `cp tests/fixtures/evidence_example.json out/evidence/example.json` and select `example` |
+| `tests/fixtures/attribution_example.json` | yes | Hand-made, fully populated Attribution contract example |
 
 **HTTP API** (`qc/api.py`, called from `web/src/api.ts`)
 
@@ -120,9 +131,12 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `GET /api/config` | `config/decision.yaml` as JSON |
 | `GET /api/batches` | `[{name, has_images, verdict}]`: folders in `data/` plus evidence in `out/` |
 | `GET /api/evidence/{batch}` | `Evidence` |
+| `GET /api/attribution` | Sorted attribution run names |
+| `GET /api/attribution/{name}` | `Attribution` |
 | `GET /api/masks/{batch}/{image_id}.png` | Mask overlay |
 | `POST /api/batches/{batch}/files` | Multipart upload of a folder's TIFFs into `data/{batch}/` |
 | `POST /api/runs/{batch}` | NDJSON stream: one `{"type":"progress","done","total","tile"}` per measured tile, then `{"type":"done","evidence"}` or `{"type":"error","message"}` |
+| `POST /api/attribution/{name}` | NDJSON progress and result from Pat's `predict`; 501 if `qc.attribute` is unavailable |
 
 **Dependencies.**
 - Python: `pyproject.toml` + `uv.lock`, Python 3.11.
@@ -273,12 +287,34 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 
 `tests/fixtures/evidence_example.json` is a fully populated example (stats, controls, fingerprint, provenance) for the UI and for reading the contract.
 
+## Batch attribution (Pat's `qc/attribute.py`)
+
+The software side builds no classifier; `qc.run.attribute()` wraps Pat's predictor and persists its validated output.
+
+| Model | Contents |
+|---|---|
+| `FeatureProfile` | Feature unit/family, model use, eta² and per-batch means and SDs |
+| `FeatureCall` | Image value, per-batch z-scores and signed contribution |
+| `ImageCall` | Prediction and probabilities, optional assignment/truth, feature evidence, nearest images, heatmap, unfamiliar and baseline flags, templated reasons |
+| `Evaluation` | Evaluation scheme, n, accuracy, balanced accuracy, shuffled-label null and confusion matrix |
+| `Attribution` | Run, known batches, baseline, model file, feature profiles, evaluations, clustering ARI, image calls and provenance |
+
+`predict(dirs: list[Path], progress) -> Attribution` returns the model or an equivalent dict; `run.attribute()` validates the result and writes `out/attribution/<run>.json`.
+
+**Held-out protocol**
+1. Put the new images in their own folders under `data/`, never inside the known batch folders.
+2. Freeze the model, then `git tag rules-frozen`.
+3. Predict once.
+4. Commit the output unchanged.
+
 ## Who owns what
 
 | File | Owner |
 |---|---|
-| `qc/schema.py`, `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv`, `tests/fixtures/evidence_example.json` | **Both.** The contract: changes need both of us |
+| `qc/schema.py` Evidence and `Attribution` models | **Both.** The contract: changes need both of us |
+| `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv`, `tests/fixtures/evidence_example.json`, `tests/fixtures/attribution_example.json` | **Both.** Contract and fixtures |
 | `qc/measure.py` (`segment`, `kpis`) | ML (Pat) |
+| `qc/attribute.py`, `qc/features.py`, `config/attribution_model.json` | ML (Pat) |
 | `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
 | `qc/api.py`, `web/` | Software (Patrik) |
 | `qc/io.py`, `qc/run.py` | Shared glue |
