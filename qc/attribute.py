@@ -198,13 +198,38 @@ def _loso_predict(Z, y, groups, C, seed=0, proba=False):
     return (pred, probs, classes) if proba else pred
 
 
-def _fit_part(df: pd.DataFrame, y: np.ndarray, groups: np.ndarray, features: list[str], seed: int = 0, nested: bool = True, C: float | None = None) -> dict:
-    """One logistic regression as plain data: reducer, scaler, coefficients. A single class fits nothing."""
+def _deep_pcs(names: list[str]) -> list[int]:
+    return [i for i, n in enumerate(names) if n.startswith(f"{DEEP_FAMILY}_pc")]
+
+
+def _residualise(Xr: np.ndarray, cov: np.ndarray, fit: dict) -> np.ndarray:
+    """Subtract from the deep PC columns what an intercept plus the covariates predict (coefficients in `fit`)."""
+    A = np.column_stack([np.ones(len(cov)), np.nan_to_num(cov - np.asarray(fit["cov_mean"], float))])
+    out = Xr.copy()
+    out[:, fit["pcs"]] -= A @ np.asarray(fit["beta"], float)
+    return out
+
+
+def _fit_part(df: pd.DataFrame, y: np.ndarray, groups: np.ndarray, features: list[str], seed: int = 0, nested: bool = True, C: float | None = None, residualize: list[str] | None = None) -> dict:
+    """One logistic regression as plain data: reducer, scaler, coefficients. A single class fits nothing.
+
+    `residualize` (diagnostic, docs/experiments/T2.md): column names whose linear effect is removed from
+    the deep PCs, fit by OLS on these (training) rows. None leaves the part exactly as before."""
     X = _matrix(df, features)
     red = Reducer(X, features)
     Xr = red(X)
+    resid = None
+    if residualize and (pcs := _deep_pcs(red.names)):
+        cov = _matrix(df, residualize)
+        cov_mean = np.nanmean(cov, axis=0)
+        A = np.column_stack([np.ones(len(cov)), np.nan_to_num(cov - cov_mean)])
+        beta = np.linalg.lstsq(A, Xr[:, pcs], rcond=None)[0]
+        resid = {"columns": list(residualize), "pcs": pcs, "cov_mean": cov_mean.tolist(), "beta": beta.tolist()}
+        Xr = _residualise(Xr, cov, resid)
     std = Standardiser(Xr)
     part = {"features": list(features), "model_features": red.names, "reducer": red.to_json(), "classes": sorted(map(str, np.unique(y))), "C": None, "mean": std.mean, "sd": std.sd}
+    if resid:
+        part["residualize"] = resid
     if len(part["classes"]) < 2:
         return part | {"coef": np.zeros((1, Xr.shape[1])), "intercept": np.zeros(1)}
     Z = std(Xr)
@@ -217,6 +242,8 @@ def _eval_part(part: dict, feats: pd.DataFrame) -> tuple[np.ndarray, np.ndarray,
     """(probabilities per part class, standardised features Z, coefficients per class, reduced features)."""
     features = part["features"]
     Xr = Reducer.from_json(features, part.get("reducer"))(feats.reindex(columns=features).apply(pd.to_numeric, errors="coerce").to_numpy(float))
+    if resid := part.get("residualize"):
+        Xr = _residualise(Xr, feats.reindex(columns=resid["columns"]).apply(pd.to_numeric, errors="coerce").to_numpy(float), resid)
     Z = np.nan_to_num((Xr - np.asarray(part["mean"], float)) / np.asarray(part["sd"], float), nan=0.0, posinf=0.0, neginf=0.0)
     coef, intercept = np.asarray(part["coef"], float), np.asarray(part["intercept"], float)
     if len(part["classes"]) < 2:
@@ -237,16 +264,16 @@ def _stage_features(df: pd.DataFrame, families, staged) -> list[str] | tuple[lis
     return (usable_features(df, staged[0]), usable_features(df, staged[1])) if staged else usable_features(df, families)
 
 
-def _fit_parts(df: pd.DataFrame, features, baseline: str | None, seed: int = 0, nested: bool = True, C: float | None = None) -> dict[str, dict]:
+def _fit_parts(df: pd.DataFrame, features, baseline: str | None, seed: int = 0, nested: bool = True, C: float | None = None, residualize: list[str] | None = None) -> dict[str, dict]:
     """{"all": part} for one three-way model, or {"baseline": part, "variation": part} when `features`
     is a pair: baseline-or-not on every row, then which variation on the rows that are not baseline."""
     y, groups = df["batch"].to_numpy(str), df["strip_id"].map(strip_group).to_numpy(str)
     if not isinstance(features, tuple):
-        return {"all": _fit_part(df, y, groups, features, seed, nested, C)}
+        return {"all": _fit_part(df, y, groups, features, seed, nested, C, residualize)}
     rest = y != str(baseline)
     return {
-        "baseline": _fit_part(df, np.where(rest, other_label(baseline), str(baseline)), groups, features[0], seed, nested, C),
-        "variation": _fit_part(df[rest], y[rest], groups[rest], features[1], seed, nested, C),
+        "baseline": _fit_part(df, np.where(rest, other_label(baseline), str(baseline)), groups, features[0], seed, nested, C, residualize),
+        "variation": _fit_part(df[rest], y[rest], groups[rest], features[1], seed, nested, C, residualize),
     }
 
 
@@ -268,11 +295,12 @@ def _parts_proba(parts: dict[str, dict], feats: pd.DataFrame, classes: list[str]
     return probs
 
 
-def loso_cv(df: pd.DataFrame, families=MATERIAL_FAMILIES, features=None, seed: int = 0, nested: bool = True, staged=None, baseline: str | None = None) -> dict:
+def loso_cv(df: pd.DataFrame, families=MATERIAL_FAMILIES, features=None, seed: int = 0, nested: bool = True, staged=None, baseline: str | None = None, residualize: list[str] | None = None) -> dict:
     """Leave-one-strip-out: every fold holds out all images of one physical strip, in every batch.
 
     Reducer and standardisation are fit inside each fold. C is chosen by an inner LOSO when `nested`.
     `staged=(families_1, families_2)` evaluates the two-stage model (needs `baseline`).
+    `residualize`: see `_fit_part` (diagnostic only; fit inside each fold).
     """
     features = features or _stage_features(df, families, staged)
     y, groups = df["batch"].to_numpy(str), df["strip_id"].map(strip_group).to_numpy(str)
@@ -285,7 +313,7 @@ def loso_cv(df: pd.DataFrame, families=MATERIAL_FAMILIES, features=None, seed: i
         if len(np.unique(y[~test])) < 2:
             pred[test] = classes[0]
             continue
-        parts = _fit_parts(df[~test], features, baseline, seed, nested)
+        parts = _fit_parts(df[~test], features, baseline, seed, nested, residualize=residualize)
         chosen += [p["C"] for p in parts.values() if p["C"] is not None]
         probs[test] = _parts_proba(parts, df[test], classes, baseline)
         pred[test] = [classes[j] for j in np.nan_to_num(probs[test], nan=-1.0).argmax(axis=1)]
@@ -308,7 +336,7 @@ def loso_cv(df: pd.DataFrame, families=MATERIAL_FAMILIES, features=None, seed: i
     }
 
 
-def permutation_null(df: pd.DataFrame, families=MATERIAL_FAMILIES, n: int = N_PERMUTATIONS, seed: int = 0, features=None, staged=None, baseline: str | None = None) -> dict:
+def permutation_null(df: pd.DataFrame, families=MATERIAL_FAMILIES, n: int = N_PERMUTATIONS, seed: int = 0, features=None, staged=None, baseline: str | None = None, residualize: list[str] | None = None) -> dict:
     """Balanced accuracy of the same LOSO pipeline when batch labels are shuffled across strip segments.
 
     Labels move with whole segments so the strip structure of the null matches the data. Fixed C
@@ -325,7 +353,7 @@ def permutation_null(df: pd.DataFrame, families=MATERIAL_FAMILIES, n: int = N_PE
         fake["batch"] = seg.map(shuffled).to_numpy()
         if fake["batch"].nunique() < 2:
             continue
-        scores.append(loso_cv(fake, families, features=features, seed=seed, nested=False, staged=staged, baseline=baseline)["balanced_accuracy"])
+        scores.append(loso_cv(fake, families, features=features, seed=seed, nested=False, staged=staged, baseline=baseline, residualize=residualize)["balanced_accuracy"])
     scores = np.asarray(scores)
     return {"n": int(len(scores)), "mean": float(scores.mean()), "p95": float(np.percentile(scores, 95)), "max": float(scores.max())}
 

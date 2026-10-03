@@ -176,6 +176,22 @@ def test_reducer_fits_pca_inside_folds_and_roundtrips(deep_table, tmp_path):
     assert A.predict(mixed, deep_table)["predicted"].notna().all()
 
 
+def test_residualize_is_off_by_default_and_removes_a_covariate_from_the_deep_pcs(deep_table):
+    plain = A.loso_cv(deep_table, ("deep",))
+    assert A.loso_cv(deep_table, ("deep",), residualize=None)["per_image"].equals(plain["per_image"])
+    assert "residualize" not in A._fit_parts(deep_table, A.usable_features(deep_table, ("deep",)), None)["all"]
+    df = deep_table.copy()
+    y = df["batch"].map({"Batch_1": -1.0, "Batch_2": 1.0, "Batch_3": 0.0})
+    df["img_y"], df["img_y2"] = y, y**2  # together they span the designed deep signal
+    cols = ["img_y", "img_y2"]
+    part = A._fit_parts(df, A.usable_features(df, ("deep",)), None, residualize=cols)["all"]
+    Xr = A.Reducer.from_json(part["features"], part["reducer"])(A._matrix(df, part["features"]))
+    resid = A._residualise(Xr, A._matrix(df, cols), part["residualize"])
+    cov = A._matrix(df, cols) - A._matrix(df, cols).mean(axis=0)
+    assert np.allclose(resid[:, part["residualize"]["pcs"]].T @ cov, 0, atol=1e-6)
+    assert plain["balanced_accuracy"] >= 0.75 and A.loso_cv(df, ("deep",), residualize=cols)["balanced_accuracy"] < 0.6
+
+
 # ---------------------------------------------------------------- always a bet, confidence, stages, reasons
 
 def test_every_image_gets_a_batch_even_when_unlike_anything(table):

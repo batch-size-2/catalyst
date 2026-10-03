@@ -9,7 +9,7 @@ from sklearn.metrics import adjusted_rand_score
 
 from qc.controls import make_controls, shared_strip_controls
 from qc.measure import (
-    default_thresholds, imaging, kpis, particles, segment,
+    DARK_GRAPHITE_INLENS, black_level, dark_graphite_share, default_thresholds, imaging, kpis, particles, segment,
 )
 from qc.schema import KPI_UNITS, Field, Phase
 from qc.types import assign_types, fit_types, load_types, save_types, type_shares
@@ -274,3 +274,20 @@ def test_uncertainty_helpers():
     small = area_needed(ir["phi"], ir["a_int_um2"], 2 * ir["predicted_sd"])
     large = area_needed(ir["phi"], ir["a_int_um2"], ir["predicted_sd"] / 2)
     assert large > small
+
+
+def test_dark_graphite_share_counts_dark_inlens_graphite_in_valid_rows():
+    h, w = 300, 200
+    mask = np.full((h, w), Phase.PORE, np.uint8)
+    mask[:, :100] = Phase.GRAPHITE
+    mask[:15], mask[-15:] = Phase.IGNORE, Phase.IGNORE  # what segment() does to the top/bottom 5%
+    inlens = np.full((h, w), 150, np.uint8)
+    inlens[:, 100:] = 0  # pores at 0 fix the black level
+    inlens[15:105, :100] = 20  # top third of the valid rows: dark graphite
+    inlens[200:210, :100] = 255  # saturated graphite is left out
+    assert black_level(inlens) == 0 and 20 < DARK_GRAPHITE_INLENS < 150
+    out = dark_graphite_share(mask, {"InLens": inlens})
+    graphite = (270 - 10) * 100
+    assert out["dark_graphite_share_top"] == pytest.approx(1.0, abs=0.03)  # smoothing blurs one row at each edge
+    assert out["dark_graphite_share"] == pytest.approx(90 * 100 / graphite, abs=0.01)
+    assert np.isnan(dark_graphite_share(mask, {"BSE": inlens})["dark_graphite_share"])

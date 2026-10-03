@@ -34,6 +34,7 @@ CORR_RMAX_UM = 20
 WATERSHED_H_UM = 0.25
 MIN_RING_PIXELS = 20
 SI_MIN_CONTRAST = 1.5  # SI objects dimmer than this x the graphite mode become BINDER
+DARK_GRAPHITE_INLENS = 55  # black-subtracted, smoothed InLens grey level below which graphite reads "dark"
 
 PARTICLE_FEATURE_COLUMNS = [
     "particle_id", "d_um", "area_um2", "contrast_ratio", "inlens_ratio", "void_frac",
@@ -148,6 +149,29 @@ def segment(
     cls[: rows.start] = Phase.IGNORE
     cls[rows.stop :] = Phase.IGNORE
     return _upsample(cls, (h0, w0), WORK_STEP).astype(np.uint8)
+
+
+def dark_graphite_share(mask: np.ndarray, channels: dict[str, np.ndarray]) -> dict[str, float]:
+    """Share of graphite pixels that are dark in InLens, over the valid rows and over their top third.
+
+    An electrical imaging contrast, not composition (MODEL_LITERATURE_REVIEW §8.2 Q2). Report-only:
+    not part of imaging() or anything the verdict reads. InLens pixels at 255 are left out.
+    """
+    nan = {"dark_graphite_share": float("nan"), "dark_graphite_share_top": float("nan")}
+    inlens = channels.get("InLens")
+    if inlens is None or inlens.shape != mask.shape:
+        return nan
+    smooth = gaussian(np.clip(inlens.astype(np.float32) - black_level(inlens), 0, None), sigma=1, preserve_range=True)
+    graphite = (mask == Phase.GRAPHITE) & (inlens < 255)
+    dark = graphite & (smooth < DARK_GRAPHITE_INLENS)
+    rows = valid_rows(mask.shape[0])
+    top = slice(rows.start, rows.start + (rows.stop - rows.start) // 3)
+
+    def share(sl: slice) -> float:
+        n = int(graphite[sl].sum())
+        return float(dark[sl].sum() / n) if n else float("nan")
+
+    return {"dark_graphite_share": share(rows), "dark_graphite_share_top": share(top)}
 
 
 def label_si(mask: np.ndarray, px_um: float) -> tuple[np.ndarray, np.ndarray, int]:
