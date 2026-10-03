@@ -2,8 +2,10 @@ import { getConfig, getModelStatus, getTiles } from "./api";
 import Audit from "./components/Audit";
 import Compare from "./components/Compare";
 import Identify from "./components/Identify";
+import Impact from "./components/Impact";
 import Library from "./components/Library";
 import Shell, { type ShellInfo } from "./components/Shell";
+import { flagOn } from "./flags";
 import { batchLabel, isUploadBatch, useApi } from "./lib";
 import { useHashRoute } from "./router";
 
@@ -31,6 +33,7 @@ export default function App() {
         ? ["Library", batchLabel(route[1]), <span key="id" className="mono">{route[2]}</span>]
         : ["Library"],
     audit: ["Trust", "Audit log"],
+    impact: ["Labs", "Wear & impact"],
   };
 
   return (
@@ -39,6 +42,14 @@ export default function App() {
       {page === "compare" && <Compare routeBatch={route[1]} />}
       {page === "library" && <Library routeBatch={route[1]} routeImage={route[2]} />}
       {page === "audit" && <Audit />}
+      {page === "impact" &&
+        (flagOn("impact") ? (
+          <Impact routeBatch={route[1]} routeBaseline={route[2]} />
+        ) : (
+          <p className="mx-auto max-w-[640px] px-10 py-16 text-cx-muted">
+            Wear &amp; impact is a Labs feature. Open <code className="mono">/?flags=impact</code> to switch it on.
+          </p>
+        ))}
     </Shell>
   );
 }

@@ -109,6 +109,7 @@ flowchart LR
     CR["crops/{type}/{n}.png<br/>example crops per particle type"]
   end
 
+  IMPACT["qc/impact.py · impact_report(kpis, particles, batch, baseline)<br/>Labs: indicative cell impact + worst cases · config/impact.yaml<br/>never feeds the verdict"]
   API["qc/api.py · FastAPI :8000<br/>GET config · batches · evidence · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation<br/>POST upload · run · attribution · verify (NDJSON progress)"]
   WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile · compare batch · library + viewer · audit log + batch passport"]
   CLI["python -m qc.run / qc.measure / qc.features / qc.attribute"]
@@ -148,6 +149,9 @@ flowchart LR
   API -- "run()" --> RUN
   API -- "attribute()" --> RUN
   CLI --> RUN
+  T --> IMPACT
+  PT --> IMPACT
+  IMPACT -- "GET /api/impact" --> API
 ```
 
 `qc/schema.py` is the contract every Python box imports: `Field`, the `Phase` labels, `KPI_UNITS`, `KPI_TABLE_COLUMNS` / `PARTICLE_COLUMNS` / `IMAGING_COLUMNS`, `Control`, the `Tables`/`Segment`/`Evidence` models and the `out/` paths (including `FEATURE_TABLE`, `ATTRIBUTION_DIR`, `ATTRIBUTION_MODEL_PATH`, `attribution_path()`). The attribution JSON is not part of `Evidence`: the API serves Pat's `out/attribution/<run>.json` as written. `web/src/types.ts` mirrors `Evidence` for the UI.
@@ -171,6 +175,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `config/decision.yaml` | yes | Decision settings. Frozen with `git tag rules-frozen` before the unseen batch |
 | `config/particle_types.json` | yes | Fitted particle-type model (GMM centres/covs, names, unassigned threshold). Frozen with `rules-frozen` |
 | `config/kpi_dictionary.yaml` | yes | Plain-language meaning/causes/checks per descriptor (draft; causes need mentor review); read by `explain()` and hashed into provenance |
+| `config/impact.yaml` | yes | Labs, Wear & impact: textbook constants and ranges (Si/SiOx, graphite, Bruggeman exponent, critical sizes, N/P), wording per property, worst-case failure chains, references. Not part of the verdict and not covered by `rules-frozen` |
 | `config/attribution_model.json` | yes, once fitted | Frozen attribution model: feature names, means, SDs, coefficients, `C`, training image ids, its own LOSO accuracy, and the Batch_3 baseline statistics for the unfamiliar flag. Frozen with `rules-frozen`; hashed into provenance when present |
 | `out/kpis.csv` | no | KPI table, one row per image (incl. `area_um2`, the analysed area), all batches measured so far |
 | `out/particles.csv` | no | One row per Si particle: size, contrast, inlens ratio, voids, texture, solidity, type. Read by `compare()` |
@@ -181,6 +186,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `out/controls/summary.csv` | no | Measured KPI shifts for every control |
 | `out/uncertainty/` | no | `threshold_variants.csv` (KPIs at thresholds ±5) and `integral_range.csv` (per image and phase) |
 | `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads this, attribution output and masks |
+| `out/impact/<baseline>/<batch>.json` | no | `python -m qc.impact` output (the API computes the same report on request) |
 | `out/features.csv` | no | One row per image: `batch, image_id, strip_id` + `reg_`, `edge_`, `tex_`, `par_`, `kpi_`, `img_` features (`qc/features.py`), plus optional `deep_` columns (`qc/deep.py`). Never strip, size or pixel-size columns |
 | `out/attribution/evaluation.json`, `feature_ranking.csv` | no | Leave-one-strip-out balanced accuracy, confusion, permutation null and shared-strip check per feature family; univariate feature ranking on strip-segment means. Exposed by the API |
 | `out/attribution/<run>.json` | no | Per image, always a batch: `p_Batch_*`, `predicted`, `confidence` (temperature-scaled; `confidence_raw`), `confidence_tier` with `confidence_record`, `stage_baseline`, `stage_variation`, `prediction_set`, `reasons` (with plain-language `text`), `baseline_distance`, `outside_baseline`, `deviations`, `predicted_distance`, `unfamiliar` (outside the batch it was assigned to), optional `assigned` (balanced). `model.calibration` holds the out-of-fold record behind the tiers. Exposed by the API |
@@ -210,6 +216,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `POST /api/batches/{batch}/files` | Multipart upload of a folder's TIFFs into `data/{batch}/` |
 | `POST /api/runs/{batch}` | NDJSON stream: one `{"type":"progress","done","total","tile"}` per measured tile, then `{"type":"done","evidence"}` or `{"type":"error","message"}` |
 | `POST /api/attribution/{name}?balanced={k}` | Run output from Pat's `attribute_images`; `balanced` is optional, 501 if `qc.attribute` is unavailable |
+| `GET /api/impact/{batch}?baseline=` | Labs: `qc.impact.Report` from `out/kpis.csv` + `particles.csv` (404 if either batch is unmeasured, 422 if the table is unusable) |
 
 **Dependencies.**
 - Python: `pyproject.toml` + `uv.lock`, Python 3.11.
@@ -409,6 +416,27 @@ All numbers come from the evidence or the stated formulas. Causes are worded "po
 
 For `si_graphite_ratio` r, silicon share is `s = r / (1 + r)`. Theoretical capacity at silicon capacity C is `cap(s, C) = s·C + (1 − s)·372`, reported as a relative change over the SiOx-to-Si range C = 1,500 to 3,600 mAh/g. Silicon-driven swelling is reported as the ratio of the silicon shares (Si expands about 2.8× on full lithiation, graphite about 0.1×). For apparent porosity p, the indicative ion-transport change is `(p_batch / p_reference)^1.5 − 1` (Bruggeman). These are textbook ranges, not predictions.
 
+## Wear & impact (Labs, `qc/impact.py`)
+
+Behind a feature flag: open the app with `?flags=impact` (stored in localStorage; `?flags=` clears it) or build with `VITE_FLAGS=impact`. The page is `#/impact/<batch>[/<baseline>]`, linked from the sidebar's Labs section. It answers "what could this batch mean for the cell?" with textbook relations on the measured KPIs. **Context for people, never an input to the verdict** (PLAN_v4 §3.8, §3.19; docs/APP.md feature 6).
+
+`impact_report(kpis, particles, batch, baseline)` takes per-batch means of the inputs (`si_area_frac`, graphite share `si_area_frac / si_graphite_ratio`, `porosity_apparent`, Sauter `D32 = Σd³/Σd²` of non-edge particles from `particles.csv` (falls back to `si_d50_um`), `si_d90_um`, `si_internal_void_frac`, `si_agglomerate_frac`) and a hierarchical bootstrap (strips, then images in a strip; 2,000 resamples, 90%). Constants that are not known (Si vs SiOx, Bruggeman exponent) are evaluated at each end and the interval is the widest per-constant interval.
+
+| Property | Relation | Higher is |
+|---|---|---|
+| Capacity | `Q = w·Q_Si + (1 − w)·372`, `w` = Si weight share from area share and densities; Si 3,579 / SiOx 1,500 mAh/g | better |
+| Swelling | `ΔV/V = φ_Si·e_Si + φ_C·0.10`, `e_Si` 2.8 (Si) / 1.2 (SiOx); against pore volume; thickness bounds `[max(ΔV − ε, 0), ΔV]` | worse |
+| Fast charging | `D_eff/D = ε^α`, α 1.5–2.5 (relative change only) | better |
+| Lithium lost to SEI | `S = 6·φ_Si / D32`, geometric lower bound (relative change only) | worse |
+| Particle cracking | crack driving force ∝ size: D90, against 150 nm (crystalline) / 870 nm (amorphous) critical sizes | worse |
+| Hot spots | `si_agglomerate_frac` directly, direction only | worse |
+
+Effect per property: "about the same" if the whole relative-change interval is within ±5%, "better/worse in these images" if it excludes 0, else "not settled"; every effect is "not settled" below 3 strips. Intervals hold sampling noise only. The wear scenario scales an SEI-limited `1 − k√n` fade by the silicon surface or amount × D90 ratio (a modelling choice, labelled) and is headlined as a fade-rate ratio; a cycle count is shown only against an assumed baseline anchor.
+
+**Worst cases** (`worst_case` in the config): for a property that moves the adverse way ("this batch moves this way") or whose interval can't rule it out ("not ruled out"), a textbook failure chain with a severity (performance < reliability < safety), how likely it is and what rules it out; e.g. less anode capacity → N/P falls (shown for an assumed N/P 1.10) → plating → dendrites → short → thermal runaway. Three presentations to choose from (`?warnings=cards|banner|ladder|off`, default cards): on each card, one banner for the most severe *clear* case, or a severity ladder.
+
+`web/src/impact.ts` holds the types and fetch for this endpoint, and `Report` lives in `qc/impact.py`, not `qc/schema.py`: it is not part of the ML ↔ backend contract and stays separate while it is experimental.
+
 ## Batch attribution (Pat's `qc/attribute.py`)
 
 The software reads Pat's output as written; it defines no classifier or attribution schema. `load_model()` reads the model, and `attribute_images(image_dir, model, balanced=None)` writes `out/attribution/<folder>.json`. `qc.run.attribute()` calls those functions and sanitizes NaN/Infinity to JSON null.
@@ -444,6 +472,7 @@ The model was frozen on 3 Oct at 22:10 (tag `rules-frozen`, staged `material > d
 | `qc/explain.py` | Software (Patrik) |
 | `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
 | `qc/api.py`, `web/` | Software (Patrik) |
+| `qc/impact.py`, `config/impact.yaml`, `tests/test_impact.py` (Labs) | Software (Patrik) |
 | `qc/io.py`, `qc/run.py` | Shared glue |
 
 ## Changes from the v3 design (ML side)

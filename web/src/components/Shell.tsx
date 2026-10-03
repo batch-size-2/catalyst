@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { flagOn } from "../flags";
 import { href } from "../router";
 import { BatchDot, CAT } from "./bits";
 import { batchLabel, shortHash } from "../lib";
@@ -101,9 +102,14 @@ export default function Shell({
           <div className="lbl px-2.5 pt-5 pb-2">Trust</div>
           {navItem("audit", "Audit log", ICONS.audit, href.audit())}
           <div className="lbl px-2.5 pt-5 pb-2">Labs</div>
-          <span className="nav text-cx-faint" aria-disabled="true">
-            <NavIcon>{ICONS.wear}</NavIcon>Wear &amp; impact{soon}
-          </span>
+          {flagOn("impact") ? (
+            navItem("impact", "Wear & impact", ICONS.wear, href.impact(),
+              <span className="mono ml-auto rounded-md border border-cx-orange/40 px-1.5 py-0.5 text-[10px] text-cx-orange-text">LABS</span>)
+          ) : (
+            <span className="nav text-cx-faint" aria-disabled="true">
+              <NavIcon>{ICONS.wear}</NavIcon>Wear &amp; impact{soon}
+            </span>
+          )}
           <span className="nav text-cx-faint" aria-disabled="true">
             <NavIcon>{ICONS.sample}</NavIcon>Sample size{soon}
           </span>

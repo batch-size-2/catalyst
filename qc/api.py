@@ -217,3 +217,19 @@ def start_attribution(name: str, balanced: int | None = None) -> StreamingRespon
         raise HTTPException(501, "batch attribution is not available yet (qc/attribute.py)")
     return ndjson_stream(lambda progress: {
         "type": "done", "attribution": attribute(target, balanced)})
+
+
+@app.get("/api/impact/{batch}")
+def battery_impact(batch: str, baseline: str | None = None) -> dict:
+    """Indicative battery impact against the baseline (qc/impact.py, Labs). Never part of the verdict."""
+    from qc.impact import NotMeasured, impact_report, read_tables
+
+    baseline = clean_name(baseline or load_config()["baseline"])
+    if not KPI_TABLE.exists():
+        raise HTTPException(404, "no KPI table: run `uv run python -m qc.measure` first")
+    try:
+        return impact_report(*read_tables(KPI_TABLE), clean_name(batch), baseline).model_dump(mode="json")
+    except NotMeasured as error:
+        raise HTTPException(404, str(error))
+    except (KeyError, ValueError) as error:
+        raise HTTPException(422, f"KPI table not usable for impact: {error}")

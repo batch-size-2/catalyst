@@ -1,0 +1,197 @@
+# Indicative battery impact (qc/impact.py, PLAN_v4 §3.8 and §3.19, docs/APP.md feature 6).
+# Textbook constants and their ranges. Never an input to the verdict; not covered by `rules-frozen`.
+# Every number here is shown in the UI next to the result it produced.
+
+interval: 0.90          # two-sided level of every interval (same as decision.yaml ci_level)
+n_resamples: 2000       # hierarchical bootstrap: strips, then images within a strip
+seed: 0
+similar_within: 0.05    # |relative change| below this on the whole interval reads "about the same"
+min_units: 3            # fewer strips (or unstripped images) than this in a batch: every effect reads "not settled"
+
+# The silicon chemistry is not confirmed (PLAN_v4 §10 Q9), so every silicon-dependent number is
+# computed for both end members and the range spans them.
+silicon:
+  - name: Si (Li15Si4)
+    capacity_mah_g: 3579   # Li15Si4 is the fully lithiated phase at room temperature [obrovac2004]
+    expansion: 2.8         # about +280 % volume at full lithiation [obrovac2014]
+    density_g_cm3: 2.33
+  - name: SiOx (SiO)
+    capacity_mah_g: 1500   # reversible, ~1500-1700 mAh/g reported [sio_fade2018]
+    expansion: 1.2         # ~118-134 % reported for SiO [sio_expansion]
+    density_g_cm3: 2.2
+graphite:
+  capacity_mah_g: 372      # LiC6
+  expansion: 0.10          # ~10 % volume for LiC6 (anisotropic, mostly c axis); lower in a composite electrode [obrovac2014]
+  density_g_cm3: 2.26
+
+# Effective ion transport through the pores: D_eff / D = porosity ** exponent.
+# 1.5 is Bruggeman for spheres; flake graphite measures higher through-plane [ebner2014].
+transport_exponent: [1.5, 2.5]
+
+# In-situ TEM: crystalline Si spheres above ~150 nm crack on first lithiation, amorphous Si above ~870 nm.
+critical_size_um: {crystalline: 0.15, amorphous: 0.87}
+
+# Cycle-life scenario: SEI-limited fade, loss = k * sqrt(cycles) [pinson2013].
+# The baseline's k is anchored to an assumed retention; the batch's k scales with its silicon
+# surface (SEI) or its cracking driver, for a silicon share of the fade between the two bounds.
+scenario:
+  baseline_retention: 0.80
+  at_cycles: 500
+  max_cycles: 1000
+  silicon_share_of_fade: [0.5, 1.0]
+
+# Anode-to-cathode capacity ratio the cell maker designs for (typically ~1.1-1.2) [kasnatscheew2017].
+# A lower anode capacity per gram, coated at the same mass, lowers it; below 1.0 the anode overfills and plates lithium.
+np_design: 1.1
+
+references:
+  obrovac2004: 'M. N. Obrovac, L. Christensen, "Structural changes in silicon anodes during lithium insertion/extraction," Electrochem. Solid-State Lett. 7, A93 (2004). https://doi.org/10.1149/1.1652421'
+  obrovac2014: 'M. N. Obrovac, V. L. Chevrier, "Alloy negative electrodes for Li-ion batteries," Chem. Rev. 114, 11444-11502 (2014). https://doi.org/10.1021/cr500207g'
+  sio_fade2018: 'L. Zhang et al., "Capacity fading mechanism and improvement of cycling stability of the SiO anode for lithium-ion batteries," J. Electrochem. Soc. 165, A2102 (2018). https://iopscience.iop.org/article/10.1149/2.0431810jes'
+  sio_expansion: '"Silicon monoxide as anode material for lithium ion batteries," ECS Meeting Abstracts MA2020-02 (2020), conference abstract: 134 % initial, 117 % reversible. https://iopscience.iop.org/article/10.1149/MA2020-022369mtgabs'
+  ebner2014: 'M. Ebner, D.-W. Chung, R. E. Garcia, V. Wood, "Tortuosity anisotropy in lithium-ion battery electrodes," Adv. Energy Mater. 4, 1301278 (2014). https://doi.org/10.1002/aenm.201301278'
+  liu2012: 'X. H. Liu et al., "Size-dependent fracture of silicon nanoparticles during lithiation," ACS Nano 6, 1522-1531 (2012). https://doi.org/10.1021/nn204476h'
+  mcdowell2013: 'M. T. McDowell et al., "In situ TEM of two-phase lithiation of amorphous silicon nanospheres," Nano Lett. 13, 758-764 (2013). https://doi.org/10.1021/nl3044508'
+  pinson2013: 'M. B. Pinson, M. Z. Bazant, "Theory of SEI formation in rechargeable batteries: capacity fade, accelerated aging and lifetime prediction," J. Electrochem. Soc. 160, A243 (2013). https://doi.org/10.1149/2.044302jes'
+  tomaszewska2019: 'A. Tomaszewska et al., "Lithium-ion battery fast charging: a review," eTransportation 1, 100011 (2019). https://doi.org/10.1016/j.etran.2019.100011'
+  waldmann2018: 'T. Waldmann, B.-I. Hogg, M. Wohlfahrt-Mehrens, "Li plating as unwanted side reaction in commercial Li-ion cells - a review," J. Power Sources 384, 107-124 (2018). https://doi.org/10.1016/j.jpowsour.2018.02.063'
+  feng2018: 'X. Feng et al., "Thermal runaway mechanism of lithium ion battery for electric vehicles: a review," Energy Storage Mater. 10, 246-267 (2018). https://doi.org/10.1016/j.ensm.2017.05.013'
+  kasnatscheew2017: '"A tutorial into practical capacity and mass balancing of lithium ion batteries," J. Electrochem. Soc. (2017). https://doi.org/10.1149/2.0961712jes'
+  sigr2021: 'J. Moon et al., "Interplay between electrochemical reactions and mechanical responses in silicon-graphite anodes and its impact on degradation," Nat. Commun. 12, 2714 (2021). https://www.nature.com/articles/s41467-021-22662-7'
+
+# What each property means for the cell, by direction. "better" / "worse" is for the cell, not a verdict.
+impacts:
+  capacity:
+    property: Capacity
+    measure: specific capacity of the active material (silicon + graphite)
+    unit: mAh/g
+    higher_is: better
+    if_higher: More capacity per gram of anode. Usually paid for in swelling and cycle life.
+    if_lower: Less charge per gram; the cell needs a thicker or heavier anode for the same capacity.
+    mechanism: Silicon stores almost ten times the lithium of graphite per gram, so a little more silicon moves the total a lot.
+    refs: [obrovac2004, obrovac2014, sio_fade2018]
+  swelling:
+    property: Swelling
+    measure: volume the active material gains at full charge, per electrode volume
+    unit: fraction
+    higher_is: worse
+    if_higher: More growth on every charge. Once the pores are full, the electrode thickens, which presses on the cell and loosens particle contacts.
+    if_lower: Less growth on every charge, less mechanical stress on the cell.
+    mechanism: Silicon grows by up to 280 % on lithiation, graphite by about 10 %. The pores absorb some of it; the rest pushes the electrode thicker.
+    refs: [obrovac2014]
+  transport:
+    property: Fast charging
+    measure: effective ion transport through the pores, relative to free electrolyte
+    unit: fraction
+    higher_is: better
+    if_higher: Ions move more freely, so the anode charges faster before lithium starts to plate.
+    if_lower: Ions move less freely; at fast charge the separator side fills first and lithium plating becomes more likely.
+    mechanism: Ions must travel through the pores. Fewer pores mean a narrower, more winding path (Bruggeman).
+    refs: [ebner2014, tomaszewska2019]
+  sei:
+    property: Lithium lost to SEI
+    measure: geometric surface of the resolved silicon particles per electrode volume (a lower bound on where the SEI grows)
+    unit: m²/cm³
+    higher_is: worse
+    if_higher: More surface for the SEI layer to grow on, so more lithium is locked away in the first cycles and over life.
+    if_lower: Less surface for the SEI layer, so less lithium lost to it.
+    mechanism: The SEI forms on every exposed silicon surface and grows with time. Finer or more silicon means more surface.
+    refs: [pinson2013, sigr2021]
+  cracking:
+    property: Particle cracking
+    measure: coarse silicon size (D90), which sets the crack driving force
+    unit: um
+    higher_is: worse
+    if_higher: Larger silicon particles store more strain energy when they swell, so they crack sooner and expose fresh surface that consumes more lithium.
+    if_lower: Smaller silicon particles store less strain energy and crack later.
+    mechanism: The energy available to drive a crack grows with particle size. Below ~150 nm (crystalline) or ~870 nm (amorphous) silicon does not crack at all.
+    refs: [liu2012, mcdowell2013]
+  agglomeration:
+    property: Hot spots
+    measure: share of silicon inside Si-rich clumps larger than ~5 µm
+    unit: fraction
+    higher_is: worse
+    if_higher: Clumped silicon swells locally, pushes neighbours apart and can lose electrical contact, leaving dead silicon and uneven current.
+    if_lower: Silicon is spread more evenly between graphite, so swelling and current are more uniform.
+    mechanism: A clump of silicon behaves like one large particle that swells by up to 280 %, with little graphite around it to carry current.
+    refs: [sigr2021]
+
+# "If you ignore this, what's the worst that could happen?" Shown only when a property moves the
+# adverse way ("likely") or the interval can't rule it out ("possible"). Each step is a textbook
+# failure mechanism; the likelihood line says what else has to go wrong. A shift in the anode alone
+# does not make a cell unsafe: these are what the cell maker's tests must rule out.
+# severity: performance (capacity, life) < reliability (cells fail in service) < safety (heat, fire).
+worst_case:
+  capacity:
+    headline: The anode can overfill and plate lithium
+    severity: safety
+    chain:
+      - Less charge per gram of anode, coated at the same mass
+      - The anode-to-cathode capacity ratio (N/P) falls toward 1
+      - At full charge the anode runs out of room for lithium
+      - Lithium plates as metal on the anode surface
+      - Metallic lithium grows dendrites and reacts with the electrolyte, giving off heat and gas
+      - In the worst case a dendrite pierces the separator, shorts the cell and starts thermal runaway
+    likelihood: Only if the cathode is matched to the expected anode capacity with a thin margin. The N/P figure below shows how much margin this batch eats.
+    prevents: [Re-check the N/P ratio with this lot's measured capacity, Formation and three-electrode tests for plating, Charge cut-off set by the cell maker]
+    refs: [kasnatscheew2017, waldmann2018, feng2018]
+  swelling:
+    headline: Swollen cells, delaminated coating, gas
+    severity: reliability
+    chain:
+      - More volume gained on every charge
+      - The pores fill; the electrode thickens and presses on the separator and the casing
+      - Particles lose contact and the coating can lift off the copper
+      - Isolated material and fresh SEI on every cycle make capacity fall faster
+      - Pouch cells bulge; in hard cases the stack pressure rises and squeezes the separator
+    likelihood: Grows with silicon content and state of charge; cell format and stack pressure decide how much it shows.
+    prevents: [Thickness and pressure measured over the first cycles, Swelling allowance in the module design]
+    refs: [obrovac2014, sigr2021]
+  transport:
+    headline: Lithium plating at fast charge, and in the worst case an internal short
+    severity: safety
+    chain:
+      - Ions move more slowly through the anode pores
+      - At fast charge or in the cold the anode surface saturates first
+      - Lithium plates as metal instead of entering the graphite and silicon
+      - Plated lithium grows dendrites and reacts with the electrolyte, giving off heat and gas
+      - A dendrite through the separator shorts the cell
+      - Thermal runaway - venting, fire - in the worst case
+    likelihood: Low at gentle charging. Rises with charge rate, low temperature, high state of charge and a thin N/P margin.
+    prevents: [Charge-rate limits from plating tests on this lot, Temperature-dependent charging in the battery management system]
+    refs: [tomaszewska2019, waldmann2018, feng2018]
+  sei:
+    headline: Lost capacity from day one, and gas
+    severity: performance
+    chain:
+      - More silicon surface for the SEI layer to grow on
+      - More lithium locked in the SEI during formation and over life
+      - Lower capacity from the first cycle and faster fade
+      - Electrolyte reduction gives off gas; pouch cells swell
+      - In a hot cell, SEI breakdown (from about 90 °C) is the first heat-releasing step of thermal runaway
+    likelihood: The capacity loss is near certain when surface rises; the heat step only matters if the cell is already overheating.
+    prevents: [Formation protocol and first-cycle efficiency measured on this lot, Electrolyte additives that form a stable SEI on silicon]
+    refs: [pinson2013, feng2018]
+  cracking:
+    headline: Silicon breaks up and capacity fade speeds up
+    severity: performance
+    chain:
+      - Larger silicon particles crack sooner as they swell
+      - Every crack exposes fresh surface that grows new SEI and uses up lithium
+      - Fragments lose electrical contact and become dead silicon
+      - Capacity fade accelerates, often as a knee late in life
+    likelihood: Expected for dense micron-sized silicon; size sets how early.
+    prevents: [Cycle-life test to the knee on this lot, Ask whether the silicon is a porous or composite grade]
+    refs: [liu2012, sigr2021]
+  agglomeration:
+    headline: Local hot spots and local plating
+    severity: reliability
+    chain:
+      - Clumped silicon swells locally and pushes its neighbours apart
+      - Contact is lost around the clump, so current crowds into the rest
+      - Crowded current raises the local overpotential
+      - Lithium plates locally, even at normal charge rates
+      - From there, the same path as fast-charge plating
+    likelihood: Low for isolated clumps; rises if clumps are common and the cell is charged fast or cold. Local plating from uneven current is documented; that clumps of this size cause it is plausible, not shown.
+    prevents: [Dispersion check on the slurry, Plating tests at the cell's top charge rate]
+    refs: [waldmann2018]
