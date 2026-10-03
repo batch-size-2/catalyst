@@ -27,6 +27,15 @@
       "x": 0,
       "y": 5940
     },
+    "Compare-Guided.dc.html": {
+      "expand": "fill",
+      "h": 1900,
+      "is_interactive": true,
+      "title": "v3 · Compare — guided by Claude",
+      "w": 1440,
+      "x": 0,
+      "y": 7900
+    },
     "Compare.dc.html": {
       "expand": "fill",
       "h": 1880,
@@ -90,13 +99,13 @@
       "x": 1520,
       "y": 3600
     },
-    "Compare-Guided.dc.html": {
+    "Identify-Result-Peek.dc.html": {
       "expand": "fill",
-      "h": 1900,
+      "h": 1420,
       "is_interactive": true,
-      "title": "v3 · Compare — guided by Claude",
+      "title": "v3 · Identify — region peek & pin",
       "w": 1440,
-      "x": 0,
+      "x": 2060,
       "y": 7900
     }
   },
@@ -123,6 +132,19 @@
       "x": 1520,
       "y": 560
     },
+    "guideContract": {
+      "fill": "purple",
+      "text": "What Claude gets and returns.\n\nIn: the evidence JSON (differences, odd tiles, imaging, rule results, next_action) and dictionary entries. No images.\n\nOut, as JSON, never free HTML:\n• summary: ≤3 sentences, numbers as slots, e.g. {diff:si_graphite_ratio}, {tile:4ih2ggld.si_graphite_ratio}, {whatif:1}\n• steps: up to 4 × {target: verdict | moved | tiles | next, title, text}\n• whatifs: requests from a fixed menu (leave tiles out, other baseline), which Catalyst computes\n\nCatalyst renders the chips from the slots, so a number can't be wrong. A slot that doesn't resolve drops its sentence. Two failures = template text.",
+      "w": 460,
+      "x": 1520,
+      "y": 7900
+    },
+    "guideStyle": {
+      "text": "House rules for the words (in the prompt, checked after).\n\n• ≤3 sentences in the summary, ≤2 per step, ≤28 words per sentence.\n• Say 'differs from the baseline', never 'defective' or 'bad'.\n• Say 'not settled' when the status is unclear. Never stronger than the statistics.\n• No adjectives like significant, crucial, notable unless a rule fired.\n• No restating the verdict; no 'In summary'; no exclamation marks.\n• Name tiles by ID, properties by their dictionary name.\n• Next steps only from next_action and the dictionary's supplier check.",
+      "w": 460,
+      "x": 1520,
+      "y": 8620
+    },
     "lookNote": {
       "fill": "orange",
       "text": "Look: a dark lab bench. 32 px grid underneath everything, frosted glass for anything that floats (verdicts, controls, toolbars over images).\n\nOrange belongs to the cat and to silicon. Batches keep their own colours everywhere: Batch 3 teal (baseline), Batch 1 blue, Batch 2 violet.\n\nVerdicts: Accept green, Investigate yellow, Reject red, always with a word, never colour alone.",
@@ -146,6 +168,14 @@
       "x": 0,
       "y": 5640
     },
+    "rowGuide": {
+      "kind": "title1",
+      "maxW": 4480,
+      "text": "v3 · Claude points and explains · look closer without leaving",
+      "w": 240,
+      "x": 0,
+      "y": 7600
+    },
     "rowMore": {
       "kind": "title1",
       "maxW": 4480,
@@ -161,26 +191,12 @@
       "x": 4560,
       "y": 5940
     },
-    "rowGuide": {
-      "kind": "title1",
-      "maxW": 4480,
-      "text": "v3 · Claude points and explains, Catalyst decides",
-      "x": 0,
-      "y": 7600
-    },
-    "guideContract": {
-      "fill": "purple",
-      "w": 460,
-      "x": 1520,
+    "peekNote": {
+      "fill": "teal",
+      "w": 440,
+      "x": 3580,
       "y": 7900,
-      "text": "What Claude gets and returns.\n\nIn: the evidence JSON (differences, odd tiles, imaging, rule results, next_action) and dictionary entries. No images.\n\nOut, as JSON, never free HTML:\n• summary: ≤3 sentences, numbers as slots, e.g. {diff:si_graphite_ratio}, {tile:4ih2ggld.si_graphite_ratio}, {whatif:1}\n• steps: up to 4 × {target: verdict | moved | tiles | next, title, text}\n• whatifs: requests from a fixed menu (leave tiles out, other baseline), which Catalyst computes\n\nCatalyst renders the chips from the slots, so a number can't be wrong. A slot that doesn't resolve drops its sentence. Two failures = template text."
-    },
-    "guideStyle": {
-      "fill": "yellow",
-      "w": 460,
-      "x": 1520,
-      "y": 8620,
-      "text": "House rules for the words (in the prompt, checked after).\n\n• ≤3 sentences in the summary, ≤2 per step, ≤28 words per sentence.\n• Say 'differs from the baseline', never 'defective' or 'bad'.\n• Say 'not settled' when the status is unclear. Never stronger than the statistics.\n• No adjectives like significant, crucial, notable unless a rule fired.\n• No restating the verdict; no 'In summary'; no exclamation marks.\n• Name tiles by ID, properties by their dictionary name.\n• Next steps only from next_action and the dictionary's supplier check."
+      "text": "Region peek: look closer without leaving.\n\nHover or keyboard-focus a region (or its reason card): a glass peek opens beside it with a magnified crop, the region ringed, a scale bar and one line of what was measured there.\n\nClick pins it: an inspector panel on the right with detector switch (BSE / ETD / InLens), silicon and pore layers, ← → through all regions, and 'Open full tile' for the Library.\n\nSame component for any tile thumbnail or tile chip (Compare cards, guided summary). Regions stay marked PREVIEW until the model returns real heatmap regions."
     }
   },
   "order": [
@@ -194,7 +210,8 @@
     "Compare-Focus.dc.html",
     "Identify-Result-Focus.dc.html",
     "Settings-Baseline.dc.html",
-    "Compare-Guided.dc.html"
+    "Compare-Guided.dc.html",
+    "Identify-Result-Peek.dc.html"
   ],
   "pages": [],
   "title": "Catalyst — App Redesign"
