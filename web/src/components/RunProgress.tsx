@@ -1,4 +1,4 @@
-import { previewUrl } from "../api";
+import { maskUrl } from "../api";
 
 export interface RunState {
   batch: string;
@@ -32,7 +32,7 @@ export default function RunProgress({ run }: { run: RunState }) {
       <div className="mt-4 flex gap-2 overflow-x-auto">
         {run.tiles.map((tile) => {
           const [batch, imageId] = tile.split("/");
-          return <img key={tile} src={previewUrl(batch, imageId)} alt={tile} title={tile} className="animate-rise h-16 rounded-md" />;
+          return <img key={tile} src={maskUrl(batch, imageId)} alt={tile} title={tile} className="animate-rise h-16 rounded-md" />;
         })}
       </div>
     </section>

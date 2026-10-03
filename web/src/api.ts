@@ -11,7 +11,7 @@ const enc = encodeURIComponent;
 export const getConfig = () => getJson<Config>("/api/config");
 export const listBatches = () => getJson<BatchSummary[]>("/api/batches");
 export const getEvidence = (batch: string) => getJson<Evidence>(`/api/evidence/${enc(batch)}`);
-export const previewUrl = (batch: string, imageId: string) => `/api/previews/${enc(batch)}/${enc(imageId)}.png`;
+export const maskUrl = (batch: string, imageId: string) => `/api/masks/${enc(batch)}/${enc(imageId)}.png`;
 
 export async function uploadBatch(batch: string, files: File[]) {
   const body = new FormData();

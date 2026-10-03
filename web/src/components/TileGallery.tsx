@@ -1,4 +1,4 @@
-import { previewUrl } from "../api";
+import { maskUrl } from "../api";
 import { STATUS_STYLE } from "../colors";
 import type { Evidence, TileStatus } from "../types";
 
@@ -24,7 +24,7 @@ export default function TileGallery({ evidence }: { evidence: Evidence }) {
           >
             <div className="aspect-[3/1] bg-slate-800/50">
               <img
-                src={previewUrl(evidence.batch, tile.image_id)}
+                src={maskUrl(evidence.batch, tile.image_id)}
                 alt=""
                 className="h-full w-full object-cover"
                 onError={(event) => (event.currentTarget.style.display = "none")}

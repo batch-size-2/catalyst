@@ -1,6 +1,6 @@
-"""Backend side: KPI table -> verdict. Owned by the backend engineer (PLAN_v1 §4.4).
+"""Backend side: KPI table -> verdict. Owned by the backend engineer (PLAN_v1 §3.5).
 
-Usage (no images needed): uv run python -m qc.judge tests/fixtures/kpis_fake.csv --baseline fake_baseline
+Usage (no images needed): uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline
 """
 
 import argparse
@@ -17,6 +17,7 @@ from qc.schema import (
 
 def judge(baseline: pd.DataFrame, batch: pd.DataFrame, cfg: dict) -> Evidence:
     """Pure stats on KPI tables (one row per tile). No images."""
+    baseline = baseline[~baseline["image_id"].isin(cfg.get("reference_exclude") or [])]
     names = [k for k in KPI_UNITS if baseline[k].notna().sum() >= 2]
     alpha = (1 - cfg["band_coverage"]) / max(len(names), 1)
     bands = {k: tolerance_band(baseline[k].dropna(), alpha) for k in names}

@@ -18,8 +18,8 @@ from qc.run import run
 from qc.schema import EVIDENCE_DIR, OUT_DIR, Evidence, Verdict, evidence_path, load_config
 
 app = FastAPI(title="Catalyst QC")
-(OUT_DIR / "previews").mkdir(parents=True, exist_ok=True)
-app.mount("/api/previews", StaticFiles(directory=OUT_DIR / "previews"), name="previews")
+(OUT_DIR / "masks").mkdir(parents=True, exist_ok=True)
+app.mount("/api/masks", StaticFiles(directory=OUT_DIR / "masks"), name="masks")
 
 
 class BatchSummary(BaseModel):

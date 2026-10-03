@@ -12,18 +12,20 @@ EDGE_CROP_PX = 8
 UM_PER_UNIT = {2: 25_400.0, 3: 10_000.0}
 
 
-def load_image(path: Path) -> tuple[np.ndarray, float]:
-    """Returns (2D uint8, stitch-border columns cropped; µm per pixel or NaN)."""
+def load_image(path: Path) -> tuple[np.ndarray, float, float]:
+    """Returns (2D uint8 with stitch-border columns cropped, µm per pixel, raw XResolution tag); NaN if unknown."""
     with tifffile.TiffFile(path) as tif:
         page = tif.pages[0]
         img = page.asarray()
         res, unit = page.tags.get("XResolution"), page.tags.get("ResolutionUnit")
-        px_um = np.nan
-        if res and unit and int(unit.value) in UM_PER_UNIT:
+        xres = px_um = np.nan
+        if res:
             num, den = res.value
-            px_um = UM_PER_UNIT[int(unit.value)] * den / num
+            xres = num / den
+            if unit and int(unit.value) in UM_PER_UNIT:
+                px_um = UM_PER_UNIT[int(unit.value)] / xres
     img = img[..., 0] if img.ndim == 3 else img
-    return img[:, EDGE_CROP_PX:-EDGE_CROP_PX], px_um
+    return img[:, EDGE_CROP_PX:-EDGE_CROP_PX], px_um, xres
 
 
 def field_paths(batch_dir: Path) -> dict[str, dict[str, Path]]:
@@ -38,11 +40,13 @@ def field_paths(batch_dir: Path) -> dict[str, dict[str, Path]]:
 
 
 def load_field(batch: str, image_id: str, paths: dict[str, Path]) -> Field:
-    channels, px_um = {}, np.nan
+    """strip_id = "<height>_<xres>" groups tiles cut from one strip (PLAN_v1 §2). Provenance only, never a feature."""
+    channels, px_um, xres = {}, np.nan, np.nan
     for detector, path in paths.items():
-        channels[detector], px_um = load_image(path)
+        channels[detector], px_um, xres = load_image(path)
     height = next(iter(channels.values())).shape[0]
-    return Field(batch=batch, image_id=image_id, strip_id=f"P{height}", channels=channels, px_um=px_um)
+    strip_id = f"{height}_{round(xres)}" if np.isfinite(xres) else str(height)
+    return Field(batch=batch, image_id=image_id, strip_id=strip_id, channels=channels, px_um=px_um)
 
 
 def iter_fields(batch_dir: Path) -> Iterator[Field]:

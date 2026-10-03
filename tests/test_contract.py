@@ -9,14 +9,14 @@ from fastapi.testclient import TestClient
 from scipy.ndimage import gaussian_filter
 
 from qc.api import app
+from qc.decide import judge
 from qc.io import field_paths, iter_fields
-from qc.judge import judge
 from qc.measure import kpis, segment
 from qc.run import run
-from qc.schema import DETECTORS, KPI_TABLE_COLUMNS, KPI_UNITS, Evidence, Field, Phase, evidence_path, preview_path
+from qc.schema import DETECTORS, KPI_TABLE_COLUMNS, KPI_UNITS, Evidence, Phase, evidence_path, mask_path
 
 FAKE = Path(__file__).parent / "fixtures" / "kpis_fake.csv"
-CFG = {"version": "test", "data_dir": "data", "baseline": "base",
+CFG = {"version": "test", "data_dir": "data", "baseline": "base", "reference_exclude": [],
        "band_coverage": 0.95, "ci_level": 0.9, "reject_lower_bound": 0.05}
 
 
@@ -38,17 +38,23 @@ def test_io_builds_fields_with_canonical_detectors(tmp_path):
     [field] = iter_fields(tmp_path / "b")
     assert set(field.channels) == set(DETECTORS)
     assert field.channels["BSE"].shape == (96, 160 - 16) and field.channels["BSE"].dtype == np.uint8
-    assert abs(field.px_um - 0.025) < 1e-6 and field.strip_id == "P96"
+    assert abs(field.px_um - 0.025) < 1e-6 and field.strip_id == "96_1016000"
 
 
 def test_ml_side_returns_contract_types():
     rng = np.random.default_rng(0)
-    field = Field("b", "t0", None, {d: rng.integers(0, 255, (64, 96), dtype=np.uint8) for d in DETECTORS}, 0.025)
-    mask = segment(field)
+    channels = {d: rng.integers(0, 255, (64, 96), dtype=np.uint8) for d in DETECTORS}
+    mask = segment(channels, 0.025)
     assert mask.shape == (64, 96) and mask.dtype == np.uint8
     assert set(np.unique(mask)) <= {int(p) for p in Phase}
-    values = kpis(field, mask)
-    assert set(values) <= set(KPI_UNITS) and all(isinstance(v, float) for v in values.values())
+    for values in (kpis(mask, 0.025, channels), kpis(mask, 0.025), kpis(np.full_like(mask, Phase.IGNORE), 0.025)):
+        assert set(values) <= set(KPI_UNITS) and all(isinstance(v, float) for v in values.values())
+
+
+def test_reference_exclude_drops_baseline_images():
+    table = pd.read_csv(FAKE)
+    baseline, batch = table[table["batch"] == "fake_baseline"], table[table["batch"] == "fake_ok"]
+    assert judge(baseline, batch, CFG | {"reference_exclude": ["b01", "b02"]}).n_images["baseline"] == 5
 
 
 def test_backend_side_returns_valid_evidence():
@@ -68,7 +74,7 @@ def test_end_to_end_run(tmp_path, monkeypatch):
     fake_batch(Path("data/new"), 2)
     [evidence] = run([Path("data/new")], CFG)
     assert Evidence.model_validate_json(evidence_path("new").read_text()) == evidence
-    assert len(evidence.tiles) == 2 and all(preview_path("new", t.image_id).exists() for t in evidence.tiles)
+    assert len(evidence.tiles) == 2 and all(mask_path("new", t.image_id).exists() for t in evidence.tiles)
     assert set(pd.read_csv("out/kpis.csv")["batch"]) == {"base", "new"}
     assert len(field_paths(Path("data/base"))) == 4
 
@@ -89,4 +95,4 @@ def test_api_upload_run_and_read(tmp_path, monkeypatch):
 
     evidence = Evidence.model_validate(client.get("/api/evidence/new").json())
     assert {b["name"]: b["verdict"] for b in client.get("/api/batches").json()}["new"] == evidence.verdict
-    assert client.get(f"/api/previews/new/{evidence.tiles[0].image_id}.png").status_code == 200
+    assert client.get(f"/api/masks/new/{evidence.tiles[0].image_id}.png").status_code == 200

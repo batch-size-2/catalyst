@@ -12,16 +12,16 @@ import pandas as pd
 from skimage.exposure import rescale_intensity
 from skimage.io import imsave
 
+from qc.decide import judge
 from qc.io import field_paths, load_field
-from qc.judge import judge
 from qc.measure import kpis, segment
 from qc.schema import (
     CONFIG_PATH, KPI_TABLE, KPI_TABLE_COLUMNS, KPI_UNITS, Evidence, Field, Phase, evidence_path, load_config,
-    preview_path,
+    mask_path,
 )
 
 Progress = Callable[[int, int, str], None]
-OVERLAY_RGB = {Phase.PORE: (40, 120, 255), Phase.SI_PARTICLE: (255, 140, 0)}
+OVERLAY_RGB = {Phase.PORE: (40, 120, 255), Phase.SI: (255, 140, 0), Phase.BINDER: (190, 90, 255)}
 
 
 def run(batch_dirs: list[Path], cfg: dict, progress: Progress | None = None) -> list[Evidence]:
@@ -54,9 +54,9 @@ def measure(batch_dirs: list[Path], progress: Progress | None = None) -> pd.Data
 def measure_field(field: Field) -> dict:
     """A tile that fails to segment or measure gets NaN KPIs (-> SUSPECT) instead of crashing the run."""
     try:
-        mask = segment(field)
-        values = kpis(field, mask)
-        save_preview(field, mask)
+        mask = segment(field.channels, field.px_um)
+        values = kpis(mask, field.px_um, field.channels)
+        save_overlay(field, mask)
     except Exception as error:
         print(f"  ! {field.batch}/{field.image_id}: {error!r}")
         values = {}
@@ -65,14 +65,14 @@ def measure_field(field: Field) -> dict:
     }
 
 
-def save_preview(field: Field, mask: np.ndarray, step: int = 4) -> None:
+def save_overlay(field: Field, mask: np.ndarray, step: int = 4) -> None:
     grey = field.channels["BSE"][::step, ::step]
     lo, hi = np.percentile(grey, (1, 99))
     rgb = np.repeat(rescale_intensity(grey, in_range=(lo, hi), out_range=(0, 255))[..., None], 3, axis=2)
     small = mask[::step, ::step]
     for phase, color in OVERLAY_RGB.items():
         rgb[small == phase] = 0.5 * rgb[small == phase] + 0.5 * np.array(color)
-    path = preview_path(field.batch, field.image_id)
+    path = mask_path(field.batch, field.image_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     imsave(path, rgb.astype(np.uint8), check_contrast=False)
 
