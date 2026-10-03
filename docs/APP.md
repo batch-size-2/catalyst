@@ -189,6 +189,26 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
 
 **Great looks like:** a battery scientist calls it sensible and honest, and it makes the stakes tangible. Visual ideas: impact cards with range bars, a wear-risk panel, swelling shown on the real image.
 
+**3D physics view (the demo moment of this feature).** A rotatable 3D slice of anode built from one batch's measured metrics.
+
+- **Stack:** `three` with `@react-three/fiber` (v9, for our React 19) and `@react-three/drei`. Install with `npm install --before=…` (AGENTS.md).
+- **The slab:**
+  - copper current collector at the bottom, separator on top;
+  - graphite as flattened ellipsoids (about 30 µm, lying flat) and silicon as bright spheres, with electrolyte in the pores;
+  - silicon amount from `si_graphite_ratio`, silicon sizes from `si_d50_um`/`si_d90_um`, clumping from the dispersion and agglomerate metrics, packing from `porosity_apparent`, hollow particles from `si_internal_void_frac`.
+- **The real data on the cut face:** one face shows an actual FIB-SEM overlay of that batch, so the volume reads as "what lies behind the section we imaged".
+- **Charge slider:** silicon swells (about 280% by volume, radius × 1.56), graphite about 10%. The slab thickens, the pores shrink, and dense silicon glows with stress.
+- **Ion flow:** lithium-ion streaks through the pores, their rate scaled by Bruggeman (porosity^1.5).
+- **Cycle slider ("wear over time"):**
+  - SEI shells thicken on the silicon, larger particles crack first, and pores clog;
+  - next to it, an indicative capacity-retention band, labelled as a scenario.
+- **Side by side:** Batch_3 and the chosen batch with the same camera and the same sliders, so differences in swelling, cracking and ion flow are visible at a glance.
+- **Honesty:** it is an illustration driven by measured statistics, not a simulation and not a 3D reconstruction (we only have 2D sections). The label says so. The numbers shown beside it come from the relations above, which the backend computes; the UI only renders (AGENTS.md: no QC logic in the UI).
+- **Core challenge:**
+  - turning a few 2D statistics into a believable 3D packing that hits the target fractions;
+  - keeping it fast (instanced meshes, a few thousand particles, smooth on a laptop);
+  - changing it visibly *and* truthfully when the metrics change.
+
 **Builds on:** PLAN_v3 §3.8 (indicative consequences).
 
 ### 7. Audit trail and traceability
@@ -204,6 +224,18 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
 - a printable one-page batch passport.
 
 **Great looks like:** re-running a past decision gives the identical result, and the passport is something a QA department would file.
+
+**"GENERATE LAWSUIT" button (for laughs, with a point).** A big red button in the Audit view turns the audit record into a mock court filing after a vehicle recall, e.g. *Fictional Motors v. Fictional Cells Ltd v. Fictional Silicon Co.*
+
+- **The exhibits are real:**
+  - Exhibit A: the batch passport (verdict, drivers);
+  - Exhibit B: the SHA-256 of every input image;
+  - Exhibit C: the rules-frozen tag time ("the rules were fixed before the batch arrived");
+  - Exhibit D: the images.
+- **The damages line is an obvious joke** built from inputs the presenter can change (vehicles recalled × cost per vehicle). It is labelled as made-up numbers: no real statistics (PLAN_v3: don't quote figures without a source).
+- **Fictional parties only:** never real carmakers, cell makers, suppliers or the sponsor. "PARODY. NOT LEGAL ADVICE." on screen and on the printout.
+- **Fixed templates, offline.** Optional flourishes: typewriter reveal, gavel sound, "Download PDF".
+- **The point underneath:** after a recall, a record like this decides who pays along the liability chain (carmaker → cell maker → supplier), and ours is ready.
 
 **Builds on:** `qc/provenance.py` (every evidence file already carries input hashes, commit, config hash, freeze tag).
 
@@ -231,6 +263,6 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
 - 0:15: drop the 2 images → batch, confidence, why;
 - 0:45: what's different and how consistent each batch is;
 - 1:10: the held-back result, frozen before the data arrived;
-- 1:30: impact and audit.
+- 1:30: impact (the 3D slab swelling under the charge slider, baseline vs batch) and audit (GENERATE LAWSUIT).
 
 **Builds on:** the existing FastAPI + React app (`qc/api.py`, `web/`), HANDOFF step 5.
