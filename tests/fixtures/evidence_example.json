@@ -3,13 +3,13 @@
   "baseline": "example_reference",
   "verdict": "INVESTIGATE",
   "reasons": [
-    "si_graphite_ratio is UNCLEAR: the 90% interval crosses ±δ.",
-    "si_d50_um is UNCLEAR: the 90% interval crosses ±δ.",
-    "Strip ex_strip_d1 is outside the reference range on si_graphite_ratio."
+    "Strip ex_strip_d1 (2 images) is outside the reference range on si_graphite_ratio: 0.186 vs 0.066–0.114.",
+    "si_graphite_ratio is unclear: 90% interval -0.005 to 0.055 ratio against a margin of ±0.03.",
+    "si_d50_um is unclear: 90% interval -0.1 to 0.4 um against a margin of ±0.375."
   ],
-  "next_action": "Hold the batch. Image ~2 more strips to settle si_graphite_ratio, and check strip ex_strip_d1 against its coating record.",
+  "next_action": "Check strip ex_strip_d1: part of the batch may be different material.",
   "differences": [
-    {"name": "si_graphite_ratio", "unit": "fraction", "key": true, "used": true, "note": null,
+    {"name": "si_graphite_ratio", "unit": "ratio", "key": true, "used": true, "note": null,
      "reference": 0.09, "batch": 0.115, "difference": 0.025, "interval": [-0.005, 0.055],
      "margin": 0.03, "p": 0.18, "status": "UNCLEAR", "n_segments": [6, 7]},
     {"name": "si_d50_um", "unit": "um", "key": true, "used": true, "note": null,
@@ -18,7 +18,7 @@
     {"name": "si_contrast_ratio", "unit": "ratio", "key": true, "used": true, "note": null,
      "reference": 2.1, "batch": 2.11, "difference": 0.01, "interval": [-0.06, 0.08],
      "margin": 0.09, "p": 0.88, "status": "SIMILAR", "n_segments": [6, 7]},
-    {"name": "share:porous_si", "unit": "fraction", "key": true, "used": true, "note": null,
+    {"name": "type_share:porous_si", "unit": "fraction", "key": true, "used": true, "note": null,
      "reference": 0.04, "batch": 0.05, "difference": 0.01, "interval": [-0.02, 0.04],
      "margin": 0.045, "p": 0.71, "status": "SIMILAR", "n_segments": [6, 7]},
     {"name": "porosity_apparent", "unit": "fraction", "key": true, "used": true, "note": null,
@@ -29,21 +29,21 @@
      "margin": 0.006, "p": null, "status": "UNCLEAR", "n_segments": [0, 7]},
     {"name": "si_area_frac", "unit": "fraction", "key": false, "used": false, "note": null,
      "reference": 0.065, "batch": 0.079, "difference": 0.014, "interval": [0.002, 0.026],
-     "margin": 0.012, "p": 0.04, "status": "DIFFERENT", "n_segments": [6, 7]},
+     "margin": 0.012, "p": null, "status": "UNCLEAR", "n_segments": [6, 7]},
     {"name": "si_d90_um", "unit": "um", "key": false, "used": false, "note": null,
      "reference": 5.6, "batch": 5.7, "difference": 0.1, "interval": [-0.3, 0.5],
-     "margin": 0.6, "p": 0.9, "status": "SIMILAR", "n_segments": [6, 7]},
+     "margin": 0.6, "p": null, "status": "SIMILAR", "n_segments": [6, 7]},
     {"name": "si_dispersion_cv", "unit": "ratio", "key": false, "used": false, "note": null,
      "reference": 0.35, "batch": 0.36, "difference": 0.01, "interval": [-0.02, 0.04],
-     "margin": 0.045, "p": 0.8, "status": "SIMILAR", "n_segments": [6, 7]}
+     "margin": 0.045, "p": null, "status": "SIMILAR", "n_segments": [6, 7]}
   ],
-  "drivers": ["si_graphite_ratio", "si_d50_um", "share:porous_si", "porosity_apparent", "si_contrast_ratio"],
+  "drivers": ["si_graphite_ratio", "si_d50_um", "type_share:porous_si", "porosity_apparent", "si_contrast_ratio"],
   "power": {"n_segments": [6, 7], "n_arrangements": 1716, "min_p": 0.000583, "limited": false, "extra_strips_needed": 0},
   "shared_strips": {
     "setting": "exclude",
     "strips": ["ex_strip_r4"],
     "other_status": {"si_graphite_ratio": "UNCLEAR", "si_d50_um": "SIMILAR", "si_contrast_ratio": "SIMILAR",
-                     "share:porous_si": "SIMILAR", "porosity_apparent": "SIMILAR"},
+                     "type_share:porous_si": "SIMILAR", "porosity_apparent": "SIMILAR"},
     "contradictions": []
   },
   "odd_strips": [
@@ -58,11 +58,11 @@
     "results": [
       {"name": "brightness_up", "kind": "negative", "expected_driver": null,
        "statuses": {"si_graphite_ratio": "SIMILAR", "si_d50_um": "SIMILAR", "si_contrast_ratio": "SIMILAR",
-                    "share:porous_si": "SIMILAR", "porosity_apparent": "SIMILAR"},
+                    "type_share:porous_si": "SIMILAR", "porosity_apparent": "SIMILAR"},
        "top_driver": null, "passed": true},
       {"name": "si_added_50", "kind": "positive", "expected_driver": "si_graphite_ratio",
        "statuses": {"si_graphite_ratio": "DIFFERENT", "si_d50_um": "SIMILAR", "si_contrast_ratio": "SIMILAR",
-                    "share:porous_si": "SIMILAR", "porosity_apparent": "SIMILAR"},
+                    "type_share:porous_si": "SIMILAR", "porosity_apparent": "SIMILAR"},
        "top_driver": "si_graphite_ratio", "passed": true}
     ]
   },
@@ -118,10 +118,10 @@
                     "ex_strip_a3": null, "ex_strip_a4": null, "ex_strip_a5": null}}
     ],
     "type_shares": [
-      {"name": "type_regular_si", "unit": "fraction", "value": 0.86, "interval": [0.81, 0.91],
+      {"name": "regular_si", "unit": "fraction", "value": 0.86, "interval": [0.81, 0.91],
        "by_strip": {"ex_strip_r4": 0.88, "ex_strip_d1": 0.79, "ex_strip_a1": 0.87, "ex_strip_a2": 0.86,
                     "ex_strip_a3": 0.88, "ex_strip_a4": 0.87, "ex_strip_a5": 0.87}},
-      {"name": "type_porous_si", "unit": "fraction", "value": 0.14, "interval": [0.09, 0.19],
+      {"name": "porous_si", "unit": "fraction", "value": 0.14, "interval": [0.09, 0.19],
        "by_strip": {"ex_strip_r4": 0.12, "ex_strip_d1": 0.21, "ex_strip_a1": 0.13, "ex_strip_a2": 0.14,
                     "ex_strip_a3": 0.12, "ex_strip_a4": 0.13, "ex_strip_a5": 0.13}}
     ],

@@ -46,6 +46,7 @@ def provenance(inputs: list[Path], cfg: dict, data_dir: Path) -> Provenance:
                       | {name: sha256(path) for name in CONFIG_FILES
                          if (path := Path("config") / name).exists()},
         rules_frozen_commit=frozen,
-        rules_frozen_date=git("log", "-1", "--format=%cI", "rules-frozen") if frozen else None,
+        rules_frozen_date=git("for-each-ref", "refs/tags/rules-frozen",
+                              "--format=%(creatordate:iso-strict)") if frozen else None,
         created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
