@@ -14,7 +14,7 @@ from scipy.ndimage import gaussian_filter
 import qc.run as run_module
 from qc.api import app
 from qc.decide import evaluate, power, split_tables
-from qc.io import field_paths, iter_fields
+from qc.io import field_paths, iter_fields, preview_png
 from qc.measure import kpis, segment
 from qc.run import attribution_module, read_json, run
 from qc.schema import (
@@ -241,6 +241,73 @@ def test_api_upload_run_and_read(tmp_path, monkeypatch):
     assert {b["name"]: b["verdict"] for b in client.get("/api/batches").json()}["new"] == evidence.verdict
     image_id = evidence.fingerprint.segments[0].image_ids[0]
     assert client.get(f"/api/masks/new/{image_id}.png").status_code == 200
+
+
+def test_api_tiles_joins_kpis(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake_batch(Path("data/base"), 2)
+    Path("out").mkdir()
+    pd.DataFrame([
+        {"batch": "base", "image_id": "base0", "strip_id": "s0", "si_area_frac": 0.4},
+        {"batch": "other", "image_id": "o0", "strip_id": "s1", "si_area_frac": 0.9},
+    ]).to_csv("out/kpis.csv", index=False)
+    tiles = TestClient(app).get("/api/tiles").json()
+    assert sorted(t["image_id"] for t in tiles) == ["base0", "base1"]
+    tile = next(t for t in tiles if t["image_id"] == "base0")
+    assert tile["batch"] == "base" and tile["strip_id"] == "s0" and tile["has_mask"] is False
+    assert tile["detectors"] == ["BSE", "ETD", "InLens"]
+    assert tile["kpis"]["si_area_frac"] == 0.4 and tile["kpis"]["si_d50_um"] is None
+    assert next(t for t in tiles if t["image_id"] == "base1")["kpis"] is None
+
+
+def test_api_image_preview(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake_batch(Path("data/base"), 1)
+    client = TestClient(app)
+    url = "/api/images/base/base0/BSE?size=512"
+    res = client.get(url)
+    assert res.status_code == 200 and res.headers["content-type"] == "image/png"
+    assert res.content.startswith(b"\x89PNG")
+    assert client.get("/api/images/base/base0/bse?size=512").status_code == 200  # aliases
+    assert client.get("/api/images/base/base0/SE?size=512").status_code == 200   # SE -> ETD
+    assert client.get("/api/images/base/base0/InLens?size=2048").status_code == 200
+    assert client.get("/api/images/base/base0/BSE?size=1024").status_code == 400
+    assert client.get("/api/images/base/missing/BSE").status_code == 404
+    assert client.get("/api/images/base/.hidden/BSE").status_code == 400
+
+
+def test_preview_png_caches(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    fake_batch(Path("data/base"), 1)
+    tif = next(Path("data/base").glob("*_BSE.tif"))
+    first = preview_png(tif, 512)
+    second = preview_png(tif, 512)
+    assert first == second and str(first).endswith("base0_BSE_512.png")
+    import time
+    time.sleep(0.01)
+    tif.touch()
+    assert preview_png(tif, 512).stat().st_mtime >= tif.stat().st_mtime
+
+
+def test_api_verify(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake_batch(Path("data/base"), 2)
+    fake_batch(Path("data/new"), 1)
+    run([Path("data/new")], CFG)
+    client = TestClient(app)
+    assert client.post("/api/verify/none").status_code == 404
+    result = client.post("/api/verify/new").json()
+    assert result["ok"] is True and result["config_ok"] is True
+    assert all(f["ok"] for f in result["files"]) and len(result["files"]) > 0
+    next(Path("data/base").glob("*.tif")).write_bytes(b"tampered")
+    result = client.post("/api/verify/new").json()
+    assert result["ok"] is False and not all(f["ok"] for f in result["files"])
 
 
 def test_api_survives_stale_v1_evidence(tmp_path, monkeypatch):

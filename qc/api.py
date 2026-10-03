@@ -10,15 +10,19 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 
+import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
+from qc.explain import load_dictionary
+from qc.io import DETECTOR_ALIASES, PREVIEW_SIZES, field_paths, preview_png
+from qc.provenance import verify
 from qc.run import Progress, attribute, attribution_module, read_json, run
 from qc.schema import (
-    ATTRIBUTION_DIR, EVIDENCE_DIR, OUT_DIR, Evidence, Verdict, attribution_path, evidence_path,
-    load_config,
+    ATTRIBUTION_DIR, EVIDENCE_DIR, KPI_TABLE, KPI_UNITS, OUT_DIR, Evidence, Verdict,
+    attribution_path, evidence_path, load_config, mask_path,
 )
 
 app = FastAPI(title="Catalyst QC")
@@ -36,6 +40,12 @@ def batch_dir(batch: str) -> Path:
     if Path(batch).name != batch or batch.startswith("."):
         raise HTTPException(400, f"invalid batch name {batch!r}")
     return Path(load_config()["data_dir"]) / batch
+
+
+def clean_name(name: str) -> str:
+    if Path(name).name != name or name.startswith("."):
+        raise HTTPException(400, f"invalid name {name!r}")
+    return name
 
 
 @app.get("/api/config")
@@ -89,6 +99,69 @@ def attribution_result(name: str) -> dict:
     if not path.exists():
         raise HTTPException(404, f"no attribution for {name!r}")
     return read_json(path)
+
+
+@app.get("/api/kpis")
+def kpi_dictionary() -> dict:
+    """config/kpi_dictionary.yaml: name, unit and plain-language meaning per descriptor."""
+    return load_dictionary()
+
+
+@app.get("/api/tiles")
+def tiles() -> list[dict]:
+    """Every image in every data_dir folder, joined with its out/kpis.csv row when present."""
+    data_dir = Path(load_config()["data_dir"])
+    rows: dict[tuple[str, str], pd.Series] = {}
+    if KPI_TABLE.exists():
+        table = pd.read_csv(KPI_TABLE)
+        rows = {(row.batch, row.image_id): row for row in table.itertuples()}
+    result = []
+    for folder in sorted(data_dir.iterdir()) if data_dir.is_dir() else []:
+        if not folder.is_dir() or folder.name.startswith("."):
+            continue
+        for image_id, paths in field_paths(folder).items():
+            row = rows.get((folder.name, image_id))
+            result.append({
+                "batch": folder.name,
+                "image_id": image_id,
+                "strip_id": None if row is None or pd.isna(row.strip_id) else row.strip_id,
+                "detectors": sorted(paths),
+                "kpis": None if row is None else {
+                    k: (None if (v := getattr(row, k, None)) is None or pd.isna(v) else float(v))
+                    for k in KPI_UNITS
+                },
+                "has_mask": mask_path(folder.name, image_id).exists(),
+            })
+    return result
+
+
+@app.get("/api/images/{batch}/{image_id}/{detector}")
+def image_preview(batch: str, image_id: str, detector: str, size: int = 512) -> FileResponse:
+    """A PNG preview of one detector TIFF (percentile-stretched, cached under out/previews/)."""
+    folder, image_id = batch_dir(batch), clean_name(image_id)
+    detector = DETECTOR_ALIASES.get(clean_name(detector).lower(), detector)
+    if size not in PREVIEW_SIZES:
+        raise HTTPException(400, f"size must be one of {PREVIEW_SIZES}")
+    paths = field_paths(folder).get(image_id) if folder.is_dir() else None
+    if not paths or detector not in paths:
+        raise HTTPException(404, f"no {detector} image for {batch}/{image_id}")
+    return FileResponse(preview_png(paths[detector], size))
+
+
+@app.post("/api/verify/{batch}")
+def verify_batch(batch: str) -> dict:
+    """Re-hash the batch's provenance inputs and config files against their stored sha256s."""
+    batch_dir(batch)
+    path = evidence_path(batch)
+    if not path.exists():
+        raise HTTPException(404, f"no evidence for {batch!r}")
+    try:
+        provenance = Evidence.model_validate_json(path.read_text()).provenance
+    except ValidationError:
+        raise HTTPException(409, "evidence in an old format; re-run the batch")
+    if provenance is None:
+        raise HTTPException(404, f"no provenance for {batch!r}")
+    return verify(provenance, Path(load_config()["data_dir"]))
 
 
 @app.post("/api/batches/{batch}/files")

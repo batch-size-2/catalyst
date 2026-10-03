@@ -1,5 +1,6 @@
 import type {
-  Attribution, AttributionEvaluation, AttributionEvent, BatchSummary, Config, Evidence, RunEvent,
+  Attribution, AttributionEvaluation, AttributionEvent, BatchSummary, Config, Evidence,
+  KpiDictionary, RunEvent, Tile, VerifyResult,
 } from "./types";
 
 async function getJson<T>(url: string): Promise<T> {
@@ -15,14 +16,27 @@ export const listBatches = () => getJson<BatchSummary[]>("/api/batches");
 export const getEvidence = (batch: string) => getJson<Evidence>(`/api/evidence/${enc(batch)}`);
 export const listAttributions = () => getJson<string[]>("/api/attribution");
 export const getAttribution = (name: string) => getJson<Attribution>(`/api/attribution/${enc(name)}`);
-export const getAttributionEvaluation = () => getJson<AttributionEvaluation>("/api/attribution-evaluation");
-export const maskUrl = (batch: string, imageId: string) => `/api/masks/${enc(batch)}/${enc(imageId)}.png`;
+export const getAttributionEvaluation = () =>
+  getJson<AttributionEvaluation>("/api/attribution-evaluation");
+export const getTiles = () => getJson<Tile[]>("/api/tiles");
+export const getKpiDictionary = () => getJson<KpiDictionary>("/api/kpis");
+
+export const maskUrl = (batch: string, imageId: string) =>
+  `/api/masks/${enc(batch)}/${enc(imageId)}.png`;
+export const imageUrl = (batch: string, imageId: string, detector: string, size = 512) =>
+  `/api/images/${enc(batch)}/${enc(imageId)}/${enc(detector)}?size=${size}`;
 
 export async function uploadBatch(batch: string, files: File[]) {
   const body = new FormData();
   files.forEach((file) => body.append("files", file));
   const res = await fetch(`/api/batches/${enc(batch)}/files`, { method: "POST", body });
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+}
+
+export async function verifyBatch(batch: string): Promise<VerifyResult> {
+  const res = await fetch(`/api/verify/${enc(batch)}`, { method: "POST" });
+  if (!res.ok) throw new Error(await responseError(res));
+  return res.json();
 }
 
 async function responseError(res: Response): Promise<string> {

@@ -4,12 +4,16 @@ from pathlib import Path
 
 import numpy as np
 import tifffile
+from skimage.exposure import rescale_intensity
+from skimage.io import imsave
+from skimage.transform import resize
 
-from qc.schema import Field
+from qc.schema import Field, PREVIEWS_DIR
 
 DETECTOR_ALIASES = {"bse": "BSE", "etd": "ETD", "se": "ETD", "inlens": "InLens"}
 EDGE_CROP_PX = 8
 UM_PER_UNIT = {2: 25_400.0, 3: 10_000.0}
+PREVIEW_SIZES = (512, 2048)
 
 
 def load_image(path: Path) -> tuple[np.ndarray, float, float]:
@@ -60,3 +64,26 @@ def load_field(batch: str, image_id: str, paths: dict[str, Path]) -> Field:
 def iter_fields(batch_dir: Path) -> Iterator[Field]:
     for image_id, paths in field_paths(batch_dir).items():
         yield load_field(batch_dir.name, image_id, paths)
+
+
+def preview_png(path: Path, max_side: int) -> Path:
+    """A small PNG of one detector TIFF for the UI: 1–99 percentile stretch, longest side <= max_side.
+
+    Cached at out/previews/<batch>/<image_id>_<detector>_<max_side>.png; reused while newer than the TIFF.
+    """
+    if max_side not in PREVIEW_SIZES:
+        raise ValueError(f"preview size must be one of {PREVIEW_SIZES}")
+    stem, detector = path.stem.rsplit("_", 1)
+    cache = PREVIEWS_DIR / path.parent.name / f"{stem.removeprefix('img_')}_{detector}_{max_side}.png"
+    if cache.exists() and cache.stat().st_mtime >= path.stat().st_mtime:
+        return cache
+    image, _, _ = load_image(path)
+    lo, hi = np.percentile(image, (1, 99))
+    stretched = rescale_intensity(image.astype(float), in_range=(lo, hi), out_range=(0, 255))
+    scale = max_side / max(image.shape)
+    if scale < 1:
+        stretched = resize(stretched, (round(image.shape[0] * scale), round(image.shape[1] * scale)),
+                           anti_aliasing=True, preserve_range=True)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    imsave(cache, stretched.astype(np.uint8), check_contrast=False)
+    return cache

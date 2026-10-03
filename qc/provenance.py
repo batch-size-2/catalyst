@@ -6,7 +6,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from qc.schema import InputFile, Provenance
+from qc.schema import InputFile, Provenance, load_config
 
 CONFIG_FILES = ("particle_types.json", "kpi_dictionary.yaml", "attribution_model.json")
 
@@ -50,3 +50,19 @@ def provenance(inputs: list[Path], cfg: dict, data_dir: Path) -> Provenance:
                               "--format=%(creatordate:iso-strict)") if frozen else None,
         created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
+
+
+def verify(prov: Provenance, data_dir: Path) -> dict:
+    """Re-hash every provenance input and the config files against their stored sha256s.
+
+    "decision" is the canonical JSON of the config used at run time, re-hashed from the current one.
+    """
+    files = []
+    for entry in prov.inputs:
+        path = data_dir / entry.path
+        files.append({"path": entry.path, "ok": path.is_file() and sha256(path) == entry.sha256})
+    checks = [sha256(json.dumps(load_config(), sort_keys=True)) == digest if name == "decision"
+              else (path := Path("config") / name).is_file() and sha256(path) == digest
+              for name, digest in prov.config_sha256.items()]
+    config_ok = all(checks)
+    return {"ok": config_ok and all(f["ok"] for f in files), "files": files, "config_ok": config_ok}
