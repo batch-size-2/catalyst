@@ -16,6 +16,8 @@ import zlib
 from dataclasses import replace
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import numpy as np
 import pandas as pd
 from scipy.ndimage import gaussian_filter
