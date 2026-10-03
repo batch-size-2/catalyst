@@ -174,3 +174,103 @@ def test_reducer_fits_pca_inside_folds_and_roundtrips(deep_table, tmp_path):
     mixed = A.fit_model(deep_table, "Batch_3", (*F.MATERIAL_FAMILIES, "deep"))  # material columns pass through
     assert mixed["model_features"][-1] == f"deep_pc{A.DEEP_COMPONENTS:02d}" and "kpi_si_d50_um" in mixed["model_features"]
     assert A.predict(mixed, deep_table)["predicted"].notna().all()
+
+
+# ---------------------------------------------------------------- always a bet, confidence, stages, reasons
+
+def test_every_image_gets_a_batch_even_when_unlike_anything(table):
+    model = A.fit_model(table, "Batch_3")
+    odd = table.iloc[[0, 9, 17]].copy()
+    cols = F.feature_columns(odd, F.MATERIAL_FAMILIES)
+    odd.loc[odd.index[0], cols] = np.nan                                  # nothing measured
+    odd.loc[odd.index[1], cols] = odd.loc[odd.index[1], cols] * -40 + 9   # far from every batch
+    out = A.predict(model, odd)
+    assert out["predicted"].isin(model["classes"]).all() and np.isfinite(out["confidence"]).all()
+    assert all(p in s for p, s in zip(out["predicted"], out["prediction_set"]))
+    assert out["confidence_tier"].isin([name for name, _ in A.TIERS]).all()
+    assert out["unfamiliar"].iloc[1] == True and out["predicted"].iloc[1] in model["classes"]  # noqa: E712
+
+
+def test_calibration_is_built_from_out_of_fold_calls(table):
+    model = A.fit_model(table, "Batch_3")
+    cal = model["calibration"]
+    assert cal["n"] == len(table) and sum(t["n"] for t in cal["tiers"]) == len(table)
+    assert sum(t["right"] for t in cal["tiers"]) == round(cal["accuracy"] * cal["n"])
+    assert 0 <= cal["conformal"]["qhat"] <= 1 and cal["stages"]["baseline"]["n"] == len(table)
+    probs = np.array([[0.5, 0.3, 0.2], [0.1, 0.2, 0.7]])
+    for t in (0.2, 1.0, 5.0):
+        scaled = A._temper(probs, t)
+        assert np.allclose(scaled.sum(axis=1), 1) and (scaled.argmax(axis=1) == probs.argmax(axis=1)).all()
+    assert A._temper(probs, 0.2).max() > probs.max() > A._temper(probs, 5.0).max()
+    out = A.predict(model, table).iloc[0]
+    assert out["confidence_record"]["n"] == next(t["n"] for t in cal["tiers"] if t["tier"] == out["confidence_tier"])
+
+
+def test_stage_calls_say_different_from_baseline_then_in_what_way(table):
+    model = A.fit_model(table, "Batch_3")
+    out = A.predict(model, table)
+    base, other = out[out["predicted"] == "Batch_3"].iloc[0], out[out["predicted"] != "Batch_3"].iloc[0]
+    assert base["stage_baseline"]["call"] == "Batch_3" and base["stage_variation"] is None
+    assert other["stage_baseline"]["call"] == "not Batch_3" and other["stage_variation"]["call"] == other["predicted"]
+    assert 0.5 <= other["stage_variation"]["confidence"] <= 1
+    calls = A._stage_calls(np.array([0.34, 0.33, 0.33]), ["Batch_1", "Batch_2", "Batch_3"], "Batch_3")
+    assert calls["stage_baseline"]["call"] == "not Batch_3" and abs(calls["stage_variation"]["confidence"] - 0.34 / 0.67) < 1e-9
+
+
+def test_unfamiliar_is_measured_against_the_assigned_batch(table):
+    model = A.fit_model(table, "Batch_3")
+    assert set(model["batch_stats"]) == set(model["classes"]) and model["batch_stats"]["Batch_3"] == model["baseline_stats"]
+    out = A.predict(model, table)
+    assert out["unfamiliar"].sum() <= 2                       # training images sit inside their own batch
+    first = out[out["predicted"] == "Batch_1"].iloc[0]         # judged against Batch_1's range, not the baseline's
+    assert first["predicted_threshold"] == model["batch_stats"]["Batch_1"]["threshold"]
+    assert first["baseline_threshold"] == model["baseline_stats"]["threshold"] and "outside_baseline" in first
+
+
+def test_reasons_read_in_material_terms(table, deep_table):
+    reasons = A.predict(A.fit_model(table, "Batch_3"), table)["reasons"].iloc[0]
+    assert all(r["stage"] == "all" and ("SD" in r["text"] or "about the same" in r["text"]) for r in reasons)
+    assert all("Batch_3" in r["text"] and r["closest_batch"] in ("Batch_1", "Batch_2", "Batch_3") for r in reasons)
+    model = A.fit_model(deep_table, "Batch_3", ("deep",))
+    assert set(model["explain"]["translations"]["all"]) == set(model["model_features"])
+    reasons = A.predict(model, deep_table)["reasons"].iloc[0]
+    top = reasons[0]                                           # the designed signal moves with the material features
+    assert top["label"].startswith("DINOv2 image pattern") and top["related"]
+    assert all(abs(c["r"]) >= A.TRANSLATE_MIN_R and c["feature"] in model["explain"]["named"] for c in top["related"])
+    assert "which moves with" in top["text"] and "r = " in top["text"]
+
+
+def test_staged_model_roundtrips_and_multiplies_its_stages(deep_table, tmp_path):
+    staged = (F.MATERIAL_FAMILIES, ("deep",))
+    cv = A.loso_cv(deep_table, staged=staged, baseline="Batch_3")
+    assert cv["balanced_accuracy"] >= 0.75 and cv["staged"] == [list(F.MATERIAL_FAMILIES), ["deep"]]
+    model = A.fit_model(deep_table, "Batch_3", staged=staged)
+    assert model["kind"] == "staged" and set(model["stages"]) == {"baseline", "variation"}
+    assert model["stages"]["baseline"]["classes"] == ["Batch_3", "not Batch_3"] and model["stages"]["variation"]["classes"] == ["Batch_1", "Batch_2"]
+    A.save_model(model, tmp_path / "m.json")
+    p1, p2 = A.predict(model, deep_table), A.predict(A.load_model(tmp_path / "m.json"), deep_table)
+    cols = [f"p_{c}" for c in model["classes"]]
+    assert np.allclose(p1[cols].sum(axis=1), 1) and np.allclose(p1[cols], p2[cols])
+    assert (p1["predicted"] == deep_table["batch"]).mean() >= 0.9
+    other = p1[p1["predicted"] != "Batch_3"]["reasons"].iloc[0]
+    assert [r["stage"] for r in other] == ["baseline"] * (A.N_REASONS // 2) + ["variation"] * (A.N_REASONS - A.N_REASONS // 2)
+    assert {r["stage"] for r in p1[p1["predicted"] == "Batch_3"]["reasons"].iloc[0]} == {"baseline"}
+    null = A.permutation_null(deep_table, n=5, seed=1, staged=staged, baseline="Batch_3")
+    assert cv["balanced_accuracy"] > null["p95"]
+
+
+def test_repeated_dry_runs_report_spread_and_held_out_confidence(table):
+    res = A.dry_runs(table, "Batch_3", per_batch=2, repeats=3)
+    assert res["repeats"] == 3 and 1 <= res["distinct_draws"] <= 3
+    assert res["balanced_accuracy"]["min"] <= res["balanced_accuracy"]["mean"] <= res["balanced_accuracy"]["max"]
+    assert sum(t["n"] for t in res["tiers"]) == 3 * 6 and 0 <= res["prediction_set"]["coverage"] <= 1
+    assert res["prediction_set"]["mean_size"] >= 1 and set(res["per_batch_accuracy"]) == {"Batch_1", "Batch_2", "Batch_3"}
+
+
+def test_describe_gives_plain_names():
+    assert F.describe("kpi_si_d50_um", {"si_d50_um": {"name": "median silicon particle size"}}) == "median silicon particle size"
+    assert F.describe("reg_si_frac_sd") == "silicon fraction, spread between regions"
+    assert F.describe("tex_inlens_glcm_homogeneity_d1") == "InLens texture smoothness at 0.05 um"
+    assert F.describe("tex_bse_si_lbp4") == "BSE fine texture inside silicon: share of straight edges"
+    assert F.describe("par_d50_um") == "median silicon particle size (D50)" and F.describe("par_solidity_iqr") == "spread of silicon particle compactness"
+    assert F.describe("deep_pc03") == "deep_pc03"

@@ -1,6 +1,6 @@
 # Track 4 · Batch QC for electrode microstructure: Plan v4 (draft)
 
-Team Batch Size 2. ML: Pat. Software: Patrik. **Delta on [PLAN_v3](PLAN_v3.md)**: sections not mentioned here stand as written there (§14 lists them). Drafted by Pat's agent after the task designer's clarification; for both owners to review before it replaces v3 as the plan.
+Team Batch Size 2. ML: Pat. Software: Patrik. **Delta on [PLAN_v3](PLAN_v3.md)**: sections not mentioned here stand as written there (§14 lists them). Drafted on Pat's side after the task designer's clarifications of 3 Oct; for both owners to review before it replaces v3 as the plan. The ML sections (§3.14–3.17) are built and the results are in §12; what is still open is in §5.
 
 ## In short
 
@@ -21,7 +21,7 @@ The tool therefore answers **four** questions instead of one, in this order, and
 
 Rule 2 of v3 ("no classifier trained on batch folders") is narrowed, not dropped: a classifier is allowed for **B only**, under the evaluation protocol of §3.17, and is never the verdict (§2).
 
-Status of the real data on 2026-10-03: the 15 whole-image descriptors do **not** separate the three batches under leave-one-strip-out (balanced accuracy 0.49 vs a permutation 95th percentile of 0.48 on leave-one-image-out, 0.35 strip-held-out; AGENT_HANDOVER §2.3). The designed variation is somewhere the whole-image averages do not look. §3.14 is where we go looking.
+Status of the real data on 2026-10-03 (§12–12.2): Batch_3 against the rest separates on held-out strips (24–26 of 31 images). The three-way call reaches 0.64 with the deep features, against a null of 0.54, and no named family beats its null. Batch_1 against Batch_2 is not separable with anything that survives a fair null. The 15 whole-image descriptors alone score 0.35 (0.49 if single images are held out, which is strip leakage; AGENT_HANDOVER §4).
 
 ## 1. Ground truth, updated
 
@@ -38,13 +38,17 @@ Status of the real data on 2026-10-03: the 15 whole-image descriptors do **not**
 
 ## 2. Rules, updated
 
-Rules 1, 3, 4, 5, 6, 8, 9 of v3 stand. Rule 6 additionally freezes `config/attribution_model.json`.
+Rules 1, 4, 6, 8, 9 of v3 stand. Rule 6 additionally freezes `config/attribution_model.json`.
 
-**Rule 2 (was: no classifier trained on batch folders).** A classifier on batch labels is allowed only for attribution (B). It must be: linear or nearest-centroid on named, unit-bearing features; evaluated leave-one-strip-out with a permutation null before it is trusted; frozen as readable JSON; and reported with the features and regions that drove each prediction. It never produces the verdict, never touches a KPI value, and never uses `strip_id`, image dimensions, `px_um` or XResolution (§3.14 enforces this in code).
+**Rules 3 and 5, dropped (Pat, 3 Oct; Patrik to confirm).** Rule 3 (no language model measures, decides or explains) and rule 5 (images stay on our machines until Polaron says otherwise) no longer apply. Both were set by us in PLAN_v1. Rule 4 still keeps the frozen verdict path off the network, and `qc/explain.py` still builds its texts from templates. v3 §10 Q8 (may images be uploaded?) has not been answered by the mentors.
+
+**Rule 2 (was: no classifier trained on batch folders).** A classifier on batch labels is allowed only for attribution (B). It must be: linear or nearest-centroid on named, unit-bearing features, or on principal components of frozen pretrained image features (`deep_`) provided every reason is translated into the named features it moves with (§3.15 Reasons); evaluated leave-one-strip-out with a permutation null before it is trusted; frozen as readable JSON; and reported with the features and regions that drove each prediction. It never produces the verdict, never touches a KPI value, and never uses `strip_id`, image dimensions, `px_um` or XResolution (§3.14 enforces this in code).
 
 **Rule 7, sharpened.** "Different" is not "bad", and *attributed to Batch_1* is not "bad" either. Report wording: "looks like Batch_1 (p = 0.8), because …", "outside the baseline's range on …", never "defective". The verdict for an incoming batch still needs the customer tolerance `δ` (v3 §3.5).
 
 **Rule 10 (new).** The attribution model is scored on strips it never saw. Leave-one-image-out numbers are not reported anywhere.
+
+**Rule 11 (new, task designer 3 Oct 16:46).** Every image is always assigned to a batch, with a confidence and an explanation. The system may say it is very unconfident, but it still takes a bet. No output of B is "not enough evidence": *unfamiliar*, a low tier and a wide prediction set say how weak a call is, and none of them replaces it.
 
 ## 3. Pipeline additions
 
@@ -67,7 +71,7 @@ One row per image, `batch, image_id, strip_id` plus features in six families, ea
 |---|---|---|---|
 | Regional | `reg_` | Per ~15 µm tile of the valid band: Si, pore, graphite, binder fractions, Si/graphite, graphite and pore chord. Summaries over tiles: mean, SD, CV, p10/p50/p90; a normalised top-to-bottom slope and a top/bottom ratio | "Features in different regions": spread and depth profile, not just the mean |
 | Edge | `edge_` | Si and pore fraction and relative brightness in the top and bottom 5% rows that `segment()` ignores | Measured separately because they are artefact-prone, but a designed difference could live there |
-| Texture | `tex_` | Uniform LBP histograms (P=8, R=1 at 0.05 µm/px) per channel, and BSE LBP inside graphite and inside Si; GLCM contrast, homogeneity, energy, correlation at 0.1 and 0.4 µm per channel, with a 0°/90° anisotropy | Cracks, porous Si, grain texture, surface roughness: things the phase fractions miss |
+| Texture | `tex_` | Uniform LBP histograms (P=8, R=1 at 0.05 µm/px) per channel, and BSE LBP inside graphite and inside Si; GLCM contrast, homogeneity, energy, correlation at 0.05 and 0.2 µm per channel, with a 0°/90° anisotropy | Cracks, porous Si, grain texture, surface roughness: things the phase fractions miss |
 | Particles | `par_` | From `particles()`: count density, area-weighted D10/D50/D90, log-size SD, coarse share, medians and IQRs of contrast, InLens ratio, texture, solidity; area-weighted void fraction, porous and low-solidity shares; type shares if `config/particle_types.json` exists | The v3 particle work, aggregated per image |
 | KPIs | `kpi_` | The 15 descriptors of `kpis()` | The v3 whole-image view, kept as its own family so its (lack of) separation stays visible |
 | Imaging | `img_` | `imaging()` per channel | Acquisition, not material. In the table, out of the default model |
@@ -82,8 +86,13 @@ Command: `uv run python -m qc.features` → `out/features.csv`.
 |---|---|
 | Model | Standardised, L2-regularised, class-balanced multinomial logistic regression on the material families (`reg, edge, tex, par, kpi`). Features with under 80% finite values or zero variance are dropped |
 | Regularisation `C` | Chosen by an inner leave-one-strip-out over {0.01, 0.03, 0.1, 0.3, 1}; ties go to the strongest regularisation |
-| Output per image | `p_Batch_1, p_Batch_2, p_Batch_3`, `predicted`, `confidence`, five `reasons` (feature, its z-score against the training mean, its contribution `coef × z` to the predicted class), plus §3.16's distance block |
-| Balanced assignment | When the drop is known to be *k* per batch (the nine-image test: *k* = 3), also report the joint assignment with exactly *k* per class that maximises the summed log-probability (Hungarian). Both are shown; the unconstrained one is what an incoming single batch would get |
+| Output per image | `p_Batch_1, p_Batch_2, p_Batch_3`, `predicted` (never empty, Rule 11), `confidence`, five `reasons`, plus §3.16's distance block |
+| Confidence | Probabilities are temperature-scaled on the model's own out-of-fold (strip-held-out) probabilities; `confidence_raw` keeps the unscaled value. `confidence_tier`: high ≥ 0.75, medium ≥ 0.5, low; `confidence_record`: out-of-fold calls in that tier, right / n |
+| Stages | `stage_baseline`: Batch_3 or not, with its confidence ("different from the baseline?"). `stage_variation`: which of the other batches, with its confidence given that it is not the baseline ("in what way?"). Both derived from the three probabilities, so they exist for every model |
+| Prediction set | `prediction_set`: the batches with p ≥ 1 − q̂, q̂ from split conformal on the out-of-fold probabilities at α = 0.2. Loose at n = 31; shown beside the bet |
+| Reasons | Per reason: feature, its z-score against the training mean, its contribution `coef × z`, the `stage` it belongs to, and a plain-language `text`. A named feature is stated against the baseline ("… : 2.1 SD above Batch_3") with the batch it sits closest to. A `deep_pcNN` component lists the named material features it correlates with on the training set (\|r\| ≥ 0.5, at most three), each stated the same way |
+| Staged model (option) | `--staged a:b`: one regression for baseline-or-not on families `a`, one for which variation on families `b`, on the non-baseline rows; probabilities multiplied. Same evaluation protocol |
+| Balanced assignment | When the drop is known to be *k* per batch, also report the joint assignment with exactly *k* per class that maximises the summed log-probability (Hungarian). Both are shown. The unconstrained call is the primary answer: it is what a single image (the two live images) or an incoming batch would get, and whether the nine are 3/3/3 is not confirmed |
 | Regions | For the top regional driver, a tile heatmap of that quantity on the image (Pat, after the numbers are in) |
 | Frozen artefact | `config/attribution_model.json`: features, means, SDs, coefficients, intercepts, `C`, the image ids it was trained on, its own LOSO estimate, and the baseline statistics of §3.16. Readable; no pickles |
 | Not allowed | Imaging features in the default model (they can be switched on for an experiment, which is reported as such). Any use of `strip_id` beyond grouping |
@@ -92,7 +101,7 @@ Commands: `--evaluate` (§3.17), `--fit`, `--dry-run` (§4), `--images data/<dro
 
 ### 3.16 Familiarity: in or out of distribution
 
-Attribution forces every image into one of three classes; an unknown batch N must not be forced. So, independently of the classifier:
+Attribution assigns every image to one of three classes (Rule 11). How far the image sits from what we have seen is reported beside the call, independently of the classifier:
 
 | Quantity | Rule |
 |---|---|
@@ -100,15 +109,16 @@ Attribution forces every image into one of three classes; an unknown batch N mus
 | z per feature | `(value − mean) / SD`, two-sided. Features with \|z\| ≥ 2 are listed with their direction |
 | Distance | RMS of z over the model's features |
 | Threshold | For each Batch_3 strip, standardise by the other Batch_3 strips and take the RMS z of its images: the baseline's own held-out distances. The threshold is their maximum. Batch_3 images by construction sit at or under it |
-| `unfamiliar` | distance > threshold |
+| `outside_baseline` | distance > threshold |
+| `unfamiliar` | The same distance and threshold computed for the batch the image was **assigned to** (`predicted_distance`, `predicted_threshold`): the image is outside the range of every image we have of that batch. A correct Batch_1 call is therefore not flagged just for being far from Batch_3 |
 
 Reading, for an incoming image or batch:
 
 | Attribution | Familiarity | Meaning | Feeds |
 |---|---|---|---|
-| Batch_3 | not unfamiliar | Inside the promised material's own variation | ACCEPT path (if A agrees) |
-| Batch_1 or Batch_2, confident | unfamiliar to Batch_3 | A **known** variation: we have seen this before and can name it | Explanation names the batch and the drivers; verdict from A and δ |
-| any | unfamiliar, low confidence or disagreement with the balanced assignment | **Out of distribution**: unlike every known batch | At least INVESTIGATE; the next action is "get more strips" or "ask the supplier about …" |
+| Batch_3 | inside the baseline | Inside the promised material's own variation | ACCEPT path (if A agrees) |
+| Batch_1 or Batch_2 | outside the baseline, not unfamiliar | A **known** variation: we have seen this before and can name it | Explanation names the batch and the drivers; verdict from A and δ |
+| any batch (the call still stands) | unfamiliar, low tier or a prediction set of two or three | A **weak call**: the nearest known batch, and how unlike it the image is | At least INVESTIGATE; the next action is "get more strips" or "ask the supplier about …" |
 
 The same distance against Batch_1 and Batch_2 is a cheap extension (same code, other reference) and gives "nearest known batch by distance" as a cross-check on the classifier.
 
@@ -125,7 +135,7 @@ All numbers come from `uv run python -m qc.attribute --evaluate` → `out/attrib
 | Imaging alone | Same LOSO with only `img_` | If imaging alone attributes well, say it in the report: the batches also differ in acquisition, and material claims need the material families to beat it |
 | Dry run | §4 | Accuracy on 3 held-out images per batch, whole strips held out |
 
-If no family beats its null, we say so and fall back to A only, with the honest statement that the three batches are not distinguishable on strips we have not seen. That is a legitimate (if disappointing) result and better than a leave-one-image-out number.
+If no family beats its null, we say so next to every call (the model's strip-held-out accuracy and its null are part of the output) and the confidence tiers will read low. The call is still made (Rule 11). That is a legitimate (if disappointing) result and better than a leave-one-image-out number.
 
 ### 3.18 Showing A–D together
 
@@ -143,47 +153,45 @@ Indicative, non-verdict, per batch, from measured quantities only: Si swelling v
 
 ## 4. Sync points, updated
 
-| When | What |
-|---|---|
-| Now | Both read this draft; object within the hour or it stands. Patrik: `baseline: Batch_3` in `config/decision.yaml` (already on `PtrkH/compare-v3`) |
-| Sync 1 | `out/features.csv` for all 31 images; `--evaluate` run; the family table and the top features read together. Decide which families go into the frozen model, and whether deep features are needed |
-| Sync 2 | Types refit after the new descriptors (`config/particle_types.json` is still provisional). `--fit`; `config/attribution_model.json` committed. Shared-strip check read; `shared_strips` chosen (v3 §3.13) |
-| Dry run, 1 h before the drop | `uv run python -m qc.attribute --dry-run`: holds out 3 images per batch, **whole strips where possible**, refits on the rest, predicts, scores unconstrained and balanced. Then refit on everything (`--fit`) |
-| Freeze, 30 min before the drop | `git tag rules-frozen` covering `decision.yaml`, `particle_types.json`, `attribution_model.json` |
-| Drop | `uv run python -m qc.attribute --images data/<drop> --balanced 3` once; commit `out/attribution/<drop>.json` unchanged. If the drop is a whole batch, also `qc.run` for A and D |
+| When | What | State |
+|---|---|---|
+| Sync 1 | `out/features.csv` for all 31 images; `--evaluate` run; the family table read together. Decide which families go into the frozen model | Run (§12–12.2). The decision between the flat `deep` model and the staged `material > deep` model is open |
+| Sync 2 | Particle types refit (`config/particle_types.json` is still provisional). `--fit`; `config/attribution_model.json` committed | A flat `deep` model is fitted, not frozen. Types not refit |
+| Rehearsal, before the freeze | `uv run python -m qc.attribute --dry-run --repeats 30`: holds out 3 images per batch, **whole strips where possible**, refits on the rest, predicts, scores unconstrained and balanced; repeated over held-out draws, because one draw of nine is too noisy to judge a model | Run for both candidate models (§12.2) |
+| Freeze | `git tag rules-frozen` covering `decision.yaml`, `particle_types.json`, `attribution_model.json` | Not done |
+| Drop | `uv run python -m qc.attribute --images data/<drop>` once; commit `out/attribution/<drop>.json` unchanged. Add `--balanced k` only if the split per batch is confirmed. If the drop is a whole batch, also `qc.run` for A and D | Not done |
 
 ## 5. Steps: Pat (ML)
 
-Done on `pat/ml-v3`: v3 steps 1–4, 6–9 (segmentation, 15 KPIs, particles, types (provisional), imaging, controls, uncertainty). New:
+Done: v3 steps 1–4 and 6–9 (segmentation, 15 KPIs, particles, provisional types, imaging, controls, uncertainty); `qc/features.py` (§3.14); `qc/deep.py`; `qc/attribute.py` (§3.15–3.17) with the confidence, stage, prediction-set and reason fields; `--evaluate` and the repeated rehearsals on the real data (§12–12.2).
 
-1. **`qc/features.py`** per §3.14, with tests on synthetic fields (done in this draft; review).
-2. **`qc/attribute.py`** per §3.15–3.16 with LOSO, null, shared-strip check, ranking, dry run, balanced assignment, JSON model (done in this draft; review).
-3. **Run `--evaluate` on the 31 real images.** Fill §12 of this plan with the family table and the top ten features. This is Sync 1.
-4. If no material family beats its null: add per-phase texture at a second scale and the depth-profile features at 30 µm tiles; then, and only then, deep features.
-5. Tile heatmap for the top regional driver per predicted image (§3.15 Regions).
-6. Refit particle types with the new particle descriptors; decide whether `par_type_*` shares help attribution.
-7. Put the top features into `config/kpi_dictionary.yaml` with causes, so A's explanations talk about what B found.
-8. **Dry run, `--fit`, freeze.**
-9. At the drop: `--images --balanced 3`, look at the overlays and heatmaps, change nothing.
-10. Evening: strip-leak chart now has a purpose: LOSO vs leave-one-image-out accuracy of the same model, showing why the latter would have fooled us.
-11. §3.19 if time permits.
+Open, in order (the reasoning is in PAT_SUMMARY §5):
+
+1. Compare Batch_1 and Batch_2 inside the strips they share (2080, 2148, 2156), by eye and feature by feature.
+2. Choose the model to freeze: flat `deep` or staged `material > deep`.
+3. Pre-register a short list of further representations (per-detector models averaged, other tile sizes, textures on contrast-stretched images, new descriptors for what step 1 shows) and score the best against the best-of-list null.
+4. Example-based reasons: nearest known tiles for each call.
+5. Refit and name the particle types; review the dictionary causes with a mentor.
+6. Rehearse, `--fit`, freeze, score once.
+7. §3.19 if time permits.
 
 ## 6. Steps: Patrik (software)
 
-v3 steps 1–7 stand (`compare()`, evidence contract, provenance). New:
+Done on `main`: `baseline: Batch_3`; the API and the Sort view read `out/attribution/<run>.json` and `evaluation.json` as written (the attribution block is not part of `Evidence`); provenance hashes `attribution_model.json`.
 
-1. `config/decision.yaml`: `baseline: Batch_3` (done on your branch); add `attribution: {families: [reg, edge, tex, par, kpi], balanced: null}`.
-2. `qc/schema.py`: additive `Attribution` block in `Evidence` (or a sibling file, your call): per-image rows as in §3.18 plus `model.fitted_at`, `model.loso_balanced_accuracy`. Mirror in `web/src/types.ts`; fixture; `tests/test_contract.py`. Paths `FEATURE_TABLE`, `ATTRIBUTION_DIR`, `ATTRIBUTION_MODEL_PATH`, `attribution_path()` are already in `qc/schema.py` on `pat/ml-v3`.
-3. `qc/run.py`: after the tables, if `config/attribution_model.json` exists, call `attribute.predict()` on the batch's feature rows and attach the block. `qc/features.build_features` can reuse the masks `qc.run` already computed (pass `mask=`) to avoid segmenting twice.
-4. UI: the Attribution & familiarity panel (§3.18).
-5. Provenance: hash `attribution_model.json` with the other configs.
-6. Templates: one sentence on B and C per audience.
+Open:
+
+1. Show the fields added in §3.15: `reasons[].text`, `confidence_tier` with `confidence_record`, `stage_baseline`, `stage_variation`, `prediction_set`. Nothing the UI reads today was renamed.
+2. The "Unlike any known batch" badge follows `unfamiliar`, which now refers to the assigned batch: print `predicted_distance` and `predicted_threshold`.
+3. Mirror the new fields in `web/src/types.ts` and both attribution fixtures.
+4. Templates (v3 §3.8): one sentence on B and C per audience.
+5. Feed the controls into `run()` so they reach the verdict (v3 §3.7).
 
 ## 7. Cut list, updated
 
-1. Optional review (v3 §3.10). 2. §3.19 degradation outlook. 3. Deep features. 4. Tile heatmaps (keep the reasons list). 5. Strip-leak chart. 6–9 as v3 items 4–9.
+1. Optional review (v3 §3.10). 2. §3.19 degradation outlook. 3. Tile heatmaps (keep the reasons list). 4. Strip-leak chart. 5–8 as v3 items 4–9.
 
-Never cut: §3.14 regional + texture features, §3.17 LOSO + null, §3.16 unfamiliar flag, the frozen JSON model, and everything on v3's never-cut list.
+Never cut: §3.14 regional + texture features, the deep features (the only family above its null, §12.1), §3.17 LOSO + null, §3.16 unfamiliar flag, the confidence tier and readable reasons of §3.15, the frozen JSON model, and everything on v3's never-cut list.
 
 ## 8. Open questions for the mentors, updated
 
@@ -240,9 +248,57 @@ Reading: the current features can say "looks like the promised Batch_3, or not",
 
 Reading: the deep family is the first one above its null for the three-way question, and Batch_2 has a fine-scale InLens look of its own. Batch_1 is still confused with the other two (strip 2316 reads as Batch_3), and the near-uniform probabilities mean any single call is weak. In the full `--evaluate` run (nested `C`, 200 segment shuffles per set; the other eight sets are unchanged from §12): `deep` 0.64 against a per-set null p95 of 0.54; `deep+material` (1,716 features) 0.46 against 0.50, so adding the material families to the deep ones dilutes them.
 
+### 12.2 Confidence, stages, rehearsals and the Batch_1 vs Batch_2 search (2026-10-03 evening)
+
+Same 31 images, features rebuilt locally; `--evaluate` reproduces every row of §12 and §12.1.
+
+**Staged models** (baseline-or-not families > which-variation families), three-way LOSO, nested `C`, 200 segment shuffles:
+
+| Set | LOSO balanced accuracy | Null p95 | Batch_1 / Batch_2 / Batch_3 right |
+|---|---|---|---|
+| deep (flat, for reference) | 0.64 | 0.54 | 3/7, 5/7, 13/17 |
+| material > deep | 0.66 | 0.51 | 3/7, 5/7, 14/17 |
+| texture > deep | 0.63 | 0.49 | 3/7, 4/7, 15/17 |
+| texture > material | 0.53 | 0.50 | 1/7, 4/7, 15/17 |
+
+Staging does not help accuracy: Batch_1 against Batch_2 is the bottleneck in every set.
+
+**Repeated dry runs** (`--dry-run --repeats 20`: 3 held out per batch, whole strips where possible, refit each time; 18 distinct draws):
+
+| Model | Unconstrained, mean ± SD (range) | Balanced 3/3/3 | Right per batch (B1 / B2 / B3) | Right per tier: high / medium / low | Prediction set: coverage, mean size |
+|---|---|---|---|---|---|
+| deep | 0.63 ± 0.12 (0.44–0.89) | 0.78 ± 0.22 | 0.35 / 0.65 / 0.88 | 24/36, 28/42, 61/102 | 0.89, 2.1 |
+| material > deep | 0.55 ± 0.16 (0.33–0.89) | 0.72 ± 0.20 | 0.35 / 0.38 / 0.92 | 32/35, 25/40, 42/105 | 0.89, 1.9 |
+
+- One draw of nine can land anywhere between 4/9 and 8/9 with the same model: the single dry runs of §12 and §12.1 (3/9, 6/9) were noise.
+- **If the nine really are three per batch, the balanced assignment is worth about +0.15.** That reverses the single-draw impression of §12.1. It does not apply to the two live images.
+- The flat deep model's tiers do not separate right from wrong calls on unseen strips (67%, 67%, 60%). The staged model's do (91%, 62%, 40%), at a lower overall accuracy. Which one to freeze is open (PAT_SUMMARY §6).
+- Prediction sets held the true batch for 89% of unseen images (target 80%), at about two batches per set.
+
+**Batch_1 vs Batch_2 search** (LOSO, nested `C`; DINOv2-small tile or particle embeddings pooled per image unless noted; one-off scripts, not in the CLI):
+
+| Representation | Three-way | Batch_1 vs Batch_2 (14 images) |
+|---|---|---|
+| InLens tiles (the `deep_` family) | 0.64 | 0.64 |
+| BSE tiles | 0.54 | 0.36 |
+| **ETD tiles** | 0.68 | **0.79** |
+| All three channels | 0.64 | 0.64 |
+| Si particle crops (BSE, up to 150 per image) | 0.39 | 0.36 |
+| Two-point correlation curves (Si, pore, graphite; 16 radii) | 0.26 | 0.36 |
+| Same, 10 PCs per fold | 0.27 | 0.50 |
+| Tile-level training with a per-image vote (InLens / BSE / ETD / particles) | 0.53 / 0.53 / 0.59 / 0.39 | 0.50 / 0.64 / 0.64 / 0.64 |
+
+- ETD is the only lead. Against its own null it stands out (p95 0.71, 1 of 150 shuffles as good). Against the fair null, the best of the seven pooled candidates per shuffle, it does not (p95 0.86; 19% of shuffles as good). **Not established.**
+- Acquisition check: the eight ETD imaging descriptors alone reach 0.64 on Batch_1 vs Batch_2, and ETD sharpness differs (2,126 against 1,748). Part of the ETD signal may be the microscope (§8 Q15).
+- Particle embeddings, two-point curves and tile-level training do not separate the two batches. Named texture and material families stay at chance (0.36, 0.50).
+
+Reading: nothing tried closes the Batch_1 / Batch_2 gap. The honest product is a confident "Batch_3 or not" (24–26 of 31 out-of-fold) and a weak, labelled lean between Batch_1 and Batch_2.
+
+**Model fitted for the app** (`config/attribution_model.json`, not frozen): flat `deep`, `C` = 0.3, LOSO 0.64; temperature 0.45; out-of-fold right per tier 7/9, 6/12, 8/10; stage record 24/31 (baseline or not) and 8/11 (which variation).
+
 ## 13. Evidence for the new decisions
 
-- Leave-one-strip-out, not leave-one-image-out: v3 [R5] and the 0.49 → 0.35 drop recorded in AGENT_HANDOVER §2.3.
+- Leave-one-strip-out, not leave-one-image-out: v3 [R5] and the 0.49 → 0.35 drop recorded in AGENT_HANDOVER §4.
 - Permutation null over segments: same logic as v3 §3.5's segment-label shuffle; the null must keep the dependence structure of the data.
 - Regularised linear model over trees or deep classifiers at n = 31: coefficients are the explanation; nothing to tune but `C`; the result is a readable JSON.
 - Familiarity as a two-sided RMS z against the baseline's segments with a self-calibrated threshold: the simplest "unlike anything in the baseline" rule that uses the same unit (strip segment) as the comparison. Mahalanobis is not estimable with 7 segments and 170 features.

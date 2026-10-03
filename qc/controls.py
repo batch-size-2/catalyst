@@ -27,12 +27,6 @@ from qc.measure import (
 )
 from qc.schema import OUT_DIR, Control, Field, Phase
 
-CONTROL_NAMES = [
-    "neg_brightness_up", "neg_brightness_down", "neg_contrast_up", "neg_contrast_down",
-    "neg_black_plus20", "neg_noise5", "neg_curtaining",
-    "pos_si_plus50", "pos_si_plus100", "pos_voids", "pos_si_scale150",
-]
-SHARED_CONTROL_NAMES = ["shared_unchanged", "shared_diluted", "unshared_change"]
 MAX_DONORS = 400
 MAX_PASTE_ATTEMPTS = 3000
 DONOR_D_UM = (1.0, 10.0)
