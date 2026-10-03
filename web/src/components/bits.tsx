@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { imageUrl } from "../api";
 import {
-  batchColor, batchLabel, baselineBand, dictEntry, fmt, quantityLabel, sigmaPos, VERDICT_CLASS,
+  batchColor, batchLabel, baselineBand, dictEntry, fmt, fmtSigma, quantityLabel, sigmaPos, VERDICT_CLASS,
 } from "../lib";
 import { href } from "../router";
 import type { GuideSlot, KpiDictionary, Tile, Verdict } from "../types";
@@ -65,14 +65,16 @@ export function Seg<T extends string>({
   value,
   onChange,
   className = "",
+  style,
 }: {
   options: { value: T; label: ReactNode; disabled?: boolean }[];
   value: T;
   onChange: (value: T) => void;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   return (
-    <div className={`seg glass ${className}`} role="tablist">
+    <div className={`seg glass ${className}`} role="tablist" style={style}>
       {options.map((option) => (
         <button
           key={option.value}
@@ -122,40 +124,6 @@ export function SigmaBand({ z, height = 4 }: { z: number | null; height?: number
   );
 }
 
-export function TileThumb({
-  batch,
-  imageId,
-  odd = false,
-  label,
-}: {
-  batch: string;
-  imageId: string;
-  odd?: boolean;
-  label?: ReactNode;
-}) {
-  return (
-    <a
-      href={href.library(batch, imageId)}
-      className="relative block aspect-square overflow-hidden rounded-xl"
-      style={odd ? { boxShadow: "0 0 0 2px var(--cx-investigate)" } : { border: "1px solid var(--cx-line)" }}
-    >
-      <img
-        src={imageUrl(batch, imageId, "BSE")}
-        alt={`Tile ${imageId}`}
-        loading="lazy"
-        className="block h-full w-full object-cover"
-      />
-      <span
-        className="mono absolute bottom-2 left-2 rounded-md px-1.5 py-0.5 text-[11px]"
-        style={{ background: "rgba(10,11,13,.75)", color: odd ? "var(--cx-investigate-text)" : "var(--cx-text)" }}
-      >
-        {label ?? imageId}
-        {odd ? " · odd" : ""}
-      </span>
-    </a>
-  );
-}
-
 export function Spinner({ size = 22, color = "var(--cx-orange)" }: { size?: number; color?: string }) {
   return (
     <span
@@ -189,6 +157,14 @@ export function IconCross({ size = 14 }: { size?: number }) {
     </svg>
   );
 }
+
+/** The segmentation overlay's colours as they look on screen: qc/run.py OVERLAY_RGB half-blended over mid-grey BSE. */
+export const PHASE_LEGEND: [string, string][] = [
+  ["Silicon", "rgb(191,134,64)"],
+  ["Pore", "rgb(84,124,191)"],
+  ["Binder", "rgb(159,109,191)"],
+  ["Graphite (grey, no tint)", "#6B6D73"],
+];
 
 /** "Everything else": a list of folded rows, each with a one-line summary. */
 export function Folds({
@@ -296,12 +272,7 @@ export function TileKpiGrid({
               </span>
               <span className="mono text-[14px] whitespace-nowrap">
                 {fmt(v, dictEntry(kpi, dict).unit)}
-                {z != null && (
-                  <span className="ml-1.5 text-[11px] text-cx-faint">
-                    {z > 0 ? "+" : ""}
-                    {z.toFixed(1)}σ
-                  </span>
-                )}
+                {z != null && <span className="ml-1.5 text-[11px] text-cx-faint">{fmtSigma(z)}</span>}
               </span>
               {z != null && <SigmaBand z={z} height={3} />}
             </div>

@@ -129,6 +129,19 @@ a:hover {
   animation: cxpulse 1.6s ease-in-out infinite;
 }
 
+/* Identify: no stage events (older backend) -> the line sweeps on a loop instead of parking. */
+@keyframes cxsweep {
+  from {
+    left: 0%;
+  }
+  to {
+    left: 100%;
+  }
+}
+.sweep {
+  animation: cxsweep 2.4s ease-in-out infinite alternate;
+}
+
 @keyframes cxspin {
   to {
     transform: rotate(360deg);
@@ -136,6 +149,13 @@ a:hover {
 }
 .spin {
   animation: cxspin 0.9s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .scan,
+  .sweep {
+    animation: none;
+  }
 }
 
 @keyframes rise {

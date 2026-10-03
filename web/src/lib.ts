@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Difference, Evidence, KpiDictionary, KpiEntry, Odd, Status, Tile, Verdict } from "./types";
+import type { Config, Difference, Evidence, KpiDictionary, KpiEntry, Odd, Status, Tile, Verdict } from "./types";
 
 /** Batch colours are design tokens; use the CSS var so styles stay in sync with tokens.css. */
 export const BATCH_COLORS: Record<string, string> = {
@@ -21,6 +21,25 @@ export const MIN_BASELINE_TILES = 3;
 
 /** "1 tile", "7 tiles" */
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** Test data that ships with the repo (data/example, the example_drop fixture): kept out of the product. */
+export const isFixture = (name: string) => name.startsWith("example");
+
+/** drop_<YYYYMMDD>-<HHMMSS>, the stamp of an upload, or "" for other folder names. */
+const uploadStamp = (batch: string) => /^drop_(\d{8}-\d{6})$/.exec(batch)?.[1] ?? "";
+
+/** The tiles the Library shows: no test data, and a tile uploaded more than once only from its newest upload. */
+export function libraryTiles(tiles: Tile[]): Tile[] {
+  const real = tiles.filter((t) => !isFixture(t.batch));
+  const newest = new Map<string, Tile>();
+  for (const t of real)
+    if (isUploadBatch(t.batch) && (!newest.has(t.image_id) || uploadStamp(t.batch) > uploadStamp(newest.get(t.image_id)!.batch)))
+      newest.set(t.image_id, t);
+  return real.filter((t) => !isUploadBatch(t.batch) || newest.get(t.image_id) === t);
+}
+
+/** "2026-10-03 21:27 local time" for timestamps written without a time zone (the model's fitted_at). */
+export const localTime = (iso: string | null | undefined) => (iso ? `${iso.slice(0, 16).replace("T", " ")} local time` : "—");
 
 /** Folders created by UI uploads are named drop_*. */
 export const isUploadBatch = (name: string) => name.startsWith("drop");
@@ -94,9 +113,24 @@ export function fmt(value: number | null | undefined, unit: string | undefined):
   return `${v}`;
 }
 
-/** "+2.1σ" */
-export const fmtSigma = (s: number | null | undefined) =>
-  s == null || !Number.isFinite(s) ? "—" : `${s > 0 ? "+" : s < 0 ? "−" : ""}${Math.abs(s).toFixed(1)}σ`;
+/** "+2.1σ": rounded half away from zero (qc.explain.fmt_sigma), a real minus, never "−0.0σ". */
+export function fmtSigma(s: number | null | undefined): string {
+  if (s == null || !Number.isFinite(s)) return "—";
+  const r = Math.floor(Math.abs(s) * 10 + 0.5 + 1e-9) / 10;
+  return r ? `${s > 0 ? "+" : "−"}${r.toFixed(1)}σ` : "0.0σ";
+}
+
+/** "reference → batch" with the same number of decimals on both sides (3 significant figures of the larger). */
+export function fmtPair(a: number | null | undefined, b: number | null | undefined, unit: string | undefined): string {
+  const f = unit === "fraction" ? 100 : 1;
+  const vals = [a, b].filter((v): v is number => v != null && Number.isFinite(v)).map((v) => Math.abs(v * f));
+  if (!vals.length) return `${fmt(a, unit)} → ${fmt(b, unit)}`;
+  const top = Math.max(...vals);
+  const dec = top ? Math.min(6, Math.max(0, 2 - Math.floor(Math.log10(top)))) : 0;
+  const one = (v: number | null | undefined) =>
+    v == null || !Number.isFinite(v) ? "—" : `${v === 0 ? "0" : (v * f).toFixed(dec)}${unit === "fraction" ? "%" : unit === "um" ? " µm" : ""}`;
+  return `${one(a)} → ${one(b)}`;
+}
 
 const ACRONYMS: Record<string, string> = {
   bse: "BSE", etd: "ETD", se: "SE", inlens: "InLens", si: "Si", lbp: "LBP", glcm: "GLCM", cv: "CV",
@@ -117,9 +151,12 @@ export function humanize(code: string): string {
     .join(" ");
 }
 
-/** A difference in baseline SDs: the margin is `similarMargin` SDs (the ±1.5σ tolerance). */
-export const sigmaOf = (d: Difference, value: number | null | undefined, similarMargin: number) =>
-  value == null || !d.margin ? null : (value / d.margin) * similarMargin;
+/** A difference in baseline SDs: the margin is similar_margin SDs (the ±1.5σ tolerance), unless the config
+ *  sets that quantity's margin by hand; then there's no SD and no σ (qc.guide.sigma). */
+export const sigmaOf = (d: Difference, value: number | null | undefined, config: Config) =>
+  value == null || !d.margin || (config.margins as Record<string, number> | undefined)?.[d.name] != null
+    ? null
+    : (value / d.margin) * config.similar_margin;
 
 /** Odd entries (one per tile and quantity) grouped by tile, or by strip at the strip unit. */
 export function oddByTile(evidence: Evidence): Map<string, Odd[]> {
@@ -131,30 +168,15 @@ export function oddByTile(evidence: Evidence): Map<string, Odd[]> {
   return units;
 }
 
-/** Of exactly two particle-type shares, the lower-ranked in evidence.drivers: it mirrors the other (qc.explain.twin_share). */
-export function twinShare(evidence: Evidence): string | null {
-  const shares = evidence.differences.filter((d) => d.name.startsWith("type_share:")).map((d) => d.name);
-  if (shares.length !== 2) return null;
-  const rank = (q: string) => {
-    const i = evidence.drivers.indexOf(q);
-    return i < 0 ? evidence.drivers.length + shares.indexOf(q) : i;
-  };
-  return rank(shares[0]) > rank(shares[1]) ? shares[0] : shares[1];
-}
-
-/** Drop the mirrored particle-type share, so the shift is shown once and everywhere the same one. */
+/** Drop the mirrored particle-type share the backend marked (explanations.twin), so the shift shows once. */
 export function dropTwinShare<T extends { name: string }>(items: T[], evidence: Evidence): T[] {
-  const twin = twinShare(evidence);
-  return items.filter((d) => d.name !== twin);
+  return items.filter((d) => d.name !== evidence.explanations.twin);
 }
 
-/** The backend's ranking (evidence.drivers) of used key properties that aren't settled as similar. */
+/** The backend's "look here first" ranking (explanations.ranked), as differences. */
 export function rankedFindings(evidence: Evidence): Difference[] {
   const byName = new Map(evidence.differences.map((d) => [d.name, d]));
-  const ranked = evidence.drivers
-    .map((q) => byName.get(q))
-    .filter((d): d is Difference => !!d && d.used && d.status !== "SIMILAR");
-  return dropTwinShare(ranked, evidence);
+  return evidence.explanations.ranked.map((q) => byName.get(q)).filter((d): d is Difference => !!d);
 }
 
 const METRIC_WORDS: Record<string, string> = {
@@ -238,21 +260,37 @@ export function shortHash(hash: string | null | undefined, n = 8): string {
   return hash ? hash.slice(0, n) : "—";
 }
 
-/** GET helper: data starts null and errors surface as a string. */
-export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []) {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<string | null>(null);
+/** GET helper: data starts null and errors surface as a string. Data and errors belong to the inputs that
+ *  produced them: after `deps` change, both read null until the new request settles (no stale answers). */
+export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = [], { keep = false } = {}) {
+  const key = JSON.stringify(deps);
+  const [state, setState] = useState<{ key: string; data: T | null; error: string | null; status: number | null }>({
+    key: "", data: null, error: null, status: null,
+  });
   useEffect(() => {
     let live = true;
-    setError(null);
     fn().then(
-      (value) => live && setData(value),
-      (err) => live && setError(err instanceof Error ? err.message : String(err)),
+      (value) => live && setState({ key, data: value, error: null, status: null }),
+      (err) =>
+        live &&
+        setState({
+          key,
+          data: null,
+          error: err instanceof Error ? err.message : String(err),
+          status: typeof err === "object" && err && "status" in err ? Number((err as { status: unknown }).status) : null,
+        }),
     );
     return () => {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  return { data, error };
+  }, [key]);
+  const current = state.key === key;
+  // keep: show the previous answer while a refresh of the same thing loads (no flicker), e.g. after a reload counter
+  return {
+    data: current || keep ? state.data : null,
+    error: current ? state.error : null,
+    status: current ? state.status : null,
+    loading: !current,
+  };
 }

@@ -4,6 +4,7 @@ explain() gives the answer sentence, the next steps and four audience texts, eac
 """
 
 import json
+import math
 import re
 from pathlib import Path
 
@@ -65,9 +66,22 @@ def fmt(value: float | None, unit: str) -> str:
     return f"{value:.3g}"
 
 
+def fmt_pair(a: float | None, b: float | None, unit: str, sep: str = " → ") -> str:
+    """Two values with the same number of decimals: 3 significant figures of the larger (web lib.fmtPair)."""
+    f = 100 if unit == "fraction" else 1
+    vals = [abs(v * f) for v in (a, b) if v is not None and math.isfinite(v)]
+    if not vals:
+        return f"{fmt(a, unit)}{sep}{fmt(b, unit)}"
+    top = max(vals)
+    dec = min(6, max(0, 2 - math.floor(math.log10(top)))) if top else 0
+    suffix = "%" if unit == "fraction" else " µm" if unit == "um" else ""
+    one = lambda v: "—" if v is None or not math.isfinite(v) else f"{0 if v == 0 else f'{v * f:.{dec}f}'}{suffix}"
+    return f"{one(a)}{sep}{one(b)}"
+
+
 def fmt_range(lo: float, hi: float, unit: str) -> str:
     """A reference range; every measured quantity is non-negative, so the lower end is clipped at 0."""
-    return f"{fmt(max(lo, 0.0), unit)} to {fmt(hi, unit)}"
+    return fmt_pair(max(lo, 0.0), hi, unit, " to ")
 
 
 def raw(value: float | None, unit: str) -> str:
@@ -131,8 +145,7 @@ def causes(d, dictionary: dict) -> str | None:
 def top_quantities(evidence: Evidence, n: int | None = 3) -> list[Difference]:
     """Used key quantities that are not settled as similar, in the driver ranking.
 
-    Two particle-type shares are complementary (one goes up as the other goes down), so only the
-    higher-ranked of a pair is kept.
+    Of two mirrored particle-type shares only the higher-ranked is kept (twin_share).
     """
     by_name = {d.name: d for d in evidence.differences if d.used and d.status != "SIMILAR"}
     names = [q for q in evidence.drivers if q in by_name]
@@ -142,12 +155,37 @@ def top_quantities(evidence: Evidence, n: int | None = 3) -> list[Difference]:
 
 
 def twin_share(evidence: Evidence) -> str | None:
-    """Of exactly two particle-type shares, the lower-ranked one: it mirrors the other, so it isn't shown."""
-    shares = [d.name for d in evidence.differences if d.name.startswith("type_share:")]
+    """Of exactly two particle-type shares that mirror each other, the lower-ranked one, which isn't shown.
+
+    They mirror when one went up by about what the other went down and both got the same status;
+    otherwise both are shown, so a share that isn't settled is never hidden behind a settled one.
+    """
+    shares = [d for d in evidence.differences if d.name.startswith("type_share:")]
     if len(shares) != 2:
         return None
+    a, b = shares
+    if (a.status != b.status or a.used != b.used or a.difference is None or b.difference is None
+            or a.difference * b.difference > 0):  # opposite signs, or both unchanged (a self-check)
+        return None
+    if abs(a.difference + b.difference) > 0.25 * max(abs(a.difference), abs(b.difference)):
+        return None
     rank = {q: i for i, q in enumerate(evidence.drivers)}
-    return max(shares, key=lambda q: (rank.get(q, len(rank)), shares.index(q)))
+    return max((a.name, b.name), key=lambda q: (rank.get(q, len(rank)), q == b.name))
+
+
+def within_tolerance(evidence: Evidence) -> list[str]:
+    """Every quantity settled as similar, minus the paused ones and the mirrored share."""
+    twin = twin_share(evidence)
+    return [d.name for d in evidence.differences
+            if d.status == "SIMILAR" and d.note != "imaging changed" and d.name != twin]
+
+
+def fmt_sigma(s: float | None) -> str:
+    """'+2.1σ', rounded half away from zero like the UI, with a real minus and no '-0.0'."""
+    if s is None or not math.isfinite(s):
+        return "—"
+    r = int(abs(s) * 10 + 0.5 + 1e-9) / 10
+    return f"{'+' if s > 0 else '−'}{r:.1f}σ" if r else "0.0σ"
 
 
 def odd_by_tile(evidence: Evidence) -> dict[str, list[Odd]]:
@@ -171,9 +209,14 @@ def summary(evidence: Evidence, dictionary: dict) -> str:
     if any(r.startswith("Contains a particle type not seen before") for r in evidence.reasons):
         return f"{b} contains a particle type the baseline doesn't have."
     top = top_quantities(evidence, None)
-    different = [d for d in top if d.status == "DIFFERENT"][:2]
+    contra = set(evidence.other_unit.contradictions)
+    different = [d for d in top if d.status == "DIFFERENT" and d.name not in contra][:2]
     if different:
         return f"{b} differs from the baseline on {join_and([label(d.name, dictionary) for d in different])}."
+    split = [d for d in top if d.status == "DIFFERENT" and d.name in contra][:2]
+    if split:
+        return (f"{b} differs from the baseline on {join_and([label(d.name, dictionary) for d in split])} per tile "
+                f"but not per strip, so it isn't settled.")
     if evidence.verdict == "ACCEPT":
         return f"{b} matches the baseline on every key property."
     unclear = [d for d in top if d.status == "UNCLEAR" and d.difference is not None][:2]
@@ -183,15 +226,16 @@ def summary(evidence: Evidence, dictionary: dict) -> str:
             sides[1] = label(unclear[1].name, dictionary)
         settled = "it isn't settled" if len(unclear) == 1 else "neither is settled"
         return f"{b} has {' and '.join(sides)} than the baseline, but {settled}."
+    checked = "every key property that could be checked" if evidence.imaging.changed else "every key property"
     if evidence.imaging.changed:
-        why = "the microscope settings changed"
+        why = "the images differ from the baseline's, so some properties are paused"
     elif not evidence.controls.ran:
         why = "the known-answer controls haven't been run"
     elif evidence.power.limited:
         why = "there are too few tiles to confirm it"
     else:
         why = "a rule fired that needs a closer look"
-    return f"{b} looks like the baseline on every key property, but {why}."
+    return f"{b} looks like the baseline on {checked}, but {why}."
 
 
 def rules(evidence: Evidence, dictionary: dict) -> list[str]:
@@ -208,7 +252,7 @@ def rules(evidence: Evidence, dictionary: dict) -> list[str]:
         (any(r.startswith("Contains a particle type not seen before") for r in evidence.reasons),
          "A particle type the baseline doesn't have"),
         (bool(different), f"Differs beyond the tolerance on {join_and(different)}"),
-        (evidence.imaging.changed, "Microscope settings changed"),
+        (evidence.imaging.changed, "Imaging differs from the baseline"),
         (bool(odd), f"{len(odd)} of {evidence.n_images.get('batch', n1)} {noun} outside the baseline range"),
         (bool(contra), f"{join_and([label(q, dictionary) for q in contra])} changes status between tiles and strips"),
         (evidence.power.limited, f"Too few {noun} to confirm any difference ({n1} vs {n2})"),
@@ -287,7 +331,7 @@ def explain(evidence: Evidence, dictionary: dict) -> Explanations:
         engineer.append(f"{subject} {tile} stands out on {join_and(parts)}.")
     if evidence.imaging.changed:
         paused = [label(d.name, dictionary) for d in evidence.differences if d.note == "imaging changed"]
-        engineer.append(sentence(f"Imaging changed: {imaging_words(evidence.imaging.changed_metrics)}; check the "
+        engineer.append(sentence(f"Imaging differs from the baseline: {imaging_words(evidence.imaging.changed_metrics)}; check the "
                                  f"microscope settings before trusting {join_and(paused) or 'brightness-based quantities'}"))
     if (evidence.new_type_share is not None
             and any(reason.startswith("Contains a particle type not seen before") for reason in evidence.reasons)):
@@ -379,5 +423,7 @@ def explain(evidence: Evidence, dictionary: dict) -> Explanations:
         manager.append("These ranges are indicative, from textbook relations, not predictions.")
 
     return Explanations(summary=sentence(summary(evidence, dictionary)), rules=rules(evidence, dictionary),
+                        ranked=[d.name for d in top_quantities(evidence, None)], twin=twin_share(evidence),
+                        within_tolerance=within_tolerance(evidence),
                         next_steps=next_steps(evidence, dictionary),
                         operator=operator, engineer=engineer, scientist=scientist, manager=manager)

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { getConfig, getKpiDictionary, getTiles, imageUrl, maskUrl } from "../api";
-import { batchColor, batchLabel, isUploadBatch, useApi } from "../lib";
+import { batchColor, batchLabel, isUploadBatch, libraryTiles, useApi } from "../lib";
 import { href } from "../router";
 import type { Tile } from "../types";
-import { BatchChip, BatchDot, Cat, Panel, Seg, TileKpiGrid } from "./bits";
+import { BatchChip, BatchDot, Cat, PHASE_LEGEND, Panel, Seg, TileKpiGrid } from "./bits";
 
 export default function Library({ routeBatch, routeImage }: { routeBatch?: string; routeImage?: string }) {
   const tiles = useApi(getTiles);
@@ -11,7 +11,8 @@ export default function Library({ routeBatch, routeImage }: { routeBatch?: strin
   const dict = useApi(getKpiDictionary);
   const [filter, setFilter] = useState<string>("all");
 
-  const all = tiles.data ?? [];
+  const everything = tiles.data ?? [];
+  const all = useMemo(() => libraryTiles(everything), [everything]);
   const batches = useMemo(() => [...new Set(all.map((t) => t.batch))].sort(), [all]);
   const knownBatches = batches.filter((b) => !isUploadBatch(b));
   const hasUploads = batches.some(isUploadBatch);
@@ -27,7 +28,7 @@ export default function Library({ routeBatch, routeImage }: { routeBatch?: strin
   if (routeBatch && routeImage)
     return (
       <Viewer
-        tiles={all}
+        tiles={everything}
         batches={batches}
         batch={routeBatch}
         imageId={routeImage}
@@ -212,7 +213,8 @@ function Viewer({
             </div>
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between p-3.5">
               <Seg
-                className="pointer-events-auto bg-[rgba(14,15,18,.72)]"
+                className="pointer-events-auto"
+                style={{ background: "rgba(14,15,18,.82)", backdropFilter: "blur(12px)" }}
                 options={tile.detectors.map((d) => ({ value: d, label: <span className="mono text-xs">{d}</span> }))}
                 value={det ?? ""}
                 onChange={(d) => {
@@ -220,7 +222,7 @@ function Viewer({
                   setSegmentation(false);
                 }}
               />
-              <div className="glass pointer-events-auto flex items-center gap-0.5 rounded-[14px] bg-[rgba(14,15,18,.72)] p-1">
+              <div className="glass pointer-events-auto flex items-center gap-0.5 rounded-[14px] p-1" style={{ background: "rgba(14,15,18,.82)", backdropFilter: "blur(12px)" }}>
                 <button
                   type="button"
                   aria-label="Zoom out"
@@ -311,13 +313,7 @@ function Viewer({
             </button>
             {segmentation && (
               <div className="flex flex-col gap-1.5 text-[13px]">
-                {/* the overlay's own colours (qc/run.py OVERLAY_RGB), half-blended over the BSE image */}
-                {[
-                  ["Silicon", "rgb(255,140,0)"],
-                  ["Pore", "rgb(40,120,255)"],
-                  ["Binder", "rgb(190,90,255)"],
-                  ["Graphite (left grey)", "#6B6D73"],
-                ].map(([label, color]) => (
+                {PHASE_LEGEND.map(([label, color]) => (
                   <span key={label} className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: color }} />
                     {label}

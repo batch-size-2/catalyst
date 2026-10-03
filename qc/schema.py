@@ -17,7 +17,7 @@ from typing import Literal, NamedTuple
 import numpy as np
 import pandas as pd
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 DETECTORS = ("BSE", "ETD", "InLens")
 
@@ -191,10 +191,19 @@ class Explanations(BaseModel):
     summary: str = ""                    # one plain sentence for the answer, no code names
     rules: list[str] = []                # the verdict rules that fired, one line each, in words
     next_steps: list[str] = []           # plain-word next steps; each tile named once
+    ranked: list[str] = []               # used key quantities not settled as similar, in driver order, twin left out
+    twin: str | None = None              # a particle-type share that mirrors the other one, so it isn't shown
+    within_tolerance: list[str] = []     # quantities settled as similar, minus paused ones and the twin
     operator: list[str] = []
     engineer: list[str] = []
     scientist: list[str] = []
     manager: list[str] = []
+
+    @field_validator("operator", "engineer", "scientist", "manager", mode="before")
+    @classmethod
+    def sentences(cls, value):
+        """Evidence written before the texts became lists keeps loading: one string is one entry."""
+        return [value] if isinstance(value, str) else value
 
 
 class InputFile(BaseModel):
@@ -255,6 +264,11 @@ def crop_path(type_id: str, n: int) -> Path:
 def evidence_path(batch: str, baseline: str) -> Path:
     """One comparison: keyed by baseline too, so a one-off baseline never overwrites the default one."""
     return EVIDENCE_DIR / baseline / f"{batch}.json"
+
+
+def legacy_evidence_path(batch: str) -> Path:
+    """Where evidence lived before it was keyed by baseline; still read, never written."""
+    return EVIDENCE_DIR / f"{batch}.json"
 
 
 def guide_path(batch: str, baseline: str) -> Path:

@@ -32,6 +32,19 @@ def load_image(path: Path) -> tuple[np.ndarray, float, float]:
     return img[:, EDGE_CROP_PX:-EDGE_CROP_PX], px_um, xres
 
 
+def tile_geometry(path: Path) -> tuple[int, int, float]:
+    """(height, width, µm per pixel) of a TIFF after the stitch-border crop, from its header only."""
+    with tifffile.TiffFile(path) as tif:
+        page = tif.pages[0]
+        height, width = page.shape[:2]
+        res, unit = page.tags.get("XResolution"), page.tags.get("ResolutionUnit")
+        px_um = np.nan
+        if res and unit and int(unit.value) in UM_PER_UNIT:
+            num, den = res.value
+            px_um = UM_PER_UNIT[int(unit.value)] / (num / den)
+    return height, width - 2 * EDGE_CROP_PX, px_um
+
+
 def field_paths(batch_dir: Path) -> dict[str, dict[str, Path]]:
     """{image_id: {detector: path}} for files named img_<image_id>_<detector>.tif."""
     fields: dict[str, dict[str, Path]] = defaultdict(dict)

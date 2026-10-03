@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
-import { getAttributionEvaluation, getKpiDictionary, getModelStatus, getTiles, imageUrl, measureFolder } from "../api";
-import { batchColor, batchLabel, featureLabel, modelName, prettyText, record, shortHash, sigmaPos, useApi } from "../lib";
+import { useEffect, useRef, useState } from "react";
+import {
+  getAttributionEvaluation, getKpiDictionary, getModelStatus, getParticles, getTiles, imageUrl, measureFolder,
+} from "../api";
+import { batchColor, batchLabel, dictEntry, featureLabel, localTime, modelName, prettyText, record, shortHash, sigmaPos, useApi } from "../lib";
 import { href } from "../router";
 import type {
   Attribution, AttributedImage, AttributionEvaluation, AttributionModelInfo, AttributionReason, KpiDictionary, ModelStatus,
 } from "../types";
 import { Folds, IconCheck, IconWarn, kpisBeyond, TileKpiGrid } from "./bits";
+import { Peekable, type PeekItem } from "./Peek";
 
 export default function IdentifyResult({
   name,
@@ -23,14 +26,17 @@ export default function IdentifyResult({
   const dict = useApi(getKpiDictionary);
   const current = useApi(getModelStatus);
   const evaluation = useApi(getAttributionEvaluation);
-  const tiles = useApi(getTiles, [measured]);
+  const tiles = useApi(getTiles, [measured], { keep: true });
   const image = attribution.images[Math.min(index, attribution.images.length - 1)];
   const baseline = attribution.model.baseline;
   const tile = tiles.data?.find((t) => t.batch === name && t.image_id === image?.image_id);
+  const particles = useApi(() => (image ? getParticles(name, image.image_id, 6) : Promise.resolve(null)), [name, image?.image_id, measured], { keep: true });
+  const tried = useRef(new Set<string>());
 
-  // Identify only scores the tile; measure its KPIs in the background so the property grid can show them.
+  // Identify only scores the tile; measure it once in the background so the KPI grid and particle spots can show.
   useEffect(() => {
-    if (!tiles.data || measuring || !tile || tile.kpis) return;
+    if (!tiles.data || measuring || !tile || tile.kpis || tried.current.has(name)) return;
+    tried.current.add(name);
     setMeasuring("measuring");
     measureFolder(name, (e) => {
       if (e.type === "done") setMeasured((n) => n + 1);
@@ -89,7 +95,7 @@ export default function IdentifyResult({
           <span className="mt-0.5 text-cx-investigate"><IconWarn size={16} /></span>
           <span>
             <span className="font-medium">Made by an earlier model.</span>{" "}
-            <span className="text-cx-text-2">Fitted {attribution.model.fitted_at.replace("T", " ")}; the app now uses the one fitted {current.data.fitted_at.replace("T", " ")}. Identify the tile again for a current call.</span>
+            <span className="text-cx-text-2">Fitted {localTime(attribution.model.fitted_at)}; the app now uses the one fitted {localTime(current.data.fitted_at)}. Identify the tile again for a current call.</span>
           </span>
         </div>
       )}
@@ -115,12 +121,18 @@ export default function IdentifyResult({
             The model's strongest reasons for this call{away.length ? ", plus the strongest one against it" : "; none points against it"}.
           </span>
         </div>
-        <div className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black" style={{ aspectRatio: "1800 / 536" }}>
-          <span className="absolute inset-0 grid place-items-center text-[13px] text-cx-faint">The images of this drop are no longer in data/{name}.</span>
+        <div
+          className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black"
+          style={{ aspectRatio: particles.data ? `${particles.data.width} / ${particles.data.height}` : "1800 / 536" }}
+        >
+          <span aria-hidden className="absolute inset-0 grid place-items-center text-[13px] text-cx-faint">The images of this drop are no longer in data/{name}.</span>
           <img src={imageUrl(name, image.image_id, "BSE", 2048)} alt={`BSE micrograph of tile ${image.image_id}`} className="absolute inset-0 h-full w-full object-cover brightness-[0.85]"
             onError={(e) => (e.currentTarget.style.display = "none")} />
-          <span className="glass mono absolute bottom-3 left-3 rounded-[10px] px-2.5 py-1 text-[11px] text-cx-text-2" style={{ background: "rgba(14,15,18,.5)" }}>
-            BSE · {image.image_id}
+          <Spots name={name} imageId={image.image_id} data={particles.data} dict={dict.data} hasMask={!!tile?.has_mask} detectors={tile?.detectors} />
+          <span className="glass absolute right-3 bottom-3 rounded-[10px] px-2.5 py-1 text-[11px] text-cx-text-2" style={{ background: "rgba(14,15,18,.6)" }}>
+            {particles.data?.particles.length
+              ? "Largest silicon particles, as measured · hover to peek, click to pin"
+              : measuring === "measuring" ? "Measuring the tile; particle spots follow" : `BSE · ${image.image_id}`}
           </span>
         </div>
         <div className="grid grid-cols-3 gap-3.5">
@@ -186,6 +198,50 @@ export default function IdentifyResult({
         ]}
       />
     </div>
+  );
+}
+
+/** Spots at the real centroids of the tile's largest silicon particles (out/particles.csv). */
+function Spots({ name, imageId, data, dict, hasMask, detectors }: {
+  name: string; imageId: string; data: import("../types").TileParticles | null; dict: KpiDictionary | null; hasMask: boolean; detectors?: string[];
+}) {
+  if (!data?.particles.length) return null;
+  if (!data.px_um) return null;  // without the pixel size, spot sizes would be a guess
+  const px = data.px_um;
+  const items: PeekItem[] = data.particles.map((p, i) => {
+    const kind = p.type ? dictEntry(`type_share:${p.type}`, dict).meaning : null;
+    return {
+      batch: name,
+      imageId,
+      title: `Silicon particle ${i + 1}`,
+      note: `${p.d_um.toFixed(1)} µm across${p.type ? ` · type ${p.type}${kind ? ` (${prettyText(kind)})` : ""}` : ""}.`,
+      region: { x: p.x, y: p.y, r: (p.d_um / px / 2) * 1.4 },
+      hasMask,
+      detectors,
+    };
+  });
+  return (
+    <>
+      {data.particles.map((p, i) => (
+        <Peekable
+          key={i}
+          items={items}
+          index={i}
+          label={`${items[i].title}, ${items[i].note}`}
+          className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.06]"
+          style={{
+            left: `${(p.x / data.width) * 100}%`,
+            top: `${(p.y / data.height) * 100}%`,
+            width: `max(16px, ${((p.d_um / px) / data.width) * 140}%)`,
+            aspectRatio: "1",
+            border: "1.5px solid rgba(246,245,242,.85)",
+            boxShadow: "0 0 0 2px rgba(10,11,13,.45)",
+          }}
+        >
+          <span className="mono absolute -top-2 -left-2 grid h-5 min-w-5 place-items-center rounded-md bg-cx-text-strong px-1 text-[10px] font-semibold text-cx-bg">{i + 1}</span>
+        </Peekable>
+      ))}
+    </>
   );
 }
 
@@ -273,7 +329,7 @@ function heroSentence(image: AttributedImage, probs: { cls: string; p: number }[
   if (first && second) {
     const other = probs.map((p) => p.cls).find((c) => c !== baseline && c !== second.call);
     const weak = image.confidence_tier === "low" ? " That lean is weak; the first part is the reliable one." : "";
-    return `Different from the baseline: ${pct(first.confidence)} that it is not ${batchLabel(baseline)}. Between ${batchLabel(second.call)}${other ? ` and ${batchLabel(other)}` : " and the rest"} it leans to ${batchLabel(second.call)}, ${Math.round(second.confidence * 100)} to ${Math.round((1 - second.confidence) * 100)}.${weak}`;
+    return `Different from the baseline: ${pct(first.confidence)} that it is not ${batchLabel(baseline)}. The second stage, ${batchLabel(second.call)}${other ? ` or ${batchLabel(other)}` : " or the rest"}, leans to ${batchLabel(second.call)}, ${Math.round(second.confidence * 100)} to ${Math.round((1 - second.confidence) * 100)}.${weak}`;
   }
   if (first && image.predicted === baseline)
     return `A weak call: ${batchLabel(baseline)} is the single most likely batch at ${pct(image.confidence)}, but the other batches together are ${pct(first.confidence)}.`;
@@ -409,7 +465,7 @@ function ModelAndRun({ image, attribution, current, evaluation }: { image: Attri
   const missing = parts.filter((fams) => !sets.some(([, f]) => sameSet(f.families, fams)));
   const rows: [string, React.ReactNode][] = [
     ["Model", modelName(model)],
-    ["Fitted", <span className="mono">{model.fitted_at.replace("T", " ")}</span>],
+    ["Fitted", <span className="mono">{localTime(model.fitted_at)}</span>],
     ["Held-out accuracy", `${pct(model.loso_balanced_accuracy)} balanced accuracy on strips the model never saw · chance ${pct(1 / model.classes.length)}`],
   ];
   if (current && !stale)

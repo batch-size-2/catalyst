@@ -845,15 +845,21 @@ def dry_runs(df: pd.DataFrame, baseline: str, families=MATERIAL_FAMILIES, per_ba
     }
 
 
-def attribute_images(image_dir: Path, model: dict, balanced: int | None = None) -> dict:
-    """Features + prediction for every field in a flat folder; writes out/attribution/<folder>.json."""
+def attribute_images(image_dir: Path, model: dict, balanced: int | None = None, progress=None) -> dict:
+    """Features + prediction for every field in a flat folder; writes out/attribution/<folder>.json.
+
+    progress(stage, done, total, tile), stage in "features" | "deep" | "predict"; prints when None.
+    """
     from qc.features import build_features
 
-    feats = build_features([image_dir], lambda d, t, s: print(f"[{d}/{t}] {s}"))
+    report = progress or (lambda stage, d, t, s: print(f"[{d}/{t}] {'' if stage == 'features' else stage + ' '}{s}"))
+    feats = build_features([image_dir], lambda d, t, s: report("features", d, t, s))
     if any(f.startswith(f"{DEEP_FAMILY}_") for f in model["features"]):
         from qc.deep import build_deep, merge_deep
 
-        feats = merge_deep(feats, build_deep([image_dir], lambda d, t, s: print(f"[{d}/{t}] deep {s}")))
+        feats = merge_deep(feats, build_deep([image_dir], lambda d, t, s: report("deep", d, t, s)))
+    if progress:
+        progress("predict", 0, 1, image_dir.name)
     pred = predict(model, feats, balanced=balanced)
     result = {
         "run": image_dir.name,

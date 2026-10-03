@@ -91,8 +91,8 @@ def test_odd_tiles_are_named_once_without_codes():
 
 
 def test_ranges_clip_at_zero_and_imaging_in_words():
-    assert fmt_range(-0.00185, 0.007, "fraction") == "0% to 0.7%"
-    assert fmt_range(0.0331, 0.117, "ratio") == "0.0331 to 0.117"
+    assert fmt_range(-0.00185, 0.007, "fraction") == "0% to 0.700%"
+    assert fmt_range(0.0331, 0.117, "ratio") == "0.033 to 0.117"  # same decimals on both ends
     metrics = ["BSE.noise", "BSE.p50", "ETD.noise", "ETD.sharpness", "InLens.p99", "InLens.noise", "ETD.p1"]
     assert imaging_words(metrics) == "noise and brightness differ on all three detectors, sharpness on ETD"
     assert imaging_words(["BSE.noise"]) == "noise differs on BSE"
@@ -127,3 +127,12 @@ def test_load_dictionary(tmp_path):
     merged = load_dictionary(path, types)["particle_types"]
     assert merged["T1"]["name"] == "bright dense"  # the dictionary's own entry wins
     assert merged["T2"] == {"name": "share of T2 particles", "unit": "fraction", "meaning": "mid, grey"}
+
+
+def test_summary_of_a_difference_that_changes_status_between_tiles_and_strips():
+    evidence = Evidence.model_validate(json.loads((FIXTURES / "evidence_example.json").read_text()))
+    d = evidence.differences[0].model_copy(update={"status": "DIFFERENT"})
+    split = evidence.model_copy(update={"differences": [d, *evidence.differences[1:]], "drivers": [d.name],
+                                        "other_unit": evidence.other_unit.model_copy(update={"contradictions": [d.name]})})
+    assert explain(split, {}).summary == ("Example batch differs from the baseline on si_graphite_ratio per tile "
+                                          "but not per strip, so it isn't settled.")

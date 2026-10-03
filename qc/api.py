@@ -5,6 +5,7 @@ Usage: uv run uvicorn qc.api:app --reload
 
 import json
 import queue
+import re
 import shutil
 import threading
 from collections.abc import Callable
@@ -19,13 +20,14 @@ from pydantic import BaseModel, ValidationError
 from qc import guide as guide_module
 from qc.explain import load_dictionary
 from qc.io import DETECTOR_ALIASES, PREVIEW_SIZES, field_paths, preview_png
-from qc.provenance import model_status, rules_frozen, verify
+from qc.provenance import frozen_config, model_status, rules_frozen, verify
 from qc.run import (
-    Progress, RulesFrozen, attribute, attribution_module, measure_folder, read_json, run, set_baseline,
+    Progress, RulesFrozen, attribute, attribution_module, load_evidence, measure_folder, read_json, run, set_baseline,
+    tile_particles,
 )
 from qc.schema import (
     ATTRIBUTION_DIR, EVIDENCE_DIR, KPI_TABLE, KPI_UNITS, OUT_DIR, Evidence, Verdict,
-    attribution_path, evidence_path, load_config, mask_path,
+    attribution_path, evidence_path, legacy_evidence_path, load_config, mask_path,
 )
 
 app = FastAPI(title="Catalyst QC")
@@ -42,24 +44,25 @@ class BatchSummary(BaseModel):
 class Decision(BaseModel):
     batch: str
     baseline: str
-    verdict: Verdict | None
-    created_at: str | None
+    verdict: Verdict | None = None
+    created_at: str | None = None
 
 
 class BaselineChange(BaseModel):
     baseline: str
 
 
-def batch_dir(batch: str) -> Path:
-    if Path(batch).name != batch or batch.startswith("."):
-        raise HTTPException(400, f"invalid batch name {batch!r}")
-    return Path(load_config()["data_dir"]) / batch
+NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")  # folder, image and detector names: no paths, spaces or newlines
 
 
 def clean_name(name: str) -> str:
-    if Path(name).name != name or name.startswith("."):
+    if not NAME.fullmatch(name):
         raise HTTPException(400, f"invalid name {name!r}")
     return name
+
+
+def batch_dir(batch: str) -> Path:
+    return Path(load_config()["data_dir"]) / clean_name(batch)
 
 
 def baseline_of(baseline: str | None) -> str:
@@ -67,24 +70,37 @@ def baseline_of(baseline: str | None) -> str:
     return batch_dir(baseline).name if baseline else load_config()["baseline"]
 
 
+def find_evidence(batch: str, baseline: str) -> Path | None:
+    """out/evidence/<baseline>/<batch>.json, or a file from before evidence was keyed by baseline."""
+    path, legacy = evidence_path(batch, baseline), legacy_evidence_path(batch)
+    if path.exists():
+        return path
+    return legacy if legacy.exists() and summary_of(legacy).get("baseline") == baseline else None
+
+
 def read_evidence(batch: str, baseline: str | None) -> Evidence:
     batch_dir(batch)
-    path = evidence_path(batch, baseline_of(baseline))
-    if not path.exists():
+    path = find_evidence(batch, baseline_of(baseline))
+    if path is None:
         raise HTTPException(404, f"no evidence for {batch!r} against {baseline_of(baseline)!r}")
     try:
-        return Evidence.model_validate_json(path.read_text())
-    except ValidationError:
+        return load_evidence(path)
+    except (ValidationError, ValueError):
         raise HTTPException(409, "evidence in an old format; re-run the batch")
 
 
 def summary_of(path: Path) -> dict:
-    """Verdict and timestamp of one evidence file; tolerates files from older formats."""
+    """Baseline, verdict and timestamp of one evidence file; tolerates broken files and older formats."""
     try:
         raw = json.loads(path.read_text())
-    except json.JSONDecodeError:
+    except (OSError, ValueError):
         return {}
-    return {"verdict": raw.get("verdict"), "created_at": (raw.get("provenance") or {}).get("created_at")}
+    if not isinstance(raw, dict):
+        return {}
+    verdict = raw.get("verdict") if raw.get("verdict") in ("ACCEPT", "INVESTIGATE", "REJECT") else None
+    created = (raw.get("provenance") or {}).get("created_at") if isinstance(raw.get("provenance"), dict) else None
+    baseline = raw.get("baseline") if isinstance(raw.get("baseline"), str) else None
+    return {"baseline": baseline, "verdict": verdict, "created_at": created if isinstance(created, str) else None}
 
 
 @app.get("/api/config")
@@ -98,6 +114,7 @@ def settings() -> dict:
     frozen, date = rules_frozen()
     unavailable = guide_module.available()
     return {"baseline": load_config()["baseline"], "rules_frozen_commit": frozen, "rules_frozen_date": date,
+            "rules_frozen_config": frozen_config() if frozen else {},
             "claude": {"available": unavailable is None, "model": guide_module.MODEL, "reason": unavailable}}
 
 
@@ -111,23 +128,29 @@ def change_baseline(change: BaselineChange) -> dict:
         raise HTTPException(409, str(error))
     except FileNotFoundError as error:
         raise HTTPException(404, str(error))
+    except ValueError as error:
+        raise HTTPException(400, str(error))
 
 
 @app.get("/api/batches")
 def batches() -> list[BatchSummary]:
     cfg = load_config()
     data_dir = Path(cfg["data_dir"])
-    folders = {p.name for p in data_dir.iterdir() if p.is_dir()} if data_dir.is_dir() else set()
-    verdicts = {p.stem: summary_of(p).get("verdict") for p in (EVIDENCE_DIR / cfg["baseline"]).glob("*.json")}
+    folders = {p.name for p in data_dir.iterdir() if p.is_dir() and NAME.fullmatch(p.name)} if data_dir.is_dir() else set()
+    verdicts = {d.batch: d.verdict for d in decisions() if d.baseline == cfg["baseline"]}
     return [BatchSummary(name=name, has_images=name in folders, verdict=verdicts.get(name))
             for name in sorted(folders | verdicts.keys())]
 
 
 @app.get("/api/evidence")
 def decisions() -> list[Decision]:
-    """Every comparison on disk, against any baseline, newest first."""
-    out = [Decision(batch=p.stem, baseline=p.parent.name, **summary_of(p)) for p in EVIDENCE_DIR.glob("*/*.json")]
-    return sorted(out, key=lambda d: d.created_at or "", reverse=True)
+    """Every comparison on disk, against any baseline, newest first (files from before the baseline key included)."""
+    out = {(p.parent.name, p.stem): Decision(batch=p.stem, **(summary_of(p) | {"baseline": p.parent.name}))
+           for p in EVIDENCE_DIR.glob("*/*.json")}
+    for p in EVIDENCE_DIR.glob("*.json"):
+        if (s := summary_of(p)).get("baseline") and (s["baseline"], p.stem) not in out:
+            out[(s["baseline"], p.stem)] = Decision(batch=p.stem, **s)
+    return sorted(out.values(), key=lambda d: d.created_at or "", reverse=True)
 
 
 @app.get("/api/evidence/{batch}")
@@ -136,12 +159,18 @@ def evidence(batch: str, baseline: str | None = None) -> Evidence:
 
 
 @app.get("/api/guide/{batch}")
-def guide(batch: str, baseline: str | None = None, source: str = "claude") -> dict:
-    """Summary and walkthrough over the evidence: Claude's when configured and within the house rules,
-    else the fixed template. Never changes the verdict (qc/guide.py)."""
+def guide(batch: str, baseline: str | None = None, source: str = "template") -> dict:
+    """Summary and walkthrough over the evidence (qc/guide.py). Free: the fixed template, or with
+    source=claude Claude's cached version (else the template with a fallback_reason)."""
     if source not in ("claude", "template"):
         raise HTTPException(400, "source must be claude or template")
     return guide_module.guide(read_evidence(batch, baseline), source)
+
+
+@app.post("/api/guide/{batch}")
+def ask_claude(batch: str, baseline: str | None = None) -> dict:
+    """Ask Claude for the summary and walkthrough (a paid call, cached per evidence). Never changes the verdict."""
+    return guide_module.guide(read_evidence(batch, baseline), "claude", ask=True)
 
 
 @app.get("/api/attribution")
@@ -223,6 +252,15 @@ def image_preview(batch: str, image_id: str, detector: str, size: int = 512) -> 
     return FileResponse(preview_png(paths[detector], size))
 
 
+@app.get("/api/particles/{batch}/{image_id}")
+def particles(batch: str, image_id: str, top: int = 8) -> dict:
+    """The tile's size and its largest silicon particles (qc.run.tile_particles), for the region peek."""
+    try:
+        return tile_particles(batch_dir(batch), clean_name(image_id), top)
+    except FileNotFoundError as error:
+        raise HTTPException(404, str(error))
+
+
 @app.post("/api/verify/{batch}")
 def verify_batch(batch: str, baseline: str | None = None) -> dict:
     """Re-hash the comparison's provenance inputs and config files against their stored sha256s."""
@@ -235,6 +273,9 @@ def verify_batch(batch: str, baseline: str | None = None) -> dict:
 @app.post("/api/batches/{batch}/files")
 def upload(batch: str, files: list[UploadFile]) -> dict:
     target = batch_dir(batch)
+    bad = [f.filename for f in files if not NAME.fullmatch(Path(f.filename or "").name)]
+    if bad:
+        raise HTTPException(400, f"invalid file names (letters, digits, _ . - only): {', '.join(map(str, bad[:5]))}")
     target.mkdir(parents=True, exist_ok=True)
     for file in files:
         with open(target / Path(file.filename or "upload.tif").name, "wb") as out:
@@ -245,8 +286,8 @@ def upload(batch: str, files: list[UploadFile]) -> dict:
 def ndjson_stream(work: Callable[[Progress], dict]) -> StreamingResponse:
     events: queue.Queue[dict | None] = queue.Queue()
 
-    def progress(done: int, total: int, tile: str) -> None:
-        events.put({"type": "progress", "done": done, "total": total, "tile": tile})
+    def progress(done: int, total: int, tile: str, stage: str | None = None) -> None:
+        events.put({"type": "progress", "done": done, "total": total, "tile": tile} | ({"stage": stage} if stage else {}))
 
     def worker() -> None:
         try:
@@ -287,4 +328,4 @@ def start_attribution(name: str, balanced: int | None = None) -> StreamingRespon
     if attribution_module() is None:
         raise HTTPException(501, "batch attribution is not available yet (qc/attribute.py)")
     return ndjson_stream(lambda progress: {
-        "type": "done", "attribution": attribute(target, balanced)})
+        "type": "done", "attribution": attribute(target, balanced, lambda stage, d, t, s: progress(d, t, s, stage))})

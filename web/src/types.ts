@@ -93,6 +93,9 @@ export interface Explanations {
   summary: string;        // the answer in one plain sentence
   rules: string[];        // the verdict rules that fired, in words
   next_steps: string[];
+  ranked: string[];            // used key quantities not settled as similar, in driver order (the "Look here first" list)
+  twin: string | null;         // a particle-type share that mirrors the other one, so it isn't shown
+  within_tolerance: string[];  // settled as similar, minus paused ones and the twin
   operator: string[];
   engineer: string[];
   scientist: string[];
@@ -302,6 +305,7 @@ export interface Settings {
   baseline: string;
   rules_frozen_commit: string | null;
   rules_frozen_date: string | null;
+  rules_frozen_config: Record<string, { frozen: string | null; now: string | null }>;  // sha256 under the tag and now
   claude: { available: boolean; model: string; reason: string | null };
 }
 
@@ -314,6 +318,9 @@ export interface GuideSlot {
   label?: string;
   tile?: string;
   batch?: string;
+  quantity?: string;
+  tiles?: string[];
+  status?: Status;
 }
 
 export interface GuideStep {
@@ -376,6 +383,16 @@ export interface Config {
   [key: string]: unknown;
 }
 
+/** GET /api/particles/{batch}/{image_id}: tile size in full-res px and its largest Si particles. */
+export interface TileParticles {
+  width: number;
+  height: number;
+  px_um: number | null;
+  particles: { x: number; y: number; d_um: number; type: string | null }[];
+}
+
+export type AttributionStage = "features" | "deep" | "predict";
+
 export type RunEvent =
   | { type: "progress"; done: number; total: number; tile: string }
   | { type: "done"; evidence: Evidence }
@@ -387,6 +404,6 @@ export type MeasureEvent =
   | { type: "error"; message: string };
 
 export type AttributionEvent =
-  | { type: "progress"; done: number; total: number; tile: string }
+  | { type: "progress"; done: number; total: number; tile: string; stage?: AttributionStage }
   | { type: "done"; attribution: Attribution }
   | { type: "error"; message: string };

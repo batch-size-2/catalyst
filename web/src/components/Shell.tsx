@@ -38,8 +38,6 @@ const ICONS = {
       <path d="M9 12l2 2 4-4" />
     </>
   ),
-  wear: <path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z" />,
-  sample: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   settings: (
     <>
       <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
@@ -82,9 +80,6 @@ export default function Shell({
       {extra}
     </a>
   );
-  const soon = (
-    <span className="mono ml-auto rounded-md border border-cx-line px-1.5 py-0.5 text-[10px]">SOON</span>
-  );
   return (
     <div className="cx flex min-h-screen items-stretch">
       <div className="print-hidden w-[236px] shrink-0 border-r border-cx-line bg-cx-sidebar">
@@ -108,13 +103,6 @@ export default function Shell({
           )}
           <div className="lbl px-2.5 pt-5 pb-2">Trust</div>
           {navItem("audit", "Audit log", ICONS.audit, href.audit())}
-          <div className="lbl px-2.5 pt-5 pb-2">Labs</div>
-          <span className="nav text-cx-faint" aria-disabled="true">
-            <NavIcon>{ICONS.wear}</NavIcon>Wear &amp; impact{soon}
-          </span>
-          <span className="nav text-cx-faint" aria-disabled="true">
-            <NavIcon>{ICONS.sample}</NavIcon>Sample size{soon}
-          </span>
         </nav>
         <div className="mt-auto flex flex-col gap-2.5">
           {navItem("settings", "Settings", ICONS.settings, href.settings())}

@@ -52,6 +52,11 @@ export default function Audit() {
   }
 
   const verified = Object.keys(results).length > 0;
+  const failedToVerify = Object.values(results).filter((r) => r === "error").length;
+  const checked = {
+    files: new Set(list.flatMap((e) => e.evidence.provenance?.inputs.map((i) => i.path) ?? [])).size,
+    configs: new Set(list.flatMap((e) => Object.keys(e.evidence.provenance?.config_sha256 ?? {}))).size,
+  };
   const allOk = verified && list.every((e) => {
     const result = results[e.key];
     return typeof result === "object" && result.ok;
@@ -89,9 +94,9 @@ export default function Audit() {
               <>
                 rules-frozen · {utc(frozen.rules_frozen_date)} · commit{" "}
                 {shortHash(frozen.rules_frozen_commit, 7)}
-                {Object.entries(frozen.config_sha256)
-                  .filter(([k]) => k !== "decision")
-                  .map(([k, v]) => ` · ${k.replace(/\.\w+$/, "")} ${shortHash(v)}`)}
+                {Object.entries(settings.data?.rules_frozen_config ?? {}).map(([k, v]) =>
+                  ` · ${k.replace(/\.\w+$/, "")} ${shortHash(v.frozen)}${v.frozen && v.now !== v.frozen ? " (changed since)" : ""}`,
+                )}
               </>
             ) : (
               "run `git tag rules-frozen` once the config and models are final"
@@ -114,8 +119,10 @@ export default function Audit() {
           >
             {allOk ? <IconCheck size={16} /> : <IconWarn size={16} />}
             {allOk
-              ? `Re-hashed every input of ${list.length} decisions · identical`
-              : "Some inputs no longer match their recorded hash"}
+              ? `Re-hashed ${checked.files} input files and ${checked.configs} config files of ${list.length} decisions: unchanged`
+              : failedToVerify
+                ? `Couldn't verify ${failedToVerify} of ${list.length} decisions`
+                : "Some inputs no longer match their recorded hash"}
           </span>
         )}
       </section>
@@ -147,8 +154,13 @@ export default function Audit() {
                   <span className="flex min-w-0 flex-col gap-1">
                     <span className="flex items-center gap-2 text-sm">
                       <BatchDot name={entry.batch} size={8} />
-                      Compared {batchLabel(entry.batch)} with {batchLabel(entry.evidence.baseline)}
-                      {entry.evidence.baseline !== defaultBaseline && (
+                      {entry.batch === entry.evidence.baseline
+                        ? `${batchLabel(entry.batch)} against itself`
+                        : `Compared ${batchLabel(entry.batch)} with ${batchLabel(entry.evidence.baseline)}`}
+                      {entry.batch === entry.evidence.baseline && (
+                        <span className="mono rounded-[5px] border border-cx-line px-1.5 py-px text-[10px] text-cx-muted">SELF-CHECK</span>
+                      )}
+                      {entry.batch !== entry.evidence.baseline && entry.evidence.baseline !== defaultBaseline && (
                         <span className="mono rounded-[5px] border border-cx-batch-2/40 px-1.5 py-px text-[10px] text-cx-batch-2">ONE-OFF BASELINE</span>
                       )}
                     </span>
@@ -210,7 +222,7 @@ function Passport({
   const drivers = dropTwinShare(ev.drivers.map((name) => ({ name })), ev)
     .filter(({ name }) => byName.get(name)?.status !== "SIMILAR")
     .slice(0, 4)
-    .map(({ name }, i) => (i ? quantityLabel(name, dict).toLowerCase() : quantityLabel(name, dict)));
+    .map(({ name }) => quantityLabel(name, dict));
   return (
     <section
       aria-label="Batch passport"
@@ -240,7 +252,7 @@ function Passport({
       </div>
       <dl className="m-0 grid grid-cols-[112px_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-[13px]">
         <dt className="text-[#5A5C62]">Drivers</dt>
-        <dd className="m-0">{drivers.join(", ") || "—"}</dd>
+        <dd className="m-0">{drivers.join(" · ") || "—"}</dd>
         <dt className="text-[#5A5C62]">Summary</dt>
         <dd className="m-0">{ev.explanations.summary}</dd>
         {ev.explanations.rules.length > 0 && (
@@ -280,7 +292,7 @@ function Passport({
           )}
           {result && result !== "error" && (
             <span className={`font-semibold ${result.ok ? "text-[#1D7A32]" : "text-[#B91C1C]"}`}>
-              {result.ok ? "✓ re-hashed, identical" : "✗ hash mismatch"}
+              {result.ok ? "✓ re-hashed: inputs and config unchanged" : "✗ hash mismatch"}
               {result.config_ok ? "" : " · config changed"}
             </span>
           )}

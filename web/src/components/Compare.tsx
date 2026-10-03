@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  ApiError, getConfig, getEvidence, getGuide, getKpiDictionary, getSettings, getTiles, imageUrl, listBatches,
+  askClaude, getConfig, getEvidence, getGuide, getKpiDictionary, getSettings, getTiles, imageUrl, listBatches,
   runBatch, uploadBatch,
 } from "../api";
 import {
-  batchColor, batchLabel, baselineBand, dictEntry, dropTwinShare, fmt, fmtSigma, imagingWords, joinAnd,
-  isUploadBatch, MIN_BASELINE_TILES, oddByTile, plural, quantityLabel, quantityNote, rankedFindings, shortHash, sigmaOf, statusChip, useApi,
+  batchColor, batchLabel, baselineBand, dictEntry, dropTwinShare, fmt, fmtPair, fmtSigma, imagingWords, isFixture,
+  joinAnd, isUploadBatch, MIN_BASELINE_TILES, oddByTile, plural, quantityLabel, quantityNote, rankedFindings, shortHash, sigmaOf, statusChip, useApi,
 } from "../lib";
 import { href } from "../router";
 import type {
@@ -13,8 +13,9 @@ import type {
 } from "../types";
 import {
   BatchDot, Cat, Details, ErrorPanel, Folds, IconCheck, IconWarn, Panel, Seg, ShiftBand, SlotText, Spinner,
-  TileThumb, VerdictPill,
+  VerdictPill,
 } from "./bits";
+import { Peekable, type PeekItem } from "./Peek";
 
 const KPI_ORDER = [
   "si_graphite_ratio", "si_area_frac", "si_d50_um", "si_d90_um", "si_internal_void_frac",
@@ -50,14 +51,15 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
   const config = useApi(getConfig);
   const settings = useApi(getSettings);
   const [reload, setReload] = useState(0);
-  const batches = useApi(listBatches, [reload]);
-  const tiles = useApi(getTiles, [reload]);
+  const batches = useApi(listBatches, [reload], { keep: true });
+  const tiles = useApi(getTiles, [reload], { keep: true });
   const dict = useApi(getKpiDictionary);
   const [run, setRun] = useState<RunState | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);  // a one-off baseline chosen in the picker this visit
   const folder = useRef<HTMLInputElement>(null);
 
   const defaultBaseline = config.data?.baseline ?? null;
-  const candidates = batches.data ?? [];
+  const candidates = (batches.data ?? []).filter((b) => !isFixture(b.name) || b.name === routeBatch);
   const selected =
     routeBatch && candidates.some((b) => b.name === routeBatch)
       ? routeBatch
@@ -75,7 +77,10 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
     () => (selected && defaultBaseline && !neverRun ? getEvidence(selected, oneOff) : Promise.resolve(null)),
     [selected, oneOff, defaultBaseline, neverRun, reload],
   );
-  const missing = neverRun || (evidence.error?.startsWith("no evidence") ?? false);
+  const missing = neverRun || evidence.status === 404;
+
+  // a failed run belongs to the comparison it was for
+  useEffect(() => setRun((r) => (r?.error ? null : r)), [selected, oneOff]);
 
   async function startRun(batch: string, against: string | null, files?: File[]) {
     setRun({ batch, baseline: against, phase: files ? "uploading" : "measuring", done: 0, total: 0, tile: null });
@@ -97,12 +102,16 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
     }
   }
 
-  // A one-off baseline that hasn't been compared yet runs right away; the default stays as it is.
+  // A one-off baseline picked in the picker runs right away if it hasn't been compared yet; just opening such
+  // a link doesn't start a heavy run (it offers "Compare now"). The default baseline stays as it is.
   const hasImages = (name: string | null) => !!name && !!candidates.find((b) => b.name === name)?.has_images;
   useEffect(() => {
-    if (oneOff && selected && missing && !run && hasImages(selected) && hasImages(oneOff)) void startRun(selected, oneOff);
+    if (oneOff && picked === oneOff && selected && missing && !run && hasImages(selected) && hasImages(oneOff)) {
+      setPicked(null);
+      void startRun(selected, oneOff);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [oneOff, selected, missing]);
+  }, [oneOff, selected, missing, picked]);
 
   const ready = evidence.data && selected && config.data && evidence.data.baseline === baseline && evidence.data.batch === selected;
 
@@ -125,7 +134,10 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
             baseline={baseline}
             defaultBaseline={defaultBaseline}
             tiles={tiles.data ?? []}
-            onPick={(name) => (window.location.hash = href.compare(selected, name === defaultBaseline ? null : name))}
+            onPick={(name) => {
+              setPicked(name === defaultBaseline ? null : name);
+              window.location.hash = href.compare(selected, name === defaultBaseline ? null : name);
+            }}
           />
         )}
         {oneOff && defaultBaseline && (
@@ -155,7 +167,8 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
             {...{ webkitdirectory: "" }}
             onChange={(e) => {
               const files = [...(e.target.files ?? [])].filter((f) => /\.tiff?$/i.test(f.name));
-              const name = files[0]?.webkitRelativePath.split("/")[0];
+              // the folder becomes the batch name: letters, digits, _ . - only (the API refuses the rest)
+              const name = files[0]?.webkitRelativePath.split("/")[0].replace(/[^A-Za-z0-9_.-]+/g, "_").replace(/^[_.-]+/, "");
               if (name) void startRun(name, null, files);
               e.target.value = "";
             }}
@@ -226,6 +239,8 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
   );
 }
 
+const NOT_YET = "Claude hasn't written this one yet.";  // qc/guide.py: nothing cached, nothing asked
+
 function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null; oneOff: string | null }) {
   const { evidence } = ctx;
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -233,25 +248,38 @@ function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null
   const [prefer, setPrefer] = useState<"claude" | "template">("claude");
   const template = useApi(() => getGuide(evidence.batch, oneOff, "template"));
   const claudeOn = !!settings?.claude.available;
-  const claude = useApi(() => (claudeOn ? getGuide(evidence.batch, oneOff, "claude") : Promise.resolve(null)), [claudeOn]);
-  const claudeOk = claude.data?.source === "claude" ? claude.data : null;
+  const cached = useApi(() => (claudeOn ? getGuide(evidence.batch, oneOff, "claude") : Promise.resolve(null)), [claudeOn]);
+  const [asked, setAsked] = useState<{ busy: boolean; data: Guide | null; error: string | null }>({ busy: false, data: null, error: null });
+  const claudeResult = asked.data ?? cached.data;
+  const claudeOk = claudeResult?.source === "claude" ? claudeResult : null;
+  async function ask() {
+    setAsked({ busy: true, data: null, error: null });
+    try {
+      const data = await askClaude(evidence.batch, oneOff);
+      setAsked({ busy: false, data, error: null });
+      setPrefer("claude");
+    } catch (err) {
+      setAsked({ busy: false, data: null, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
   const guide = prefer === "claude" && claudeOk ? claudeOk : template.data;
   const steps = guide?.steps ?? [];
   const current = step != null ? steps[step] : null;
   const target = current?.target ?? null;
 
+  // "tiles" points at the cards' odd tiles, so the walkthrough only ever moves down the page
+  const section = target === "tiles" ? "moved" : target;
   useEffect(() => {
-    if (!target) return;
-    if (target === "tiles") setOpen((o) => ({ ...o, tiles: true }));
-    const el = document.querySelector(`[data-tour="${target}"]`);
+    if (!section) return;
+    const el = document.querySelector(`[data-tour="${section}"]`);
     window.setTimeout(() => el?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
-  }, [step, target]);
+  }, [step, section]);
 
   useEffect(() => {
     if (step == null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setStep(null);
-      if (e.key === "ArrowRight") setStep((s) => (s == null || s >= steps.length - 1 ? null : s + 1));
+      if (e.key === "Escape") finish();
+      if (e.key === "ArrowRight") (step >= steps.length - 1 ? finish() : setStep(step + 1));
       if (e.key === "ArrowLeft") setStep((s) => (s == null ? s : Math.max(0, s - 1)));
     };
     window.addEventListener("keydown", onKey);
@@ -260,11 +288,12 @@ function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null
 
   const finish = () => {
     setStep(null);
-    document.querySelector('[data-tour="verdict"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.querySelector<HTMLButtonElement>("[data-walkthrough-start]")?.focus({ preventScroll: true });
   };
-  const tour = (id?: GuideTarget) => (target == null ? "" : id === target ? "tour-on" : "tour-off");
+  const tour = (id?: GuideTarget) => (section == null ? "" : id === section ? "tour-on" : "tour-off");
   const card = (id: GuideTarget) =>
-    current && guide && id === target ? (
+    current && guide && id === section ? (
       <TourCard
         guide={guide}
         index={step!}
@@ -289,8 +318,9 @@ function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null
           loading={!template.data && !template.error}
           error={template.error}
           claudeOn={claudeOn}
-          claudeLoading={claudeOn && !claude.data && !claude.error}
-          claudeFallback={claude.data?.source === "template" ? claude.data.fallback_reason : claude.error}
+          asking={asked.busy}
+          onAsk={claudeOn && !claudeOk ? () => void ask() : null}
+          claudeFallback={asked.error ?? (claudeResult?.source === "template" && claudeResult.fallback_reason !== NOT_YET ? claudeResult.fallback_reason : null)}
           canSwitch={!!claudeOk}
           prefer={prefer}
           onPrefer={setPrefer}
@@ -310,8 +340,7 @@ function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null
         {card("next")}
         <NextSteps evidence={evidence} />
       </div>
-      <div data-tour="tiles" className={`tour-section scroll-mt-6 ${tour("tiles")}`}>
-        {card("tiles")}
+      <div className={`tour-section ${tour()}`}>
         <Everything ctx={ctx} open={open} onToggle={(id) => setOpen((o) => ({ ...o, [id]: !o[id] }))} />
       </div>
     </>
@@ -529,8 +558,8 @@ function Caveats({ ctx }: { ctx: Ctx }) {
   if (evidence.imaging.changed)
     items.push({
       key: "imaging",
-      title: "Microscope settings changed.",
-      body: `${imagingWords(evidence.imaging.changed_metrics)}, so ${joinAnd(paused) || "brightness-based properties"} ${paused.length === 1 ? "is" : "are"} paused.`,
+      title: "Imaging differs from the baseline.",
+      body: `${imagingWords(evidence.imaging.changed_metrics)}, so ${joinAnd(paused) || "brightness-based properties"} ${paused.length === 1 ? "is" : "are"} paused. Check the microscope settings.`,
       details: (
         <span className="mono flex flex-wrap gap-1.5 pt-1 text-[11px] text-cx-faint">
           {evidence.imaging.changed_metrics.map((m) => (
@@ -542,7 +571,7 @@ function Caveats({ ctx }: { ctx: Ctx }) {
   if (evidence.batch === evidence.baseline)
     items.push({
       key: "self",
-      title: "This is the baseline compared with itself.",
+      title: "Self-check: the baseline compared with itself.",
       body: "It checks the method, not a delivery: every tile is on both sides.",
     });
   if (!evidence.controls.ran)
@@ -584,7 +613,8 @@ function GuidePanel({
   loading,
   error,
   claudeOn,
-  claudeLoading,
+  asking,
+  onAsk,
   claudeFallback,
   canSwitch,
   prefer,
@@ -597,7 +627,8 @@ function GuidePanel({
   loading: boolean;
   error: string | null;
   claudeOn: boolean;
-  claudeLoading: boolean;
+  asking: boolean;
+  onAsk: (() => void) | null;
   claudeFallback: string | null | undefined;
   canSwitch: boolean;
   prefer: "claude" | "template";
@@ -613,8 +644,10 @@ function GuidePanel({
   const note = !claudeOn
     ? "Claude's summary is off, so this is the fixed wording."
     : claudeFallback && !canSwitch
-      ? "Claude's version didn't pass the checks or failed, so this is the fixed wording."
-      : null;
+      ? `Claude's version couldn't be used (${claudeFallback}), so this is the fixed wording.`
+      : onAsk
+        ? "Fixed wording. Claude can rewrite it from the same evidence; the numbers stay Catalyst's."
+        : null;
   const noteTitle = !claudeOn ? settings?.claude.reason ?? undefined : claudeFallback ?? undefined;
   return (
     <section aria-label="What stood out" className="flex flex-col gap-4 rounded-[22px] border border-white/10 bg-[#15161A] px-6 py-5">
@@ -623,7 +656,7 @@ function GuidePanel({
         {guide && (byClaude ? <span className="tag-claude">WRITTEN BY CLAUDE</span> : (
           <span className="mono rounded-[5px] border border-white/20 px-1.5 py-0.5 text-[10px] text-cx-muted">FIXED TEMPLATE</span>
         ))}
-        {claudeLoading && (
+        {asking && (
           <span className="inline-flex items-center gap-2 text-xs text-cx-faint">
             <Spinner size={12} /> Claude is writing…
           </span>
@@ -646,12 +679,17 @@ function GuidePanel({
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2.5 border-t border-white/[0.07] pt-3.5">
-        <button className="btn pri" type="button" disabled={!guide?.steps.length || touring} onClick={onStart}>
+        <button className="btn pri" type="button" data-walkthrough-start disabled={!guide?.steps.length || touring} onClick={onStart}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M5 4l14 8-14 8V4z" />
           </svg>
           Walk me through it
         </button>
+        {onAsk && (
+          <button className="btn" type="button" disabled={asking} onClick={onAsk}>
+            <span className="tag-claude">CLAUDE</span> {claudeFallback ? "Try again" : "Ask Claude for a summary"}
+          </button>
+        )}
         {canSwitch && (
           <button className="btn" type="button" onClick={() => onPrefer(prefer === "claude" ? "template" : "claude")}>
             {prefer === "claude" ? "Show the plain template" : "Show Claude's summary"}
@@ -677,7 +715,8 @@ function GuidePanel({
             <li>Catalyst sets the verdict with fixed rules. Claude never measures, decides or changes it.</li>
             <li>Claude reads the evidence file and the property dictionary. Never the images.</li>
             <li>It can't write numbers: each one is a slot that Catalyst fills in from the evidence.</li>
-            <li>A sentence with a number of its own, an unknown slot or a banned word is dropped; two drops and the page shows the fixed template.</li>
+            <li>It's only asked when you press the button; its checked answer is kept for this comparison.</li>
+            <li>A sentence that writes its own number, names a verdict, or gives a property a status it doesn't have is dropped; two drops and the page shows the fixed template.</li>
             <li>Its one what-if, the batch without its odd tiles, is recomputed by Catalyst.</li>
             <li>
               {settings?.claude.available ? `Model: ${settings.claude.model}.` : "Without an API key, the page uses the fixed template."}
@@ -793,20 +832,18 @@ function FindingCard({ ctx, d, n }: { ctx: Ctx; d: Difference; n: number }) {
       <div className="flex items-center gap-2.5">
         <span className="mono grid h-[26px] w-[26px] flex-none place-items-center rounded-lg bg-cx-text-strong text-[13px] font-semibold text-cx-bg">{n}</span>
         <span className={`text-xs ${status[1]}`}>{status[0]}</span>
-        <span className="mono ml-auto text-[13px] text-cx-text-2">{fmtSigma(sigmaOf(d, d.difference, m))}</span>
+        <span className="mono ml-auto text-[13px] text-cx-text-2">{fmtSigma(sigmaOf(d, d.difference, config))}</span>
       </div>
       <div className="flex flex-col gap-1.5">
         <h3 className="m-0 text-[19px] leading-[1.25] font-semibold tracking-[-0.015em]">{quantityLabel(d.name, dict)}</h3>
         {note && <span className="text-xs text-cx-faint">{note}</span>}
-        <span className="mono text-[13px] text-cx-text-2">
-          <span className="text-cx-faint">{fmt(d.reference, unit)} →</span> {fmt(d.batch, unit)}
-        </span>
+        <span className="mono text-[13px] text-cx-text-2">{fmtPair(d.reference, d.batch, unit)}</span>
       </div>
       <div>
         <ShiftBand
-          s={sigmaOf(d, d.difference, m)}
-          lo={sigmaOf(d, d.interval?.[0], m)}
-          hi={sigmaOf(d, d.interval?.[1], m)}
+          s={sigmaOf(d, d.difference, config)}
+          lo={sigmaOf(d, d.interval?.[0], config)}
+          hi={sigmaOf(d, d.interval?.[1], config)}
           margin={m}
           color={batchColor(evidence.batch)}
         />
@@ -818,19 +855,27 @@ function FindingCard({ ctx, d, n }: { ctx: Ctx; d: Difference; n: number }) {
       </div>
       {odd.length > 0 ? (
         <div className="flex gap-2">
-          {odd.map(({ tile, o }) => (
-            <a
+          {odd.map(({ tile, o }, i) => (
+            <Peekable
               key={tile}
-              href={href.library(evidence.batch, tile)}
-              className="relative block flex-1 overflow-hidden rounded-xl"
+              items={odd.map(({ tile: t, o: x }) => ({
+                batch: evidence.batch,
+                imageId: t,
+                title: `Tile ${t}`,
+                note: `${quantityLabel(d.name, dict)} ${fmt(x.value, unit)}, outside the baseline range ${fmt(Math.max(0, x.range[0]), unit)} – ${fmt(x.range[1], unit)}.`,
+                hasMask: ctx.tiles.find((tt) => tt.batch === evidence.batch && tt.image_id === t)?.has_mask,
+              }))}
+              index={i}
+              label={`Tile ${tile}: peek, click to pin`}
+              className="relative block flex-1 overflow-hidden rounded-xl bg-black"
               style={{ aspectRatio: "4 / 3", boxShadow: "0 0 0 1.5px rgba(250,204,21,.7)" }}
             >
-              <img src={imageUrl(evidence.batch, tile, "BSE")} alt={`Tile ${tile}`} loading="lazy" className="block h-full w-full object-cover" />
-              <span className="mono absolute right-1.5 bottom-1.5 left-1.5 flex justify-between rounded-md px-1.5 py-0.5 text-[10px]" style={{ background: "rgba(10,11,13,.78)" }}>
+              <img src={imageUrl(evidence.batch, tile, "BSE")} alt="" loading="lazy" className="block h-full w-full object-cover" />
+              <span className="mono absolute right-1.5 bottom-1.5 left-1.5 flex justify-between rounded-md px-1.5 py-0.5 text-[10px] text-cx-text" style={{ background: "rgba(10,11,13,.78)" }}>
                 <span>{tile}</span>
                 <span className="text-cx-investigate-text">{fmt(o.value, unit)}</span>
               </span>
-            </a>
+            </Peekable>
           ))}
         </div>
       ) : (
@@ -851,7 +896,8 @@ function FindingCard({ ctx, d, n }: { ctx: Ctx; d: Difference; n: number }) {
 
 function WithinTolerance({ ctx }: { ctx: Ctx }) {
   const [all, setAll] = useState(false);
-  const similar = dropTwinShare(ctx.evidence.differences.filter((d) => d.status === "SIMILAR" && d.note !== "imaging changed"), ctx.evidence);
+  const byName = new Map(ctx.evidence.differences.map((d) => [d.name, d]));
+  const similar = ctx.evidence.explanations.within_tolerance.map((q) => byName.get(q)!).filter(Boolean);
   if (!similar.length) return null;
   const shown = all ? similar : similar.slice(0, 6);
   return (
@@ -957,7 +1003,7 @@ function Differences({ ctx }: { ctx: Ctx }) {
           </div>
           {rows.map((d) => {
             const paused = d.note === "imaging changed";
-            const s = sigmaOf(d, d.difference, m);
+            const s = sigmaOf(d, d.difference, config);
             const chip = statusChip(d.status, paused);
             const notMeasured = d.note === "not measured" || (d.reference == null && d.batch == null);
             const unit = d.unit || dictEntry(d.name, dict).unit;
@@ -970,7 +1016,7 @@ function Differences({ ctx }: { ctx: Ctx }) {
                   </span>
                   <span className="mono truncate text-[11px] text-cx-faint" title={quantityNote(d.name, dict) ?? undefined}>{d.name}</span>
                 </div>
-                <ShiftBand s={s} lo={sigmaOf(d, d.interval?.[0], m)} hi={sigmaOf(d, d.interval?.[1], m)} margin={m}
+                <ShiftBand s={s} lo={sigmaOf(d, d.interval?.[0], config)} hi={sigmaOf(d, d.interval?.[1], config)} margin={m}
                   color={d.status === "SIMILAR" ? "var(--cx-accept-text)" : batchColor(evidence.batch)} height={30} />
                 {notMeasured ? (
                   <>
@@ -980,9 +1026,7 @@ function Differences({ ctx }: { ctx: Ctx }) {
                 ) : (
                   <>
                     <div className="flex flex-col items-end gap-[3px]">
-                      <span className="mono text-[13px]">
-                        <span className="text-cx-faint">{fmt(d.reference, unit)} →</span> {fmt(d.batch, unit)}
-                      </span>
+                      <span className="mono text-[13px]">{fmtPair(d.reference, d.batch, unit)}</span>
                       <span className="mono text-[11px] whitespace-nowrap text-cx-faint">
                         {fmtSigma(s)}
                         {d.p != null ? ` · p ${Number(d.p.toPrecision(2))}` : paused ? " · imaging changed" : ""}
@@ -1096,8 +1140,8 @@ function Galleries({ ctx }: { ctx: Ctx }) {
   ];
   return (
     <div className="grid grid-cols-2 gap-4">
-      {columns.map((col) => (
-        <div key={col.name} className={`flex flex-col gap-3 rounded-[18px] border p-4 ${col.baseline ? "border-cx-batch-3/20" : "border-cx-line"}`}>
+      {columns.map((col, c) => (
+        <div key={`${c}-${col.name}`} className={`flex flex-col gap-3 rounded-[18px] border p-4 ${col.baseline ? "border-cx-batch-3/20" : "border-cx-line"}`}>
           <div className="flex items-center justify-between">
             <h3 className="m-0 flex items-center gap-2 text-[15px] font-medium">
               <BatchDot name={col.name} size={10} />
@@ -1107,14 +1151,42 @@ function Galleries({ ctx }: { ctx: Ctx }) {
             <span className="text-[13px] text-cx-faint">{col.tiles.length} tiles</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {col.tiles.map((tile) => (
-              <TileThumb key={tile.image_id} batch={tile.batch} imageId={tile.image_id} odd={oddIds.has(tile.image_id)} />
+            {col.tiles.map((tile, i) => (
+              <Peekable
+                key={tile.image_id}
+                items={col.tiles.map((t) => peekItem(t, ctx, oddIds))}
+                index={i}
+                label={`Tile ${tile.image_id}: peek, click to pin`}
+                className="relative block aspect-square overflow-hidden rounded-xl bg-black"
+                style={oddIds.has(tile.image_id) ? { boxShadow: "0 0 0 2px var(--cx-investigate)" } : { boxShadow: "inset 0 0 0 1px var(--cx-line)" }}
+              >
+                <img src={imageUrl(tile.batch, tile.image_id, "BSE")} alt="" loading="lazy" className="block h-full w-full object-cover" />
+                <span className="mono absolute bottom-2 left-2 rounded-md px-1.5 py-0.5 text-[11px]" style={{ background: "rgba(10,11,13,.75)", color: oddIds.has(tile.image_id) ? "var(--cx-investigate-text)" : "var(--cx-text)" }}>
+                  {tile.image_id}{oddIds.has(tile.image_id) ? " · odd" : ""}
+                </span>
+              </Peekable>
             ))}
           </div>
         </div>
       ))}
     </div>
   );
+}
+
+/** A gallery tile as a peek: the whole tile, with what made it odd if it is. */
+function peekItem(tile: Tile, ctx: Ctx, oddIds: Set<string>): PeekItem {
+  const odds = oddByTile(ctx.evidence).get(tile.image_id) ?? [];
+  const unit = (q: string) => ctx.evidence.differences.find((d) => d.name === q)?.unit;
+  return {
+    batch: tile.batch,
+    imageId: tile.image_id,
+    title: `Tile ${tile.image_id}`,
+    note: oddIds.has(tile.image_id)
+      ? `Outside the baseline range on ${joinAnd(odds.map((o) => `${quantityLabel(o.quantity, ctx.dict).toLowerCase()} (${fmt(o.value, unit(o.quantity))})`))}.`
+      : `${batchLabel(tile.batch)}${tile.batch === ctx.evidence.baseline ? ", the baseline" : ""}.`,
+    detectors: tile.detectors,
+    hasMask: tile.has_mask,
+  };
 }
 
 const AUDIENCES = [

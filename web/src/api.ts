@@ -1,6 +1,6 @@
 import type {
   Attribution, AttributionEvaluation, AttributionEvent, BatchSummary, Config, Decision, Evidence, Guide,
-  KpiDictionary, MeasureEvent, ModelStatus, RunEvent, Settings, Tile, VerifyResult,
+  KpiDictionary, MeasureEvent, ModelStatus, RunEvent, Settings, Tile, TileParticles, VerifyResult,
 } from "./types";
 
 async function getJson<T>(url: string): Promise<T> {
@@ -25,8 +25,19 @@ export const listDecisions = () => getJson<Decision[]>("/api/evidence");
 /** One comparison; `baseline` omitted = the default baseline. */
 export const getEvidence = (batch: string, baseline?: string | null) =>
   getJson<Evidence>(`/api/evidence/${enc(batch)}${withBaseline(baseline)}`);
+/** Free: the fixed template, or with source=claude Claude's cached version (else the template + fallback_reason). */
 export const getGuide = (batch: string, baseline: string | null, source: "claude" | "template") =>
   getJson<Guide>(`/api/guide/${enc(batch)}${withBaseline(baseline)}${baseline ? "&" : "?"}source=${source}`);
+
+/** Ask Claude to write the summary and walkthrough: a paid call, cached per evidence. */
+export async function askClaude(batch: string, baseline: string | null): Promise<Guide> {
+  const res = await fetch(`/api/guide/${enc(batch)}${withBaseline(baseline)}`, { method: "POST" });
+  if (!res.ok) throw new ApiError(res.status, await responseError(res));
+  return res.json();
+}
+
+export const getParticles = (batch: string, imageId: string, top = 8) =>
+  getJson<TileParticles>(`/api/particles/${enc(batch)}/${enc(imageId)}?top=${top}`);
 export const listAttributions = () => getJson<string[]>("/api/attribution");
 export const getAttribution = (name: string) => getJson<Attribution>(`/api/attribution/${enc(name)}`);
 export const getAttributionEvaluation = () =>

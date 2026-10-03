@@ -9,6 +9,7 @@ from pathlib import Path
 from qc.schema import ATTRIBUTION_MODEL_PATH, InputFile, Provenance, load_config
 
 CONFIG_FILES = ("particle_types.json", "kpi_dictionary.yaml", "attribution_model.json")
+FROZEN_FILES = ("decision.yaml", "particle_types.json", "attribution_model.json")  # the rules; the dictionary is wording
 
 
 def sha256(data: bytes | str | Path) -> str:
@@ -40,6 +41,20 @@ def rules_frozen() -> tuple[str | None, str | None]:
     frozen = git("rev-parse", "rules-frozen^{commit}")
     date = git("for-each-ref", "refs/tags/rules-frozen", "--format=%(creatordate:iso-strict)") if frozen else None
     return frozen, date
+
+
+def frozen_config(names=FROZEN_FILES) -> dict[str, dict[str, str | None]]:
+    """Per config file, its sha256 under the rules-frozen tag and now, so a change since the freeze shows."""
+    out = {}
+    for name in names:
+        try:
+            tagged = subprocess.run(["git", "show", f"rules-frozen:config/{name}"], capture_output=True, check=False)
+        except OSError:
+            return {}
+        now = Path("config") / name
+        out[name] = {"frozen": sha256(tagged.stdout) if tagged.returncode == 0 else None,
+                     "now": sha256(now) if now.exists() else None}
+    return out
 
 
 def provenance(inputs: list[Path], cfg: dict, data_dir: Path) -> Provenance:
