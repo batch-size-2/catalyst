@@ -8,7 +8,7 @@ Where to read what:
 |---|---|
 | What is done, what is next, what must be clarified (plain language) | [PAT_SUMMARY.md](PAT_SUMMARY.md) |
 | How each module works, every command, every output file | [README](../README.md) |
-| The plan and all attribution numbers | [PLAN_v3.md](PLAN_v3.md), and the draft delta [PLAN_v4.md](PLAN_v4.md) (§12–12.2 for results) |
+| The plan, the next steps and all attribution numbers | [PLAN_v4.md](PLAN_v4.md): §4 for the next steps, §12–12.2 for results. It is the only plan; v0–v3 were deleted and are in git history |
 | How to work in the ML code, what consumers can rely on, what was measured | this file |
 
 ## 1. Orientation
@@ -19,17 +19,15 @@ Where to read what:
 | Team | Pat = ML. Patrik = backend and UI (`qc/decide.py`, `qc/explain.py`, `qc/provenance.py`, `qc/api.py`, `web/`, `config/decision.yaml`) |
 | Pat's files | `qc/measure.py`, `qc/types.py`, `qc/controls.py`, `qc/uncertainty.py`, `qc/features.py`, `qc/deep.py`, `qc/attribute.py`, `tests/test_ml.py`, `tests/test_attribute.py`, `config/particle_types.json`, `config/kpi_dictionary.yaml`, `config/attribution_model.json`, `KPI_UNITS` in `qc/schema.py` |
 | Shared | `qc/schema.py` (the contract: additive changes only, tell the other owner), `qc/io.py`, `qc/run.py`, `README.md` |
-| Plans | PLAN_v3 is the team plan; never edit older versions. PLAN_v4 is a draft delta, to be agreed by both owners |
+| Plan | PLAN_v4 is the team plan and is self-contained; both owners have agreed to it |
 | Python | `uv sync`, then `uv run pytest -q` (67 tests, about 80 s). Deep features need `uv sync --extra deep`; after that, run with `uv run --extra deep …`, because a plain `uv run` removes torch again |
 | Data | `data/Batch_1`, `data/Batch_2`, `data/Batch_3`: 31 samples, each three 8-bit files (BSE, ETD or SE, InLens), 2316 × about 7000 px, 0.025 µm/px. Gitignored |
-| Held-back images | Kept in their own folder, never inside a batch folder. Unseen until the model is frozen with `git tag rules-frozen`; then scored once and the output committed unchanged |
+| Unseen images | The first folder arrived on 3 Oct: `Hackathon-Polaron-test`, 9 files = 3 samples (`3e122cbj`, `fn0mhxef`, `xrv9xvzb`). More images come shortly before judging. Kept in their own folder, never inside a batch folder; not opened and not yet linked into `data/`. Unseen until the model is frozen with `git tag rules-frozen`; then scored once and the output committed unchanged (PLAN_v4 §1.3, §4) |
 
 Rules that have held throughout:
 
-- The images stay on this machine. Model weights may be downloaded (DINOv2 from Hugging Face, pinned revision); images are never uploaded.
 - Never commit `data/` or `out/`.
 - No Polaron models or tools, including their open-source HR-Dv2, ImageRep and TauFactor, until the mentors say otherwise.
-- No language model measures, decides or explains.
 - `strip_id`, image height and width, `px_um` and XResolution are never features: they identify the strip, not the material. `features.assert_no_leakage()` enforces it.
 - Accuracy is only ever reported with whole strips held out, next to a permutation null. Never leave-one-image-out.
 - Don't edit `config/decision.yaml`, `config/particle_types.json` or `config/attribution_model.json` after the `rules-frozen` tag.
@@ -129,9 +127,9 @@ Written by `attribute_images(image_dir, model, balanced=None)`; the API serves i
 - **Why strips must be held out:** the same model on the 15 KPIs scores 0.49 leaving one image out and 0.35 leaving one strip out (chance 0.33, null p95 0.48). The first number is strip leakage.
 - **Batch attribution:** PLAN_v4 §12–12.2. In short, Batch_3 against the rest works; Batch_1 against Batch_2 does not yet.
 
-## 5. Deviations from PLAN_v3 on the ML side
+## 5. Changes from the v3 design on the ML side
 
-Listed in the README under "Deviations from PLAN_v3" (items 0–8). The two that matter most to a reader of the numbers:
+Listed in the README under "Changes from the v3 design (ML side)" (items 0–8); PLAN_v4 now states them as the plan. The two that matter most to a reader of the numbers:
 
 - **Dim-object rule.** Si objects with median BSE below 1.5× the graphite mode are relabelled `BINDER` (`SI_MIN_CONTRAST`). Added after overlays of strip 2316 showed binder and surfaces seen through pores labelled as Si. A few smooth mid-grey particles now land in BINDER; if the mentors say those are Si or SiOx, lower the constant and rerun.
 - **A classifier trained on batch labels exists** (`qc/attribute.py`), for attribution only. The accept / investigate / reject verdict stays statistical.

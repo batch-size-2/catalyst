@@ -38,9 +38,9 @@ cd web && npm run build                                    # typecheck + build, 
 
 - Software-side status and next steps: `docs/HANDOFF.md`. Read it first; delete it and this line once its list is done.
 
-- The highest-numbered `docs/PLAN_vN.md` (currently `docs/PLAN_v3.md`) is the plan and is owned by the team; don't rewrite it from a code PR, and never edit older plan versions. If the code has to deviate from it, say so in the README and the PR.
-- `qc/schema.py` is the ML ↔ backend contract (PLAN_v1 §3.1). Adding a field or KPI is fine. Renaming, removing or changing a unit needs both owners. Update `tests/fixtures/kpis_fake.csv`, `tests/test_contract.py` and `web/src/types.ts` along with it.
+- The highest-numbered `docs/PLAN_vN.md` (currently `docs/PLAN_v4.md`, the only one; older versions are in git history) is the plan and is owned by the team; don't rewrite it from a code PR. What to do next is in its §4. If the code has to deviate from it, say so in the README and the PR.
+- `qc/schema.py` is the ML ↔ backend contract (PLAN_v4 §3.1). Adding a field or KPI is fine. Renaming, removing or changing a unit needs both owners. Update `tests/fixtures/kpis_fake.csv`, `tests/test_contract.py` and `web/src/types.ts` along with it.
 - `qc/api.py` stays a thin wrapper: no QC logic in the API or the UI.
-- Never commit `data/`, `out/` or `EXAMPLE BATCHES FOR LOCAL REFERENCE/`. The images cost £50k to collect: don't upload them to any external service without Polaron's OK (PLAN_v1 §1).
+- Never commit `data/`, `out/` or `EXAMPLE BATCHES FOR LOCAL REFERENCE/`.
 - Don't edit `config/decision.yaml` after the `rules-frozen` git tag.
 - Install npm packages with `npm install --before=<date one week ago>` to avoid brand-new releases.

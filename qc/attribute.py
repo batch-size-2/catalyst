@@ -30,7 +30,7 @@ A staged model (`staged=(families_1, families_2)`, CLI `--staged a,b:c`) fits "b
 Reasons carry a plain-language `text`: named features are stated against the baseline in SD; a
 deep_pcNN component is translated into the named material features it moves with on the training set.
 
-Rule 2 of PLAN_v3 ("no classifier trained on batch folders") is relaxed by PLAN_v4 for this track
+Rule 2 of PLAN_v4 allows a classifier on batch labels for this track
 only: the accept/reject verdict is still the statistical comparison in qc/decide.py.
 
 Usage:
@@ -78,7 +78,7 @@ def strip_group(strip_id) -> str:
 
 
 def segments_of(df: pd.DataFrame) -> pd.Series:
-    """(batch, strip) segment label per row: the unit for permutations (PLAN_v3 §3.5)."""
+    """(batch, strip) segment label per row: the unit for permutations (PLAN_v4 §3.5)."""
     return df["batch"].astype(str) + "|" + df["strip_id"].map(strip_group)
 
 

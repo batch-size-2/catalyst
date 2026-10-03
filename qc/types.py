@@ -1,4 +1,4 @@
-"""Particle types: cluster Si particles on their features, fit once and freeze (PLAN_v3 §3.4).
+"""Particle types: cluster Si particles on their features, fit once and freeze (PLAN_v4 §3.4).
 
 Usage: uv run python -m qc.types [--exclude Batch_2 ...] [--porous-rule]
 Reads out/particles.csv, writes config/particle_types.json, the type column and out/crops/.
@@ -68,7 +68,7 @@ def _type_name(sub: pd.DataFrame, med_d: float, med_cr: float) -> str:
 def fit_types(
     particles: pd.DataFrame, ks: tuple = (2, 3, 4), seed: int = 0, porous_rule: bool = False
 ) -> dict:
-    """Fit a Gaussian-mixture type model; k chosen by leave-one-strip-out stability (PLAN_v3 §3.4)."""
+    """Fit a Gaussian-mixture type model; k chosen by leave-one-strip-out stability (PLAN_v4 §3.4)."""
     train = particles[(~_border_mask(particles)) & (particles["d_um"] >= MIN_D_UM)]
     X = _feature_matrix(train)
     finite = np.isfinite(X).all(axis=1)
