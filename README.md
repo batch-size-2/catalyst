@@ -15,7 +15,7 @@ No model is trained. Measurements come from classic image processing, and the ve
 
 ## Plan
 
-[docs/PLAN_v1.md](docs/PLAN_v1.md) is the source of truth for **what to build** (supersedes [PLAN_v0](docs/PLAN_v0.md)). This README documents **what is built**. Where the code is still a stub, the sections below say so and point to the plan section that describes the target.
+[docs/PLAN_v2.md](docs/PLAN_v2.md) is the source of truth for **what to build** (supersedes [PLAN_v1](docs/PLAN_v1.md) and [PLAN_v0](docs/PLAN_v0.md); §12 lists the evidence behind each decision). This README documents **what is built**. Where the code is still a stub, the sections below say so and point to the plan section that describes the target.
 
 ## Quickstart
 
