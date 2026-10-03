@@ -141,6 +141,8 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `tests/fixtures/kpis_fake.csv` | yes | Synthetic KPI table (`tests/synth.py`), so the backend and UI can be built with no images |
 | `tests/fixtures/evidence_example.json` | yes | Hand-made, fully populated Evidence. To view it in the UI: `cp tests/fixtures/evidence_example.json out/evidence/example.json` and select `example` |
 | `tests/fixtures/attribution_example.json`, `attribution_evaluation_example.json` | yes | Fixtures mirroring Pat's output format |
+| `assets/` | yes | Brand assets: Catalyst the cat (`cat/Cat.tsx`, SVGs, `preview.html`) and the logo (the c is a cat head, the y has a tail). See `assets/README.md` |
+| `demo_video/` | yes | The 2-minute demo video. `PROMPT.md` is the one-shot brief for building it with Remotion + ElevenLabs |
 
 **HTTP API** (`qc/api.py`, called from `web/src/api.ts`)
 
