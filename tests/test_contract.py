@@ -1,10 +1,14 @@
+import json
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import tifffile
+import yaml
+from fastapi.testclient import TestClient
 from scipy.ndimage import gaussian_filter
 
+from qc.api import app
 from qc.io import field_paths, iter_fields
 from qc.judge import judge
 from qc.measure import kpis, segment
@@ -67,3 +71,22 @@ def test_end_to_end_run(tmp_path, monkeypatch):
     assert len(evidence.tiles) == 2 and all(preview_path("new", t.image_id).exists() for t in evidence.tiles)
     assert set(pd.read_csv("out/kpis.csv")["batch"]) == {"base", "new"}
     assert len(field_paths(Path("data/base"))) == 4
+
+
+def test_api_upload_run_and_read(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake_batch(Path("data/base"), 3)
+    fake_batch(Path("upload_src"), 2)
+    client = TestClient(app)
+
+    files = [("files", (p.name, p.read_bytes(), "image/tiff")) for p in sorted(Path("upload_src").iterdir())]
+    assert client.post("/api/batches/new/files", files=files).json() == {"saved": 6}
+    events = [json.loads(line) for line in client.post("/api/runs/new").text.splitlines()]
+    assert [e["done"] for e in events if e["type"] == "progress"] == [1, 2, 3, 4, 5]
+    assert events[-1]["type"] == "done"
+
+    evidence = Evidence.model_validate(client.get("/api/evidence/new").json())
+    assert {b["name"]: b["verdict"] for b in client.get("/api/batches").json()}["new"] == evidence.verdict
+    assert client.get(f"/api/previews/new/{evidence.tiles[0].image_id}.png").status_code == 200

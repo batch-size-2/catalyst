@@ -14,15 +14,23 @@ Current plan: [docs/PLAN_v1.md](docs/PLAN_v1.md) (supersedes [PLAN_v0](docs/PLAN
 ## Quickstart
 
 ```bash
-brew install uv          # once
+brew install uv node@22  # once (web needs Node >= 20.19)
 uv sync
 uv run pytest            # contract tests, keep green
-uv run python -m qc.run --batch data/Batch_2 data/Batch_3   # images -> out/kpis.csv -> out/evidence/<batch>.json
+uv run python -m qc.run --batch data/Batch_1 data/Batch_2 data/Batch_3   # images -> out/kpis.csv -> out/evidence/<batch>.json
 uv run python -m qc.judge tests/fixtures/kpis_fake.csv --baseline fake_baseline   # backend only, no images
-uv run streamlit run app.py   # dashboard: ingest a batch folder, see verdict, KPIs, tiles
+
+# UI: two terminals
+uv run uvicorn qc.api:app --reload     # API on :8000
+cd web && npm install && npm run dev   # UI on :5173, proxies /api to :8000
 ```
 
-Stack: Python 3.11 + uv · numpy / pandas / scipy / scikit-image / tifffile · pydantic · Streamlit + plotly.
+Put the batches in `data/` (gitignored), e.g. `ln -s "../EXAMPLE BATCHES FOR LOCAL REFERENCE/Batch_1" data/Batch_1`.
+
+Stack:
+- **Pipeline:** Python 3.11 + uv · numpy / pandas / scipy / scikit-image / tifffile · pydantic
+- **API:** FastAPI
+- **UI:** Vite + React + TypeScript + Tailwind
 
 ## Architecture
 
@@ -55,7 +63,8 @@ flowchart LR
     P["previews/{batch}/{id}.png"]
   end
 
-  UI["app.py · Streamlit<br/>ingest · verdict · KPI chart · tile gallery"]
+  API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · previews<br/>POST upload · run (NDJSON progress)"]
+  WEB["web/ · Vite + React :5173<br/>ingest · verdict · KPI bands · tile gallery"]
   CLI["python -m qc.run --batch ..."]
 
   D --> IO --> RUN
@@ -64,13 +73,15 @@ flowchart LR
   CFG --> J
   RUN --> P
   J --> E
-  E --> UI
-  P --> UI
-  UI -- "Run QC" --> RUN
+  E --> API
+  P --> API
+  API -- "/api via Vite proxy" --> WEB
+  WEB -- "upload + run" --> API
+  API -- "run()" --> RUN
   CLI --> RUN
 ```
 
-`qc/schema.py` is the contract every box above imports: `Field`, `Phase` labels, `KPI_UNITS`, `KPI_TABLE_COLUMNS`, the `Evidence` model and the `out/` paths. The dashboard only reads `out/`; it never calls ML or backend code directly, only `run()`.
+`qc/schema.py` is the contract every Python box above imports: `Field`, `Phase` labels, `KPI_UNITS`, `KPI_TABLE_COLUMNS`, the `Evidence` model and the `out/` paths. `web/src/types.ts` mirrors `Evidence` for the UI. The API holds no QC logic: it reads `out/` and calls `run()`.
 
 ## Who owns what
 
@@ -78,7 +89,8 @@ flowchart LR
 |---|---|
 | `qc/schema.py` | **Both.** The contract: `Field`, phase labels, KPI names + units, Evidence JSON, output paths |
 | `qc/measure.py` (`segment`, `kpis`) | ML |
-| `qc/judge.py` (`judge`), `app.py`, `config/decision.yaml` | Backend |
+| `qc/judge.py` (`judge`), `config/decision.yaml` | Backend |
+| `qc/api.py`, `web/` | Backend / UI |
 | `qc/io.py`, `qc/run.py` | Shared glue |
 
 The handoff is `out/kpis.csv`: one row per tile, columns `batch, image_id, strip_id, px_um, <KPIs>`. Backend can build against `tests/fixtures/kpis_fake.csv` without touching images.

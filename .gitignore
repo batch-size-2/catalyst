@@ -5,3 +5,7 @@ __pycache__/
 data/
 out/
 *.tif
+*.tiff
+EXAMPLE BATCHES FOR LOCAL REFERENCE/
+web/node_modules/
+web/dist/

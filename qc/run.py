@@ -1,4 +1,4 @@
-"""Zero-touch runner: images -> KPI table -> verdict. The CLI and app.py both call run().
+"""Zero-touch runner: images -> KPI table -> verdict. The CLI and qc/api.py both call run().
 
 Usage: uv run python -m qc.run --batch data/Batch_2 [data/Batch_3 ...]
 """
@@ -45,9 +45,9 @@ def measure(batch_dirs: list[Path], progress: Progress | None = None) -> pd.Data
     jobs = [(d.name, image_id, paths) for d in batch_dirs for image_id, paths in field_paths(d).items()]
     rows = []
     for i, (batch, image_id, paths) in enumerate(jobs):
-        if progress:
-            progress(i, len(jobs), f"{batch}/{image_id}")
         rows.append(measure_field(load_field(batch, image_id, paths)))
+        if progress:
+            progress(i + 1, len(jobs), f"{batch}/{image_id}")
     return pd.DataFrame(rows, columns=KPI_TABLE_COLUMNS)
 
 
@@ -91,6 +91,6 @@ if __name__ == "__main__":
     parser.add_argument("--batch", type=Path, nargs="+", required=True)
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
     args = parser.parse_args()
-    for evidence in run(args.batch, load_config(args.config), lambda i, n, label: print(f"[{i + 1}/{n}] {label}")):
+    for evidence in run(args.batch, load_config(args.config), lambda done, total, tile: print(f"[{done}/{total}] {tile}")):
         nc = evidence.nonconforming
         print(f"{evidence.batch}: {evidence.verdict} ({nc.x}/{nc.n} non-conforming) -> {evidence.next_action}")
