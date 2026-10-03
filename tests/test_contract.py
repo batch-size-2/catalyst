@@ -243,3 +243,12 @@ def test_api_survives_stale_v1_evidence(tmp_path, monkeypatch):
     client = TestClient(app)
     assert client.get("/api/batches").json() == [{"name": "old", "has_images": False, "verdict": "ACCEPT"}]
     assert client.get("/api/evidence/old").status_code == 409
+
+
+def test_api_serves_attribution_heatmap(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    path = Path("out/attribution/run/x.png")
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"heatmap")
+    response = TestClient(app).get("/api/attribution-files/run/x.png")
+    assert response.status_code == 200 and response.content == b"heatmap"

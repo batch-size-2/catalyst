@@ -221,6 +221,7 @@ class FeatureProfile(BaseModel):
     eta2: float | None = None            # share of image-level variance between known batches
     mean: dict[str, float | None]        # batch -> mean over its images
     sd: dict[str, float | None]          # batch -> SD over its images (ddof 1)
+    z_vs_baseline: dict[str, float | None] = {}  # batch -> (batch mean - baseline mean) / baseline SD
 
 
 class FeatureCall(BaseModel):
@@ -242,7 +243,7 @@ class ImageCall(BaseModel):
     truth: str | None = None             # known label, when scored
     features: list[FeatureCall] = []     # most decisive first
     nearest: list[str] = []              # "<folder>/<image_id>" of the most similar known images, nearest first
-    heatmap: str | None = None           # PNG path under out/attribution/: per-region support for `predicted`
+    heatmap: str | None = None           # PNG path relative to out/attribution/: per-region support for `predicted`
     outside_baseline: list[str] = []     # features more than odd_sd baseline SDs from the baseline mean
     unfamiliar: bool = False             # unlike every known batch
     why: list[str] = []                  # fixed-template sentences, most important first

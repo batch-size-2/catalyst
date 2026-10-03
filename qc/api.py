@@ -24,6 +24,8 @@ from qc.schema import (
 app = FastAPI(title="Catalyst QC")
 (OUT_DIR / "masks").mkdir(parents=True, exist_ok=True)
 app.mount("/api/masks", StaticFiles(directory=OUT_DIR / "masks"), name="masks")
+ATTRIBUTION_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/api/attribution-files", StaticFiles(directory=ATTRIBUTION_DIR), name="attribution-files")
 
 
 class BatchSummary(BaseModel):

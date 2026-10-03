@@ -55,6 +55,12 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 - Wired explanations into `run()` and the decision CLI before evidence is written.
 - Added synthetic explanation tests and README documentation; no dictionary file was created.
 
+## Done (step 5, branch `PtrkH/ui-views`)
+
+- Added baseline z-scores to feature profiles, relative heatmap paths and the attribution-file static API route.
+- Built the Sort images, What's different and Batch verdict views, including probability bands, evaluations, explanations and gallery calls.
+- Added fixture preview instructions, heatmap API documentation and the attribution image-file test.
+
 ## Done (PR #4)
 
 - **Evidence contract**: `qc/schema.py`, mirrored in `web/src/types.ts`; full example in `tests/fixtures/evidence_example.json`.
@@ -86,12 +92,7 @@ Done, see Done. The dictionary file comes with `pat/ml-v3` (her format: name, un
 
 ### 5. UI and API
 
-**The screens, the visual language, the extra backend data and the build order are specified in [`docs/APP.md`](APP.md). Follow its build order (core first).** The bullets below are the minimum.
-
-- **"Sort images" view (demo centrepiece):** upload 1–N images, then use the per-image `Attribution` fields to show the predicted batch with probability bars, `why` sentences, decisive features against each batch's mean ± SD band, outside-baseline and unlike badges, and the mask overlay.
-- **"What's different" view:** use the `Attribution` feature ranking (z vs baseline per batch), confusion matrices (leave-one-image-out, leave-one-strip-out, held-out) and clustering ARI.
-- **Batch view:** the four audience tabs, attribution calls for the batch folder on the gallery cards, `other_unit` next to the differences, odd images.
-- **Fixtures:** build against `tests/fixtures/evidence_example.json` plus a new `tests/fixtures/attribution_example.json`.
+Done, see Done.
 
 ### 6. When Pat's features land (with the user)
 

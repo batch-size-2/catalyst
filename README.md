@@ -31,6 +31,11 @@ uv run python -m qc.measure                                               # ML: 
 uv run python -m qc.run --batch data/Batch_2 data/Batch_3                 # end to end -> out/evidence/<batch>.json
 uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline   # backend only, no images
 
+# Preview the UI with fixtures
+mkdir -p out/evidence out/attribution
+cp tests/fixtures/evidence_example.json out/evidence/example.json
+cp tests/fixtures/attribution_example.json out/attribution/example_drop.json
+
 # UI: two terminals
 uv run uvicorn qc.api:app --reload     # API on :8000
 cd web && npm install && npm run dev   # UI on :5173, proxies /api to :8000
@@ -76,8 +81,8 @@ flowchart LR
     P["masks/{batch}/{id}.png"]
   end
 
-  API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · masks · attribution<br/>POST upload · run · attribution (NDJSON progress)"]
-  WEB["web/ · Vite + React :5173<br/>ingest · verdict · differences · strip gallery · provenance"]
+  API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · masks · attribution · attribution-files<br/>POST upload · run · attribution (NDJSON progress)"]
+  WEB["web/ · Vite + React :5173<br/>sort images · what's different · batch verdict (four audiences, gallery with odd images and calls) · provenance"]
   CLI["python -m qc.run / qc.measure"]
 
   D --> IO --> RUN
@@ -142,6 +147,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `GET /api/evidence/{batch}` | `Evidence` |
 | `GET /api/attribution` | Sorted attribution run names |
 | `GET /api/attribution/{name}` | `Attribution` |
+| `GET /api/attribution-files/{path}` | Heatmap PNGs under `out/attribution/` |
 | `GET /api/masks/{batch}/{image_id}.png` | Mask overlay |
 | `POST /api/batches/{batch}/files` | Multipart upload of a folder's TIFFs into `data/{batch}/` |
 | `POST /api/runs/{batch}` | NDJSON stream: one `{"type":"progress","done","total","tile"}` per measured tile, then `{"type":"done","evidence"}` or `{"type":"error","message"}` |
@@ -331,9 +337,9 @@ The software side builds no classifier; `qc.run.attribute()` wraps Pat's predict
 
 | Model | Contents |
 |---|---|
-| `FeatureProfile` | Feature unit/family, model use, eta² and per-batch means and SDs |
+| `FeatureProfile` | Feature unit/family, model use, eta², per-batch means and SDs, and `z_vs_baseline` |
 | `FeatureCall` | Image value, per-batch z-scores and signed contribution |
-| `ImageCall` | Prediction and probabilities, optional assignment/truth, feature evidence, nearest images, heatmap, unfamiliar and baseline flags, templated reasons |
+| `ImageCall` | Prediction and probabilities, optional assignment/truth, feature evidence, nearest images, heatmap path relative to `out/attribution/`, unfamiliar and baseline flags, templated reasons |
 | `Evaluation` | Evaluation scheme, n, accuracy, balanced accuracy, shuffled-label null and confusion matrix |
 | `Attribution` | Run, known batches, baseline, model file, feature profiles, evaluations, clustering ARI, image calls and provenance |
 
