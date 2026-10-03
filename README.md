@@ -424,7 +424,7 @@ The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution
 4. Tag `rules-frozen`, covering `decision.yaml`, `particle_types.json` and `attribution_model.json`.
 5. Run `uv run python -m qc.attribute --images data/<drop>` once, then copy `out/attribution/<drop>.json` to `results/` and commit it unchanged (`out/` is gitignored). Add `--balanced k` only if the split per batch is confirmed.
 
-The first unseen folder (`Hackathon-Polaron-test`, 3 samples) arrived on 3 Oct and is not scored yet; more images come shortly before judging. The order of work is in PLAN_v4 §4.
+The model was frozen on 3 Oct at 22:10 (tag `rules-frozen`, staged `material > deep`). The first unseen folder (`Hackathon-Polaron-test`, 3 samples) was scored once with it; the output is [results/Hackathon-Polaron-test.json](results/Hackathon-Polaron-test.json), committed unchanged. Disclosure: the same three samples had been uploaded through the app about 20 minutes before the tag, with the same model file; nothing was refitted or tuned in between and the calls are identical (PLAN_v4 §12.3). More images come shortly before judging: same command, same frozen model.
 
 ## Who owns what
 
