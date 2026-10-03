@@ -253,6 +253,18 @@ def image_preview(batch: str, image_id: str, detector: str, size: int = 512) -> 
     return FileResponse(preview_png(paths[detector], size))
 
 
+@app.get("/api/slab/{batch}")
+def slab(batch: str, image: str | None = None) -> dict:
+    """Indicative 3D slab for the anode lab (qc/slab.py). An illustration, never part of a verdict."""
+    from qc.slab import build
+
+    batch_dir(batch)
+    try:
+        return build(batch, None if image is None else clean_name(image))
+    except (KeyError, FileNotFoundError) as error:
+        raise HTTPException(404, str(error).strip("'\""))
+
+
 @app.get("/api/layers/{batch}/{image_id}/{layer}")
 def phase_layer(batch: str, image_id: str, layer: str) -> FileResponse:
     """One segmentation phase (silicon, pore or binder) as a transparent PNG to lay over any detector."""

@@ -6,6 +6,14 @@ declare const process: { env: Record<string, string | undefined> };  // no @type
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    rollupOptions: {
+      input: {
+        main: new URL("./index.html", import.meta.url).pathname,
+        slab: new URL("./slab.html", import.meta.url).pathname,
+      },
+    },
+  },
   server: {
     fs: { allow: [".."] },
     proxy: { "/api": process.env.CATALYST_API ?? "http://localhost:8000" },
