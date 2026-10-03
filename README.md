@@ -109,8 +109,8 @@ flowchart LR
     CR["crops/{type}/{n}.png<br/>example crops per particle type"]
   end
 
-  API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · masks · attribution · attribution-evaluation<br/>POST upload · run · attribution (NDJSON progress)"]
-  WEB["web/ · Vite + React :5173<br/>sort images · what's different · batch verdict (four audiences, gallery with odd images and calls) · provenance"]
+  API["qc/api.py · FastAPI :8000<br/>GET config · batches · evidence · tiles · images · kpis · masks · attribution · attribution-evaluation<br/>POST upload · run · attribution · verify (NDJSON progress)"]
+  WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile · compare batch · library + viewer · audit log + batch passport"]
   CLI["python -m qc.run / qc.measure / qc.features / qc.attribute"]
 
   D --> IO --> RUN
@@ -167,7 +167,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | Path | In git? | Contents |
 |---|---|---|
 | `data/<batch>/` | no | Input TIFFs (or symlinks to them). One folder per batch; the folder name is the batch name |
-| `EXAMPLE BATCHES FOR LOCAL REFERENCE/` | no | The 1.6 GB of Polaron images |
+| `EXAMPLE BATCHES FOR LOCAL REFERENCE/` | no | The 1.6 GB of Polaron images. Too big for git; screenshots of them are fine |
 | `config/decision.yaml` | yes | Decision settings. Frozen with `git tag rules-frozen` before the unseen batch |
 | `config/particle_types.json` | yes | Fitted particle-type model (GMM centres/covs, names, unassigned threshold). Frozen with `rules-frozen` |
 | `config/kpi_dictionary.yaml` | yes | Plain-language meaning/causes/checks per descriptor (draft; causes need mentor review); read by `explain()` and hashed into provenance |
@@ -176,6 +176,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `out/particles.csv` | no | One row per Si particle: size, contrast, inlens ratio, voids, texture, solidity, type. Read by `compare()` |
 | `out/imaging.csv` | no | One row per image and channel: black level, percentiles, noise, sharpness, saturation, curtaining. Read by `compare()` |
 | `out/masks/<batch>/<image_id>.png` | no | BSE with phase overlay (4× downsampled), for eyeballing and the UI |
+| `out/previews/<batch>/<image_id>_<detector>_<size>.png` | no | Cached detector previews (512/2048 px) served by `GET /api/images` |
 | `out/crops/<type>/<n>.png` | no | Example particle crops per type, for the UI gallery |
 | `out/controls/summary.csv` | no | Measured KPI shifts for every control |
 | `out/uncertainty/` | no | `threshold_variants.csv` (KPIs at thresholds ±5) and `integral_range.csv` (per image and phase) |
@@ -201,6 +202,10 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `GET /api/attribution/{name}` | `Attribution` |
 | `GET /api/attribution-evaluation` | Pat's feature-family evaluation report |
 | `GET /api/masks/{batch}/{image_id}.png` | Mask overlay |
+| `GET /api/tiles` | `[{batch, image_id, strip_id, detectors, kpis, has_mask}]`: every image in `data/` joined with `out/kpis.csv` |
+| `GET /api/images/{batch}/{image_id}/{detector}?size=512\|2048` | Percentile-stretched PNG preview, cached in `out/previews/` |
+| `GET /api/kpis` | `config/kpi_dictionary.yaml` as JSON |
+| `POST /api/verify/{batch}` | Re-hash the evidence's provenance inputs and config files → `{ok, files, config_ok}` |
 | `POST /api/batches/{batch}/files` | Multipart upload of a folder's TIFFs into `data/{batch}/` |
 | `POST /api/runs/{batch}` | NDJSON stream: one `{"type":"progress","done","total","tile"}` per measured tile, then `{"type":"done","evidence"}` or `{"type":"error","message"}` |
 | `POST /api/attribution/{name}?balanced={k}` | Run output from Pat's `attribute_images`; `balanced` is optional, 501 if `qc.attribute` is unavailable |

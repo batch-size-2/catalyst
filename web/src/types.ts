@@ -225,12 +225,47 @@ export interface BatchSummary {
   verdict: Verdict | null;
 }
 
+/** One image in a data folder, joined with its out/kpis.csv row (GET /api/tiles). */
+export interface Tile {
+  batch: string;
+  image_id: string;
+  strip_id: string | null;
+  detectors: string[];
+  kpis: Record<string, number | null> | null;
+  has_mask: boolean;
+}
+
+/** config/kpi_dictionary.yaml entry: friendly name, unit and causes per descriptor. */
+export interface KpiEntry {
+  name?: string;
+  unit?: string;
+  key?: boolean;
+  meaning?: string;
+  why_it_matters?: string;
+  if_higher?: string;
+  if_lower?: string;
+  supplier_check?: string;
+}
+
+export type KpiDictionary = Record<string, KpiEntry | Record<string, KpiEntry>>;
+
+/** POST /api/verify/{batch}: re-hashed provenance inputs and config files. */
+export interface VerifyResult {
+  ok: boolean;
+  files: { path: string; ok: boolean }[];
+  config_ok: boolean;
+}
+
 export interface Config {
   version: string;
   baseline: string;
   ci_level: number;
   alpha: number;
   unit: Unit;
+  similar_margin: number;
+  imaging_sensitive: string[];
+  data_dir: string;
+  [key: string]: unknown;
 }
 
 export type RunEvent =

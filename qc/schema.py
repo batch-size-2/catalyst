@@ -240,6 +240,7 @@ ATTRIBUTION_MODEL_PATH = Path("config/attribution_model.json")
 EVIDENCE_DIR = OUT_DIR / "evidence"
 FEATURE_TABLE = OUT_DIR / "features.csv"
 ATTRIBUTION_DIR = OUT_DIR / "attribution"
+PREVIEWS_DIR = OUT_DIR / "previews"
 
 
 def crop_path(type_id: str, n: int) -> Path:
