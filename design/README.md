@@ -40,6 +40,7 @@ Four places, in the sidebar:
 | `Compare-Focus`, `Identify-Result-Focus` | v2: the answer, "Look here first", everything else folded |
 | `Settings-Baseline` | v2: default baseline, baseline tiles to leave out, who picks the highlights |
 | `Compare-Guided` | v3: Claude as a guide. Summary and walkthrough over Catalyst's verdict |
+| `Identify-Result-Peek` | Region peek and pin: look closer at an image region without leaving the page |
 
 v2 and v3 are designs only. They wait until Pat's evaluation tells us which findings matter.
 
@@ -68,6 +69,15 @@ Catalyst decides; Claude points and explains. No language model measures, decide
 - **Numbers are slots** (`{diff:si_graphite_ratio}`, `{tile:4ih2ggld.si_graphite_ratio}`, `{whatif:1}`) that the UI renders as chips from the evidence. A slot that doesn't resolve drops its sentence; two failures fall back to the `qc/explain.py` template.
 - **House style:** ≤28 words per sentence, ≤2 sentences per step. "Differs", never "defective". "Not settled" when the status is unclear. No "significant", "crucial" or "notable" unless a rule fired. No restating the verdict. Next steps only from `next_action` and the dictionary's supplier check.
 - **Labelled:** "Written by Claude", a "numbers match the evidence" check, and a one-click switch to the plain template.
+
+## Look closer without leaving (region peek)
+
+Any marked image region, reason card, tile thumbnail or tile chip can be inspected in place:
+
+- **Peek** on hover or keyboard focus: a glass popover beside the region (on the side with more room) with a magnified crop, the region ringed, a scale bar, and one line of what was measured there. It never covers the region itself.
+- **Pin** on click: an inspector panel on the right with a detector switch (BSE / ETD / InLens), silicon and pore layers, ← → through all regions, and "Open full tile" for the Library. Close returns you to where you were.
+- **Crop maths:** zoom so the region fills about 70% of the box (1.4× to 12×), clamp so the crop never shows past the image edge, and pick the scale bar from 20 / 10 / 5 / 2 / 1 µm (at most 110 px). Tile width is 174.6 µm (6,984 px at 25 nm).
+- Regions stay marked PREVIEW until the model returns real heatmap regions. Particle spots use real centroids from `particles.csv`.
 
 ## Colour
 
