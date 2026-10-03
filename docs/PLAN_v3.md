@@ -7,7 +7,12 @@ Team Batch Size 2. ML: Pat. Software: Patrik. Glossary in §11, evidence for eac
 A tool that answers one question for a battery manufacturer: **is this incoming batch of anode material the same as the reference batch, and if not, what changed, in terms a materials scientist would accept?**
 
 - **Input:** a folder of FIB-SEM cross-section images for the incoming batch (three detector images per spot), plus the reference batch (Batch_3).
-- **Output:** a batch comparison: the batch's microstructure fingerprint, what differs from the reference and by how much, how sure we are, a verdict (accept / investigate / reject) with a next action, the same result written for four audiences, what each difference means for the cell as an indicative range, and a provenance record of exactly which images, code and settings produced it.
+- **Output:** a batch comparison:
+  - the batch's microstructure fingerprint;
+  - what differs from the reference, by how much, and how sure we are;
+  - a verdict (accept / investigate / reject) with a next action;
+  - the same result written for four audiences, including what each difference means for the cell, as an indicative range;
+  - a provenance record of exactly which images, code and settings produced it.
 - **Model:** nothing is trained on batch labels.
   - Measurements: brightness thresholds split each image into pore, graphite and silicon; we measure phases and every silicon particle.
   - Particle types: clustering on particle measurements, fitted once and frozen.
@@ -22,7 +27,7 @@ A tool that answers one question for a battery manufacturer: **is this incoming 
 | Anode. Bright white = silicon, darker grey = graphite, black = pore | Phase codes unchanged |
 | Si:graphite ratio, particle size distribution and the pore network drive battery performance | These are the key descriptors (§3.2). The silicon key quantity is `si_graphite_ratio` |
 | Particles about 30 µm across | Most likely the graphite. Si particles are a few µm. Sanity check for `graphite_chord_um`; **not** a check for Si sizes |
-| ~20 images ≈ £50k; deliberately tiny; realistic for a manufacturer | Statistics must be honest at n ≈ 2–8 strips per batch. Use the ~4,000 particles, but resample by strip |
+| ~20 images ≈ £50k; deliberately tiny; realistic for a manufacturer | Statistics must be honest at 3–7 strip segments per batch. Use the ~4,000 silicon particles, but resample by strip |
 | FIB-SEM: Ga-ion beam cross-section; expect artefacts such as curtaining | `imaging()` checks for curtaining (§3.3) |
 | The batch is the unit; images within a batch will differ | Per-image verdicts are gone; image groups are only descriptive |
 | Core question: within-batch vs across-batch variance; would you reject batch B and can you say why | §3.5 |
@@ -53,17 +58,15 @@ With the two descriptors the code has today (`si_area_frac`, `porosity_apparent`
 | Batch folder | Barely different: one-way ANOVA p = 0.05, rank test p = 0.35 | p = 0.05 |
 | Strip | Strongly different: p < 0.0001 | p = 0.005 |
 
-Most of the variation sits between strips, not between folders. The exception is strip P2316 in Batch_1. With Batch_3 as reference, a per-image check flags only its two images (`4ih2ggld`, `5n1q8atc`): silicon fraction 0.19–0.20 against a reference range of 0.03–0.11. Batch_2 shows no difference.
-
-Shared strips with Batch_3 as reference: P2080 (Batch_1, Batch_2, Batch_3), P2068 and P2272 (Batch_2, Batch_3). That is 1 of Batch_1's 6 strips and 3 of Batch_2's 6.
+Most of the variation sits between strips, not between folders. The exception is strip P2316 in Batch_1. With Batch_3 as reference, the per-image check in the current code flags only its two images (`4ih2ggld`, `5n1q8atc`): silicon fraction 0.19–0.20 against a reference range of 0.03–0.11. Batch_2 shows no difference.
 
 **How each folder is made up**
 
-| Folder | Images | Strips | Images from strips found only in this folder |
-|---|---|---|---|
-| Batch_1 | 7 | 6 | 4 of 7 |
-| Batch_2 | 7 | 6 | **2 of 7** (P2048). The other 5 are neighbours of images in Batch_1 or Batch_3 |
-| Batch_3 | 17 | 7 | 12 of 17 |
+| Folder | Images | Strips | Images from strips found only in this folder | Strips shared with Batch_3 |
+|---|---|---|---|---|
+| Batch_1 | 7 | 6 | 4 of 7 | 1 (P2080) |
+| Batch_2 | 7 | 6 | **2 of 7** (P2048). The other 5 are neighbours of images in Batch_1 or Batch_3 | **3** (P2080, P2068, P2272) |
+| Batch_3 | 17 | 7 | 12 of 17 | – |
 
 A continuous strip is one piece of electrode, so the folders are not all physically separate deliveries. Two readings, and we do not yet know which is right (§10 Q2):
 
@@ -94,7 +97,7 @@ These numbers are from a stub segmentation; the variance split (§3.5) recompute
 |---|---|---|---|---|
 | Load | `load_field` → `Field` | `qc/io.py` | shared | exists; add `black_level` per channel (0.5th percentile) |
 | Segment | `segment(channels, px_um)` → full-resolution mask | `qc/measure.py` | Pat | basic version exists |
-| Image descriptors | `kpis(mask, px_um, channels)` → dict | `qc/measure.py` | Pat | 2 of 11 exist |
+| Image descriptors | `kpis(mask, px_um, channels)` → dict | `qc/measure.py` | Pat | 2 of 15 exist (`si_area_frac`, `porosity_apparent`) |
 | Particle table | `particles(mask, px_um, channels)` → DataFrame, one row per Si particle | `qc/measure.py` | Pat | new |
 | Particle types | `fit_types(particles) -> TypeModel`, `assign_types(particles, model) -> particles + type` | `qc/types.py` | Pat | new |
 | Imaging check | `imaging(channels)` → dict per channel | `qc/measure.py` | Pat | new |
@@ -110,7 +113,7 @@ Interface decisions (settled here so nobody waits):
 
 - `Tables` = `NamedTuple(kpis, particles, imaging)` of DataFrames filtered to one batch.
 - `TypeModel` is a plain dict (feature means/SDs, cluster centres, covariances, names, unassigned threshold), saved as `config/particle_types.json`. `fit_types` runs only before the freeze; `run()` only calls `assign_types`.
-- `Control` = `dataclass(name, kind: "negative" | "positive", expected_driver: str | None, source_strips: list[str], fields: list[Field])`. `run()` measures them as batch `_controls/<name>`.
+- `Control` = `dataclass(name, kind: "negative" | "positive", expected_driver: str | None, source_strips: list[str], fields: list[Field], kept_in_reference: list[str] = [])`. `run()` measures them as batch `_controls/<name>`. The reference for a control is the reference minus `source_strips`, plus the strips in `kept_in_reference`; only the shared-strip controls (§3.13) use that field.
 - `segment()` returns a full-resolution `uint8` mask even if it works at 2× downsample internally. The thresholds are an optional argument (`thresholds=None`) so the segmentation uncertainty can rerun it with offsets.
 
 | Output | Rows |
@@ -159,9 +162,9 @@ Acceptance: two overlays per strip checked by eye; a 1-page overlay sheet goes i
 
 Plus **type shares** (§3.4) as key quantities. `graphite_chord_um` is not key because there are only a few 30 µm graphite particles per image, so it is noisy; promote it if the variance split (§3.5) shows it separates batches.
 
-**Particle table.** Per Si particle: equivalent diameter, area, brightness ratio to graphite (black removed), internal void fraction, **texture** (SD of BSE inside the particle, at full resolution, divided by its mean), solidity, **`inlens_ratio`** (mean InLens inside the particle / mean InLens of the graphite in a 1–3 µm ring around it, black-corrected, pixels at 255 left out), border flag. The local graphite reference cancels the top-to-bottom InLens shading (§1.1), so the ratio describes the particle, not where it sits. `inlens_ratio` goes in the `out/particles.csv` columns.
+**Particle table.** Per Si particle: equivalent diameter (`d_um`), area (`area_um2`), brightness ratio to graphite with black removed (`contrast_ratio`), internal void fraction (`void_frac`), **texture** (SD of BSE inside the particle, at full resolution, divided by its mean), `solidity`, **`inlens_ratio`** (mean InLens inside the particle / mean InLens of the graphite in a 1–3 µm ring around it, black-corrected, pixels at 255 left out), and a `border` flag. The local graphite reference cancels the top-to-bottom InLens shading (§1.1), so the ratio describes the particle, not where it sits. `inlens_ratio` goes in the `out/particles.csv` columns.
 
-Resolution limit we state: at 25 nm/px and a 0.25 µm² minimum, Si below about 0.5 µm is not counted as particles. Nano-Si (about 100–200 nm in many anodes [R15, R21]) shows up only in `si_area_frac` and agglomerates.
+Resolution limit we state: at 25 nm/px and a 0.25 µm² minimum, Si below about 0.5 µm is not counted as particles. Nano-Si (about 100–200 nm in many anodes [R15, R21]) shows up only in `si_area_frac`, `si_graphite_ratio` and agglomerates.
 
 ### 3.3 Imaging check
 
@@ -178,10 +181,10 @@ Resolution limit we state: at 25 nm/px and a 0.25 µm² minimum, Si below about 
 - **Type share** per strip segment = Si area of that type / all Si area.
 - **New particle type**: unassigned > `new_type_share` (5%) of a batch's Si area → REJECT with "contains a particle type not seen before" and example crops.
 - **Image unlike anything seen**: an image whose descriptor vector is further from every known image than any known image is from its nearest neighbour. Listed, not a verdict trigger.
-- Known gap from the quick test: the porous particles of Batch_3 do not separate with crude features. Full-resolution texture is the fix; if it still fails by Sync 1, use `void_frac` > 0.1 as a rule-based "porous" type and say so.
+- Known gap: in a first clustering test with crude features, the porous particles of Batch_3 (strip P2060) did not separate. Full-resolution texture is the fix; if it still fails by Sync 1, use `void_frac` > 0.1 as a rule-based "porous" type and say so.
 - Naming hypothesis to check with a mentor: the "larger, dimmer" type may be SiOx. Commercial anodes use graphite–SiOx blends [R19], and SiOx has a lower mean atomic number than Si, so it is darker in BSE. Never name it SiOx in the report without confirmation (EDS).
 - **Safety net, step 1 (before the freeze if time):** distance between a batch's Si two-point correlation curves and the reference's, against the strip-to-strip spread [R12]. Explainable: "silicon is clustered at a different length scale".
-- **Safety net, step 2 (evening, optional):** DINOv2 patch features with a nearest-neighbour memory bank of reference patches [R14], replacing the PCA reconstruction idea. Never in the verdict.
+- **Safety net, step 2 (evening, optional):** DINOv2 patch features with a nearest-neighbour memory bank of reference patches [R14]. Never in the verdict.
 
 ### 3.5 Batch comparison
 
@@ -234,7 +237,7 @@ Next action is computed: REJECT names the top driver and the supplier check from
 - Segmentation (**before the freeze**): rerun with thresholds ±5 grey levels on the reference; report the descriptor shift next to the sampling interval. If it is larger than δ for a key quantity, say so in the scientist text.
 - Imaging: the negative controls.
 - **How many images are enough:** subsample strips (and images within strips) from Batch_1/2/3, rerun the comparison, plot "probability of the correct status" against the number of images. Output: "N images are enough to tell these batches apart on silicon fraction." This answers the cost of imaging directly, which is the £50k point.
-- Limit we state: with 2–8 strips per batch the intervals are coarse, and we say so.
+- Limit we state: with 3–7 strip segments per batch the intervals are coarse, and we say so.
 - First reading of the variance split (§1.2): on the stub descriptors most variation is between strips, not between folders. The dashboard shows whatever the real descriptors give at Sync 1.
 
 ### 3.7 Controls
@@ -311,7 +314,7 @@ Nothing is trained on batch labels. If time allows after the freeze, one trained
 
 Before the freeze, both variants (`include`, `exclude`) are run on test batches with a known answer that copy Batch_2's structure, and on the known batches.
 
-**Shared-strip controls.** Built like the controls in §3.7, from reference strips with 2 or more images (P2068, P2060, P1904, P2088, P1612): split such a strip, put some of its images in the test batch, and keep the rest in the reference. That creates a shared strip with a known answer.
+**Shared-strip controls.** Built like the controls in §3.7, from reference strips with 2 or more images (P2068, P2060, P1904, P2088, P1612): split such a strip, put some of its images in the test batch, and keep the rest in the reference. Unlike the controls in §3.7, the rest of the split strip stays in the reference (`kept_in_reference`, §3.1); that is what makes it shared. The answer is known because nothing in the shared images is changed.
 
 | Control | Test batch | Must come out |
 |---|---|---|
@@ -351,7 +354,7 @@ For the unseen batch nothing changes: if its images come from new strips there i
 
 **Before the drop** (critical path in bold)
 
-1. Setup: `uv sync`, `uv run pytest`, link `data/`, `uv run python -m qc.measure`, look at the overlays.
+1. Setup: `uv sync`, `uv run pytest`, link the batch folders into `data/` (README Quickstart), `uv run python -m qc.measure`, look at the overlays.
 2. **`segment()`** per §3.2, full-resolution output, optional `thresholds`. Two overlays per strip by eye.
 3. **`kpis()`**: the key descriptors first (`si_graphite_ratio` is the silicon key), then the rest. Add `si_graphite_ratio`, `graphite_chord_um`, `graphite_anisotropy`, `pore_chord_um`, `pore_connectivity`, `si_agglomerate_frac`, `si_corr_length_um` to `KPI_UNITS` and the fixture.
 4. **`particles()`**: the particle table including `inlens_ratio` (local graphite reference, saturated pixels out, §3.2), texture at full resolution, crops for the gallery.
@@ -384,10 +387,10 @@ For the unseen batch nothing changes: if its images come from new strips there i
 1. `config/decision.yaml`: `baseline: Batch_3` and the keys in §3.5, including `shared_strips`. Update the README.
 2. `qc/schema.py`: new `Evidence` — `fingerprint` (descriptors with intervals, type shares, image groups, variance split), `differences[]` (name, unit, reference, batch, difference, interval, margin, p, status), `drivers[]`, `nearest_batch`, `shared_strips` (listed segments plus the status with them included), `new_type_share`, `imaging_changed`, `imaging_outliers_in_reference`, `power_limited`, `controls`, `verdict`, `next_action`, `explanations {operator, engineer, scientist, manager}`, `provenance`, `config_version`. Mirror in `web/src/types.ts`; update `tests/fixtures/` and `tests/test_contract.py`.
 3. `qc/io.py`: `black_level` per channel on `Field`. `qc/run.py`: call `particles`, `assign_types`, `imaging`, `make_controls`; write the outputs in §3.1; fill `provenance` (§3.11).
-4. `qc/decide.py`: `compare()` per §3.5 (bootstrap, permutation with max-statistic, margin, status, drivers, nearest batch, both shared-strip variants with the disagreement rule, power limit, verdict, next action, controls check). Then run the §3.13 test and record the `shared_strips` choice. Imaging range without reference outlier strips (§3.3).
+4. `qc/decide.py`: `compare()` per §3.5 (bootstrap, permutation with max-statistic, margin, status, drivers, nearest batch, both shared-strip variants with the disagreement rule, power limit, verdict, next action, controls check). Imaging range without reference outlier strips (§3.3).
 5. `qc/explain.py`: four templates, with the indicative consequences (§3.8) under each driver.
 6. Tests: reference split by strips → ACCEPT; one key quantity shifted by 3 δ → REJECT with that driver first; 2 strips per batch → INVESTIGATE with power limit; negative controls SIMILAR, positive controls DIFFERENT with the right driver; both shared-strip variants computed, and a disagreement between them gives INVESTIGATE; the same inputs give the same evidence apart from the timestamp.
-7. **Sync 1, Sync 2.**
+7. **Sync 1.** **Sync 2:** run the §3.13 test with Pat's shared-strip controls and record the `shared_strips` choice and its reason in the config.
 8. UI: verdict card with four audience tabs; driver chart (difference against ±δ); distribution overlays; particle-type gallery with shares; variance-split bar; typical reference image next to the most different batch image per driver; image groups; per-image browser with overlay; "shared strip" badge; provenance panel.
 9. **Dry run, freeze.**
 
@@ -411,7 +414,7 @@ For the unseen batch nothing changes: if its images come from new strips there i
 |---|---|---|
 | Hugging Face | DINOv2 weights for the optional safety net | Pat |
 | Modal | Control sweeps and how-many-images curve, only after permission to upload | Both |
-| Devin | Own branch: `qc/controls.py` with synthetic tests | Brief now, merge before Sync 2 |
+| Devin | Own branch: drafts `qc/controls.py` with synthetic tests, for Pat to review | Brief now, merge before Sync 2 |
 | Antigravity | Build and browser-test the UI | Patrik |
 | AMASS | 20-minute test for citations in the KPI dictionary; drop if thin | Either |
 | Claude API | Optional review after the output (§3.10). Not in the frozen path, not in the demo. Image crops only with permission (rule 5) | Patrik |
