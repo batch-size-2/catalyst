@@ -1,52 +1,47 @@
 import { maskUrl } from "../api";
-import { STATUS_STYLE } from "../colors";
-import type { Evidence, TileStatus } from "../types";
-
-const ORDER: TileStatus[] = ["NON_CONFORMING", "SUSPECT", "CONFORMING"];
+import type { Evidence } from "../types";
 
 export default function TileGallery({ evidence }: { evidence: Evidence }) {
-  const tiles = [...evidence.tiles].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
   return (
     <section>
       <div className="mb-4 flex items-baseline justify-between">
-        <h2 className="font-medium">Tiles</h2>
+        <h2 className="font-medium">Images by strip</h2>
         <p className="text-xs text-slate-400">
           BSE · <span className="text-orange-300">orange</span> Si particle · <span className="text-sky-300">blue</span>{" "}
-          pore · worst first
+          pore · grouped by strip segment
         </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {tiles.map((tile, i) => (
-          <article
-            key={tile.image_id}
-            className="animate-rise overflow-hidden rounded-xl border border-white/5 bg-slate-900/60"
-            style={{ animationDelay: `${i * 40}ms` }}
-          >
-            <div className="aspect-[3/1] bg-slate-800/50">
-              <img
-                src={maskUrl(evidence.batch, tile.image_id)}
-                alt=""
-                className="h-full w-full object-cover"
-                onError={(event) => (event.currentTarget.style.display = "none")}
-              />
-            </div>
-            <div className="p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-mono text-sm">{tile.image_id}</p>
-                <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[tile.status].chip}`}>
-                  {STATUS_STYLE[tile.status].label}
+      <div className="space-y-5">
+        {evidence.fingerprint.segments.map((segment) => (
+          <div key={segment.strip_id}>
+            <p className="mb-2 text-xs text-slate-400">
+              strip <span className="font-mono text-slate-300">{segment.strip_id}</span>
+              <span className="ml-2 text-slate-500">{segment.image_ids.length} image(s)</span>
+              {segment.shared && (
+                <span className="ml-2 rounded bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">
+                  shared
                 </span>
-              </div>
-              {tile.strip_id && <p className="mt-1 text-xs text-slate-500">strip {tile.strip_id}</p>}
-              <ul className="mt-2 space-y-0.5">
-                {tile.reasons.map((reason) => (
-                  <li key={reason} className="text-xs text-slate-400">
-                    {reason}
-                  </li>
-                ))}
-              </ul>
+              )}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {segment.image_ids.map((imageId) => (
+                <figure
+                  key={imageId}
+                  className="overflow-hidden rounded-xl border border-white/5 bg-slate-900/60"
+                >
+                  <div className="aspect-[3/1] bg-slate-800/50">
+                    <img
+                      src={maskUrl(evidence.batch, imageId)}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(event) => (event.currentTarget.style.display = "none")}
+                    />
+                  </div>
+                  <figcaption className="p-2 font-mono text-xs text-slate-300">{imageId}</figcaption>
+                </figure>
+              ))}
             </div>
-          </article>
+          </div>
         ))}
       </div>
     </section>

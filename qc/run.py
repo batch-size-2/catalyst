@@ -12,9 +12,10 @@ import pandas as pd
 from skimage.exposure import rescale_intensity
 from skimage.io import imsave
 
-from qc.decide import judge
+from qc.decide import evaluate, split_tables
 from qc.io import field_paths, load_field
 from qc.measure import kpis, segment
+from qc.provenance import provenance
 from qc.schema import (
     CONFIG_PATH, KPI_TABLE, KPI_TABLE_COLUMNS, KPI_UNITS, Evidence, Field, Phase, evidence_path, load_config,
     mask_path,
@@ -22,19 +23,24 @@ from qc.schema import (
 
 Progress = Callable[[int, int, str], None]
 OVERLAY_RGB = {Phase.PORE: (40, 120, 255), Phase.SI: (255, 140, 0), Phase.BINDER: (190, 90, 255)}
+TIFF_SUFFIXES = {".tif", ".tiff"}
 
 
 def run(batch_dirs: list[Path], cfg: dict, progress: Progress | None = None) -> list[Evidence]:
-    """Measures the baseline and each batch, judges each batch, writes kpis.csv and evidence JSON."""
-    baseline_dir = Path(cfg["data_dir"]) / cfg["baseline"]
+    """Measures the baseline and each batch, compares each batch, writes kpis.csv and evidence JSON."""
+    data_dir = Path(cfg["data_dir"])
+    baseline_dir = data_dir / cfg["baseline"]
     if not baseline_dir.is_dir():
         raise FileNotFoundError(f"baseline folder {baseline_dir} not found (set `baseline` in config/decision.yaml)")
     table = measure([baseline_dir, *(d for d in batch_dirs if d.name != baseline_dir.name)], progress)
     save_kpi_table(table)
-    baseline = table[table["batch"] == baseline_dir.name]
+    tables = split_tables(table)
     results = []
     for batch_dir in batch_dirs:
-        evidence = judge(baseline, table[table["batch"] == batch_dir.name], cfg)
+        evidence = evaluate(tables, batch_dir.name, cfg)
+        tiffs = sorted({p for d in (baseline_dir, batch_dir) for p in d.iterdir()
+                        if p.suffix.lower() in TIFF_SUFFIXES})
+        evidence.provenance = provenance(tiffs, cfg, data_dir)
         evidence_path(evidence.batch).parent.mkdir(parents=True, exist_ok=True)
         evidence_path(evidence.batch).write_text(evidence.model_dump_json(indent=2))
         results.append(evidence)
@@ -52,17 +58,17 @@ def measure(batch_dirs: list[Path], progress: Progress | None = None) -> pd.Data
 
 
 def measure_field(field: Field) -> dict:
-    """A tile that fails to segment or measure gets NaN KPIs (-> SUSPECT) instead of crashing the run."""
+    """A tile that fails to segment or measure gets NaN KPIs instead of crashing the run."""
     try:
         mask = segment(field.channels, field.px_um)
         values = kpis(mask, field.px_um, field.channels)
         save_overlay(field, mask)
+        area_um2 = float((mask != Phase.IGNORE).sum() * field.px_um**2) if np.isfinite(field.px_um) else np.nan
     except Exception as error:
         print(f"  ! {field.batch}/{field.image_id}: {error!r}")
-        values = {}
-    return {"batch": field.batch, "image_id": field.image_id, "strip_id": field.strip_id, "px_um": field.px_um} | {
-        k: values.get(k, np.nan) for k in KPI_UNITS
-    }
+        values, area_um2 = {}, np.nan
+    return {"batch": field.batch, "image_id": field.image_id, "strip_id": field.strip_id,
+            "px_um": field.px_um, "area_um2": area_um2} | {k: values.get(k, np.nan) for k in KPI_UNITS}
 
 
 def save_overlay(field: Field, mask: np.ndarray, step: int = 4) -> None:
@@ -92,5 +98,5 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
     args = parser.parse_args()
     for evidence in run(args.batch, load_config(args.config), lambda done, total, tile: print(f"[{done}/{total}] {tile}")):
-        nc = evidence.nonconforming
-        print(f"{evidence.batch}: {evidence.verdict} ({nc.x}/{nc.n} non-conforming) -> {evidence.next_action}")
+        n1, n2 = evidence.power.n_segments
+        print(f"{evidence.batch}: {evidence.verdict} (segments {n1} vs {n2}) -> {evidence.next_action}")

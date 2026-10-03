@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from qc.run import run
 from qc.schema import EVIDENCE_DIR, OUT_DIR, Evidence, Verdict, evidence_path, load_config
@@ -43,7 +43,12 @@ def config() -> dict:
 def batches() -> list[BatchSummary]:
     data_dir = Path(load_config()["data_dir"])
     folders = {p.name for p in data_dir.iterdir() if p.is_dir()} if data_dir.is_dir() else set()
-    verdicts = {p.stem: Evidence.model_validate_json(p.read_text()).verdict for p in EVIDENCE_DIR.glob("*.json")}
+    verdicts = {}
+    for p in EVIDENCE_DIR.glob("*.json"):
+        try:  # tolerate stale V1 files: they are valid JSON with a top-level verdict
+            verdicts[p.stem] = json.loads(p.read_text()).get("verdict")
+        except json.JSONDecodeError:
+            continue
     return [BatchSummary(name=name, has_images=name in folders, verdict=verdicts.get(name))
             for name in sorted(folders | verdicts.keys())]
 
@@ -53,7 +58,10 @@ def evidence(batch: str) -> Evidence:
     path = evidence_path(batch)
     if not path.exists():
         raise HTTPException(404, f"no evidence for {batch!r}")
-    return Evidence.model_validate_json(path.read_text())
+    try:
+        return Evidence.model_validate_json(path.read_text())
+    except ValidationError:
+        raise HTTPException(409, "evidence in an old format; re-run the batch")
 
 
 @app.post("/api/batches/{batch}/files")

@@ -1,20 +1,21 @@
-"""The contract between the two halves of the pipeline (PLAN_v1 §3.1).
+"""The contract between the two halves of the pipeline (PLAN_v3 §3.1).
 
     ML side:      channels -> segment() -> mask -> kpis() -> one row  (qc/measure.py)
     Glue:         data/<batch>/*.tif -> out/kpis.csv -> evidence      (qc/run.py)
-    Backend side: KPI table -> judge() -> out/evidence/<batch>.json   (qc/decide.py)
+    Backend side: KPI table -> evaluate()/compare() -> out/evidence/<batch>.json  (qc/decide.py)
     UI:           reads evidence + mask overlays via the API          (qc/api.py, web/)
 
 Adding a KPI or a field is fine, just tell your partner.
 Renaming/removing anything here, or changing a unit, needs both of you.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 from pathlib import Path
-from typing import Literal
+from typing import Literal, NamedTuple
 
 import numpy as np
+import pandas as pd
 import yaml
 from pydantic import BaseModel
 
@@ -30,6 +31,7 @@ class Field:
     strip_id: str | None
     channels: dict[str, np.ndarray]
     px_um: float
+    black_level: dict[str, float] = field(default_factory=dict)
 
 
 class Phase(IntEnum):
@@ -53,51 +55,178 @@ KPI_UNITS: dict[str, str] = {
     "porosity_apparent": "fraction",
 }
 
-KPI_TABLE_COLUMNS = ["batch", "image_id", "strip_id", "px_um", *KPI_UNITS]
+KPI_TABLE_COLUMNS = ["batch", "image_id", "strip_id", "px_um", "area_um2", *KPI_UNITS]
+PARTICLE_COLUMNS = ["batch", "image_id", "strip_id", "particle_id", "d_um", "area_um2", "contrast_ratio",
+                    "inlens_ratio", "void_frac", "texture", "solidity", "border", "type"]
+IMAGING_COLUMNS = ["batch", "image_id", "strip_id", "channel", "black_level", "p1", "p50", "p99",
+                   "noise", "sharpness", "saturated_frac", "curtaining_index"]
 
-TileStatus = Literal["CONFORMING", "SUSPECT", "NON_CONFORMING"]
+
+class Tables(NamedTuple):
+    """The measured tables of one batch (PLAN_v3 §3.1)."""
+
+    kpis: pd.DataFrame
+    particles: pd.DataFrame
+    imaging: pd.DataFrame
+
+
 Verdict = Literal["ACCEPT", "INVESTIGATE", "REJECT"]
+Status = Literal["SIMILAR", "DIFFERENT", "UNCLEAR"]
+Variant = Literal["include", "exclude"]
+Range = tuple[float, float]
 
 
-class TileResult(BaseModel):
-    image_id: str
-    strip_id: str | None
-    status: TileStatus
-    kpis: dict[str, float | None]
-    reasons: list[str]
+class Segment(BaseModel):
+    """The images of one strip inside one batch folder: the unit for all statistics (PLAN_v3 §3.5)."""
+
+    batch: str
+    strip_id: str
+    image_ids: list[str]
+    area_um2: float | None
+    shared: bool                         # the strip also has images in the other batch of the comparison
+    values: dict[str, float | None]      # area-weighted mean over its images, per quantity
 
 
-class KpiResult(BaseModel):
+class Difference(BaseModel):
     name: str
     unit: str
-    band: tuple[float, float]
-    baseline_mean: float
-    batch_mean: float | None
-    n_outside: int
+    key: bool                            # in key_descriptors (or a type share when key_type_shares)
+    used: bool                           # counts towards the verdict
+    note: str | None = None              # why a key quantity is not used, e.g. "not measured"
+    reference: float | None              # mean of reference segment values
+    batch: float | None                  # mean of batch segment values
+    difference: float | None             # batch - reference, in unit
+    interval: Range | None = None        # ci_level t-interval on the difference
+    margin: float | None                 # delta, in unit
+    p: float | None = None               # family-wise permutation p (max-|T| over used key quantities)
+    status: Status = "UNCLEAR"
+    n_segments: tuple[int, int]          # (batch, reference) segments with a value
 
 
-class NonConforming(BaseModel):
-    x: int
-    n: int
-    ci: tuple[float, float]
-    unit: Literal["tile", "strip"] = "tile"
+class Power(BaseModel):
+    n_segments: tuple[int, int]          # (batch, reference) in the driving shared-strip variant
+    n_arrangements: int                  # C(n1 + n2, n1)
+    min_p: float                         # smallest achievable p: 2/N if n1 == n2 else 1/N
+    limited: bool                        # min_p >= alpha: no quantity can be DIFFERENT
+    extra_strips_needed: int | None      # 0 if not limited; else extra batch strips that lift it (None if > 20)
+
+
+class SharedStrips(BaseModel):
+    setting: Variant                     # config shared_strips: the variant that drives the verdict
+    strips: list[str]                    # strip_ids with images in both batch and reference, sorted
+    other_status: dict[str, Status] = {} # used key quantity -> status in the other variant
+    contradictions: list[str] = []       # key quantities where the variants disagree (config shared_disagreement)
+
+
+class OddStrip(BaseModel):
+    strip_id: str
+    image_ids: list[str]
+    quantity: str
+    value: float
+    range: Range                         # reference mean +/- odd_strip_sd x SD of reference segment values
+
+
+class ImagingCheck(BaseModel):
+    changed: bool = False
+    changed_metrics: list[str] = []      # e.g. "BSE.black_level"
+    outliers_in_reference: list[str] = []  # reference strip_ids left out of the imaging range (§3.3)
+    curtained_images: list[str] = []
+
+
+class ControlResult(BaseModel):
+    name: str
+    kind: Literal["negative", "positive"]
+    expected_driver: str | None
+    statuses: dict[str, Status]
+    top_driver: str | None
+    passed: bool
+
+
+class Controls(BaseModel):
+    ran: bool = False
+    passed: bool | None = None
+    results: list[ControlResult] = []
+
+
+class Descriptor(BaseModel):
+    name: str
+    unit: str
+    value: float | None                  # mean of the batch's segment values
+    interval: Range | None = None        # ci_level t-interval over segments
+    by_strip: dict[str, float | None]    # strip_id -> segment value
+
+
+class VarianceShare(BaseModel):
+    name: str
+    within_strip: float | None
+    between_strips: float | None
+    between_batches: float | None
+
+
+class ImageGroup(BaseModel):
+    image_ids: list[str]
+    strips: list[str]
+    one_strip: bool
+    separating: list[str]
+
+
+class Fingerprint(BaseModel):
+    segments: list[Segment]
+    descriptors: list[Descriptor]
+    type_shares: list[Descriptor] = []
+    image_groups: list[ImageGroup] = []
+    variance_split: list[VarianceShare] = []
+
+
+class Explanations(BaseModel):
+    operator: str = ""
+    engineer: str = ""
+    scientist: str = ""
+    manager: str = ""
+
+
+class InputFile(BaseModel):
+    path: str                            # relative to data_dir where possible
+    sha256: str
+
+
+class Provenance(BaseModel):
+    inputs: list[InputFile]              # sorted by path
+    git_commit: str | None
+    git_dirty: bool | None
+    config_sha256: dict[str, str]        # "decision": canonical JSON of the cfg used; plus config files present
+    rules_frozen_commit: str | None
+    rules_frozen_date: str | None
+    created_at: str                      # ISO-8601 UTC; the only field that differs between identical runs
 
 
 class Evidence(BaseModel):
     batch: str
     baseline: str
     verdict: Verdict
+    reasons: list[str]                   # every verdict trigger that fired, in precedence order
     next_action: str
-    nonconforming: NonConforming
-    kpis: list[KpiResult]
-    tiles: list[TileResult]
-    n_images: dict[str, int]
+    differences: list[Difference]        # driving shared-strip variant; used key quantities first
+    drivers: list[str] = []              # used key quantities ranked by |difference| / margin
+    power: Power
+    shared_strips: SharedStrips
+    odd_strips: list[OddStrip] = []
+    new_type_share: float | None = None
+    imaging: ImagingCheck = ImagingCheck()
+    controls: Controls = Controls()
+    nearest_batch: str | None = None
+    fingerprint: Fingerprint
+    n_images: dict[str, int]             # {"batch": n, "baseline": n}
+    explanations: Explanations = Explanations()
+    provenance: Provenance | None = None
     config_version: str
 
 
 CONFIG_PATH = Path("config/decision.yaml")
 OUT_DIR = Path("out")
 KPI_TABLE = OUT_DIR / "kpis.csv"
+PARTICLE_TABLE = OUT_DIR / "particles.csv"
+IMAGING_TABLE = OUT_DIR / "imaging.csv"
 EVIDENCE_DIR = OUT_DIR / "evidence"
 
 

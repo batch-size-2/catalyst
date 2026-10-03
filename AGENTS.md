@@ -36,6 +36,8 @@ cd web && npm run build                                    # typecheck + build, 
 
 ## Rules
 
+- Software-side status and next steps: `docs/HANDOFF.md`. Read it first; delete it and this line once its list is done.
+
 - The highest-numbered `docs/PLAN_vN.md` (currently `docs/PLAN_v3.md`) is the plan and is owned by the team; don't rewrite it from a code PR, and never edit older plan versions. If the code has to deviate from it, say so in the README and the PR.
 - `qc/schema.py` is the ML ↔ backend contract (PLAN_v1 §3.1). Adding a field or KPI is fine. Renaming, removing or changing a unit needs both owners. Update `tests/fixtures/kpis_fake.csv`, `tests/test_contract.py` and `web/src/types.ts` along with it.
 - `qc/api.py` stays a thin wrapper: no QC logic in the API or the UI.
