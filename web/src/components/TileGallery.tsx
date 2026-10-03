@@ -1,7 +1,15 @@
 import { maskUrl } from "../api";
-import type { Evidence } from "../types";
+import { batchColor } from "../colors";
+import type { AttributedImage, Evidence } from "../types";
 
-export default function TileGallery({ evidence }: { evidence: Evidence }) {
+interface Props {
+  evidence: Evidence;
+  calls?: AttributedImage[];
+  batches?: string[];
+}
+
+export default function TileGallery({ evidence, calls = [], batches = [] }: Props) {
+  const callsByImage = new Map(calls.map((call) => [call.image_id, call]));
   return (
     <section>
       <div className="mb-4 flex items-baseline justify-between">
@@ -17,29 +25,36 @@ export default function TileGallery({ evidence }: { evidence: Evidence }) {
             <p className="mb-2 text-xs text-slate-400">
               strip <span className="font-mono text-slate-300">{segment.strip_id}</span>
               <span className="ml-2 text-slate-500">{segment.image_ids.length} image(s)</span>
-              {segment.shared && (
-                <span className="ml-2 rounded bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">
-                  shared
-                </span>
-              )}
             </p>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {segment.image_ids.map((imageId) => (
-                <figure
-                  key={imageId}
-                  className="overflow-hidden rounded-xl border border-white/5 bg-slate-900/60"
-                >
-                  <div className="aspect-[3/1] bg-slate-800/50">
-                    <img
-                      src={maskUrl(evidence.batch, imageId)}
-                      alt=""
-                      className="h-full w-full object-cover"
-                      onError={(event) => (event.currentTarget.style.display = "none")}
-                    />
-                  </div>
-                  <figcaption className="p-2 font-mono text-xs text-slate-300">{imageId}</figcaption>
-                </figure>
-              ))}
+              {segment.image_ids.map((imageId) => {
+                const oddQuantities = Array.from(new Set(evidence.odd_images
+                  .filter((odd) => odd.image_ids[0] === imageId)
+                  .map((odd) => odd.quantity)));
+                const call = callsByImage.get(imageId);
+                const probability = call?.confidence ?? 0;
+                return (
+                  <figure key={imageId} className="overflow-hidden rounded-xl border border-white/5 bg-slate-900/60">
+                    <div className="aspect-[3/1] bg-slate-800/50">
+                      <img src={maskUrl(evidence.batch, imageId)} alt="" className="h-full w-full object-cover"
+                        onError={(event) => (event.currentTarget.style.display = "none")} />
+                    </div>
+                    <figcaption className="flex flex-wrap items-center gap-2 p-2 text-xs">
+                      <span className="font-mono text-slate-300">{imageId}</span>
+                      {oddQuantities.length > 0 && (
+                        <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-amber-300">
+                          odd: {oddQuantities.join(", ")}
+                        </span>
+                      )}
+                      {call && (
+                        <span className="rounded bg-white/5 px-1.5 py-0.5" style={{ color: batchColor(call.predicted, batches) }}>
+                          looks like {call.predicted} · {(probability * 100).toFixed(0)}%
+                        </span>
+                      )}
+                    </figcaption>
+                  </figure>
+                );
+              })}
             </div>
           </div>
         ))}

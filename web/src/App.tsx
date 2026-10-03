@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { getConfig, getEvidence, listBatches, runBatch, uploadBatch } from "./api";
-import Differences from "./components/Differences";
-import ProvenancePanel from "./components/ProvenancePanel";
+import BatchVerdictView from "./components/BatchVerdictView";
+import DifferentView from "./components/DifferentView";
 import RunProgress, { type RunState } from "./components/RunProgress";
 import Sidebar from "./components/Sidebar";
-import TileGallery from "./components/TileGallery";
-import VerdictCard from "./components/VerdictCard";
+import SortView from "./components/SortView";
 import type { BatchSummary, Config, Evidence } from "./types";
+
+type View = "sort" | "different" | "batch";
 
 export default function App() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -14,6 +15,7 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [run, setRun] = useState<RunState | null>(null);
+  const [view, setView] = useState<View>("sort");
 
   const refresh = () =>
     listBatches().then((list) => {
@@ -30,6 +32,11 @@ export default function App() {
     if (selected) getEvidence(selected).then(setEvidence, () => setEvidence(null));
   }, [selected]);
 
+  function selectBatch(batch: string) {
+    setSelected(batch);
+    setView("batch");
+  }
+
   async function startRun(batch: string, files?: File[]) {
     setRun({ batch, phase: files ? "uploading" : "measuring", done: 0, total: 0, tiles: [] });
     try {
@@ -43,10 +50,11 @@ export default function App() {
           setRun(null);
           setSelected(event.evidence.batch);
           setEvidence(event.evidence);
+          setView("batch");
         }
       });
     } catch (error) {
-      setRun((r) => r && { ...r, error: String(error) });
+      setRun((r) => r && { ...r, error: error instanceof Error ? error.message : String(error) });
     }
     refresh();
   }
@@ -58,25 +66,37 @@ export default function App() {
         batches={batches}
         selected={selected}
         busy={!!run && !run.error}
-        onSelect={setSelected}
+        onSelect={selectBatch}
         onRun={startRun}
       />
-      <main className="flex-1 space-y-6 p-8">
+      <main className="min-w-0 flex-1 space-y-6 p-8">
+        <nav className="flex gap-2" aria-label="Main views">
+          {([
+            ["sort", "Sort images"],
+            ["different", "What's different"],
+            ["batch", "Batch verdict"],
+          ] as [View, string][]).map(([key, title]) => (
+            <button
+              key={key}
+              type="button"
+              className={`rounded-full px-4 py-2 text-sm transition ${
+                view === key ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
+              }`}
+              aria-current={view === key ? "page" : undefined}
+              onClick={() => setView(key)}
+            >
+              {title}
+            </button>
+          ))}
+        </nav>
         {run && <RunProgress run={run} />}
-        {evidence ? (
-          <div key={evidence.batch} className="space-y-6">
-            <VerdictCard evidence={evidence} />
-            <Differences evidence={evidence} />
-            <TileGallery evidence={evidence} />
-            <ProvenancePanel evidence={evidence} />
-          </div>
-        ) : (
-          !run && (
-            <div className="grid h-full place-items-center text-slate-400">
-              Ingest a batch folder from the sidebar to get a verdict.
-            </div>
-          )
-        )}
+        {view === "sort" && <SortView />}
+        {view === "different" && <DifferentView />}
+        {view === "batch" && (evidence
+          ? <BatchVerdictView evidence={evidence} batches={batches.map((batch) => batch.name)} />
+          : <div className="rounded-2xl border border-white/5 bg-slate-900/60 p-8 text-slate-400">
+              Select or run a batch to see its verdict.
+            </div>)}
       </main>
     </div>
   );

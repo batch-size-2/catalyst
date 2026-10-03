@@ -1,0 +1,83 @@
+{
+  "run": "example_drop",
+  "model": {
+    "fitted_at": "2026-10-03T15:20:00",
+    "classes": ["Batch_1", "Batch_2", "Batch_3"],
+    "baseline": "Batch_3",
+    "loso_balanced_accuracy": 0.55
+  },
+  "images": [
+    {
+      "image_id": "drop_01",
+      "strip_id": "S1",
+      "p_Batch_1": 0.14,
+      "p_Batch_2": 0.81,
+      "p_Batch_3": 0.05,
+      "predicted": "Batch_2",
+      "confidence": 0.81,
+      "reasons": [
+        {"feature": "tex_bse_lbp_04", "z": 1.2, "contribution": 0.432},
+        {"feature": "reg_si_frac_cv", "z": -0.8, "contribution": -0.288},
+        {"feature": "par_d50_um", "z": 0.5, "contribution": 0.14},
+        {"feature": "kpi_si_dispersion_cv", "z": 0.2, "contribution": 0.056},
+        {"feature": "edge_si_frac_top", "z": -0.1, "contribution": -0.03}
+      ],
+      "baseline_distance": 0.9,
+      "baseline_threshold": 2.4,
+      "unfamiliar": false,
+      "n_deviating": 1,
+      "deviations": [
+        {"feature": "reg_si_frac_cv", "z": 2.1, "direction": "above"}
+      ],
+      "assigned": "Batch_2"
+    },
+    {
+      "image_id": "drop_02",
+      "strip_id": "S2",
+      "p_Batch_1": 0.2,
+      "p_Batch_2": 0.25,
+      "p_Batch_3": 0.55,
+      "predicted": "Batch_3",
+      "confidence": 0.55,
+      "reasons": [
+        {"feature": "tex_etd_lbp_06", "z": 1.4, "contribution": 0.42},
+        {"feature": "edge_graphite_anisotropy", "z": -0.9, "contribution": -0.27},
+        {"feature": "kpi_porosity_apparent", "z": 0.6, "contribution": 0.18},
+        {"feature": "par_d90_um", "z": -0.3, "contribution": -0.09},
+        {"feature": "reg_si_chord_cv", "z": 0.1, "contribution": 0.03}
+      ],
+      "baseline_distance": 3.2,
+      "baseline_threshold": 2.4,
+      "unfamiliar": true,
+      "n_deviating": 2,
+      "deviations": [
+        {"feature": "reg_si_frac_cv", "z": 2.4, "direction": "above"},
+        {"feature": "kpi_si_dispersion_cv", "z": -2.1, "direction": "below"}
+      ],
+      "assigned": "Batch_1"
+    },
+    {
+      "image_id": "drop_03",
+      "strip_id": "S3",
+      "p_Batch_1": 0.6,
+      "p_Batch_2": 0.3,
+      "p_Batch_3": 0.1,
+      "predicted": "Batch_1",
+      "confidence": 0.6,
+      "reasons": [
+        {"feature": "tex_bse_lbp_02", "z": -1.1, "contribution": 0.385},
+        {"feature": "reg_graphite_frac_mean", "z": 0.8, "contribution": -0.28},
+        {"feature": "kpi_si_graphite_ratio", "z": 0.5, "contribution": 0.15},
+        {"feature": "par_void_frac", "z": -0.2, "contribution": -0.06},
+        {"feature": "edge_si_frac_top", "z": 0.1, "contribution": 0.03}
+      ],
+      "baseline_distance": null,
+      "baseline_threshold": 2.4,
+      "unfamiliar": null,
+      "n_deviating": 0,
+      "deviations": [],
+      "assigned": "Batch_1"
+    }
+  ],
+  "summary": {"Batch_1": 1, "Batch_2": 1, "Batch_3": 1, "unfamiliar": 1}
+}

@@ -1,18 +1,22 @@
 import json
+import sys
 from pathlib import Path
+from types import ModuleType
 
 import numpy as np
 import pandas as pd
+import pytest
 import tifffile
 import yaml
 from fastapi.testclient import TestClient
 from scipy.ndimage import gaussian_filter
 
+import qc.run as run_module
 from qc.api import app
 from qc.decide import evaluate, power, split_tables
 from qc.io import field_paths, iter_fields
 from qc.measure import kpis, segment
-from qc.run import run
+from qc.run import attribution_module, read_json, run
 from qc.schema import (
     DETECTORS, KPI_TABLE_COLUMNS, KPI_UNITS, Evidence, Phase, evidence_path, load_config, mask_path,
 )
@@ -91,25 +95,110 @@ def test_segment_values_are_area_weighted():
 
 def test_power_arithmetic():
     p = power(3, 3, 0.1)
-    assert (p.n_arrangements, p.min_p, p.limited, p.extra_strips_needed) == (20, 0.1, True, 1)
+    assert (p.n_arrangements, p.min_p, p.limited, p.extra_needed) == (20, 0.1, True, 1)
     p = power(3, 4, 0.1)
-    assert (p.n_arrangements, round(p.min_p, 4), p.limited, p.extra_strips_needed) == (35, 0.0286, False, 0)
+    assert (p.n_arrangements, round(p.min_p, 4), p.limited, p.extra_needed) == (35, 0.0286, False, 0)
     p = power(2, 2, 0.1)
-    assert (p.n_arrangements, round(p.min_p, 4), p.limited, p.extra_strips_needed) == (6, 0.3333, True, 2)
+    assert (p.n_arrangements, round(p.min_p, 4), p.limited, p.extra_needed) == (6, 0.3333, True, 2)
     power(0, 0, 0.1)  # must not crash
 
 
-def test_shared_strip_variants():
-    tables = split_tables(pd.read_csv(FAKE))
-    excluded = evaluate(tables, "fake_ok", FAKE_CFG)  # config shared_strips: exclude
-    assert excluded.power.n_segments == (3, 4)
-    assert excluded.shared_strips.strips == ["R4", "R5", "R7"]
-    included = evaluate(tables, "fake_ok", FAKE_CFG | {"shared_strips": "include"})
-    assert included.power.n_segments == (6, 7)
-
-
 def test_evidence_example_validates():
-    Evidence.model_validate_json((FIXTURES / "evidence_example.json").read_text())
+    raw = json.loads((FIXTURES / "evidence_example.json").read_text())
+    assert Evidence.model_validate(raw).model_dump(mode="json") == raw
+
+
+def test_api_reads_pat_attribution_files(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    path = Path("out/attribution/example_drop.json")
+    path.parent.mkdir(parents=True)
+    raw = json.loads((FIXTURES / "attribution_example.json").read_text())
+    path.write_text(json.dumps(raw))
+    evaluation = json.loads((FIXTURES / "attribution_evaluation_example.json").read_text())
+    evaluation_path = Path("out/attribution/evaluation.json")
+    evaluation_path.write_text(json.dumps(evaluation))
+    client = TestClient(app)
+
+    assert client.get("/api/attribution").json() == ["example_drop"]
+    assert client.get("/api/attribution/example_drop").json() == raw
+    assert client.get("/api/attribution-evaluation").json() == evaluation
+    assert client.get("/api/attribution/missing").status_code == 404
+    evaluation_path.unlink()
+    assert client.get("/api/attribution-evaluation").status_code == 404
+
+
+def test_read_json_maps_nonstandard_numbers_to_null(tmp_path):
+    path = tmp_path / "pat.json"
+    path.write_text('{"nan": NaN, "positive": Infinity, "negative": -Infinity}')
+    assert read_json(path) == {"nan": None, "positive": None, "negative": None}
+
+
+def test_api_attribution_without_module_returns_501(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    monkeypatch.delitem(sys.modules, "qc.attribute", raising=False)
+    response = TestClient(app).post("/api/attribution/drop")
+    assert response.status_code == 501
+    assert response.json()["detail"] == "batch attribution is not available yet (qc/attribute.py)"
+
+
+def test_api_attribution_with_module_streams_and_writes(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake_batch(Path("upload_src"), 2)
+    files = [("files", (p.name, p.read_bytes(), "image/tiff")) for p in sorted(Path("upload_src").iterdir())]
+    client = TestClient(app)
+    assert client.post("/api/batches/drop/files", files=files).json() == {"saved": 6}
+
+    template = json.loads((FIXTURES / "attribution_example.json").read_text())
+    fake = ModuleType("qc.attribute")
+    seen = {}
+
+    def attribute_images(image_dir, model, balanced=None):
+        seen.update(image_dir=image_dir, model=model, balanced=balanced)
+        result = template | {"run": image_dir.name}
+        result["images"][0]["baseline_distance"] = float("nan")
+        path = Path("out/attribution") / f"{image_dir.name}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(result))
+
+    fake.load_model = lambda: {"x": 1}
+    fake.attribute_images = attribute_images
+    monkeypatch.setitem(sys.modules, "qc.attribute", fake)
+    events = [json.loads(line) for line in client.post("/api/attribution/drop?balanced=3").text.splitlines()]
+    assert events[-1]["type"] == "done" and events[-1]["attribution"]["run"] == "drop"
+    assert events[-1]["attribution"]["images"][0]["baseline_distance"] is None
+    assert seen == {"image_dir": Path("data/drop"), "model": {"x": 1}, "balanced": 3}
+
+
+def test_api_attribution_without_model_returns_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake = ModuleType("qc.attribute")
+    fake.load_model = lambda: None
+    monkeypatch.setitem(sys.modules, "qc.attribute", fake)
+    events = [json.loads(line) for line in TestClient(app).post("/api/attribution/drop").text.splitlines()]
+    assert events[-1]["type"] == "error" and "--fit" in events[-1]["message"]
+
+
+def test_attribution_module_detects_optional_module(monkeypatch):
+    monkeypatch.delitem(sys.modules, "qc.attribute", raising=False)
+    assert attribution_module() is None
+    fake = ModuleType("qc.attribute")
+    monkeypatch.setitem(sys.modules, "qc.attribute", fake)
+    assert attribution_module() is fake
+
+    def fail_import(_):
+        raise ModuleNotFoundError("missing model dependency", name="missing_model_dependency")
+
+    monkeypatch.setattr(run_module.importlib, "import_module", fail_import)
+    with pytest.raises(ModuleNotFoundError, match="missing model dependency"):
+        attribution_module()
 
 
 def test_end_to_end_run(tmp_path, monkeypatch):
@@ -118,6 +207,7 @@ def test_end_to_end_run(tmp_path, monkeypatch):
     fake_batch(Path("data/new"), 2)
     first, second = run([Path("data/new")], CFG), run([Path("data/new")], CFG)
     assert Evidence.model_validate_json(evidence_path("new").read_text()) == second[0]
+    assert second[0].explanations.operator.startswith(second[0].verdict)
 
     assert "area_um2" in pd.read_csv("out/kpis.csv").columns
     image_ids = [i for s in second[0].fingerprint.segments for i in s.image_ids]

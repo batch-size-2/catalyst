@@ -1,8 +1,8 @@
-/** Mirrors qc/schema.py (Evidence) and qc/api.py (BatchSummary, run events). Update together. */
+/** Mirror Pat's qc/attribute.py output (pat/ml-v3 @ 4557035); not part of qc/schema.py */
 
 export type Verdict = "ACCEPT" | "INVESTIGATE" | "REJECT";
 export type Status = "SIMILAR" | "DIFFERENT" | "UNCLEAR";
-export type Variant = "include" | "exclude";
+export type Unit = "image" | "strip";
 export type Range = [number, number];
 
 export interface Segment {
@@ -10,7 +10,6 @@ export interface Segment {
   strip_id: string;
   image_ids: string[];
   area_um2: number | null;
-  shared: boolean;
   values: Record<string, number | null>;
 }
 
@@ -35,17 +34,17 @@ export interface Power {
   n_arrangements: number;
   min_p: number;
   limited: boolean;
-  extra_strips_needed: number | null;
+  extra_needed: number | null;
 }
 
-export interface SharedStrips {
-  setting: Variant;
-  strips: string[];
-  other_status: Record<string, Status>;
+export interface UnitView {
+  unit: Unit;
+  power: Power;
+  statuses: Record<string, Status>;
   contradictions: string[];
 }
 
-export interface OddStrip {
+export interface Odd {
   strip_id: string;
   image_ids: string[];
   quantity: string;
@@ -83,26 +82,10 @@ export interface Descriptor {
   by_strip: Record<string, number | null>;
 }
 
-export interface VarianceShare {
-  name: string;
-  within_strip: number | null;
-  between_strips: number | null;
-  between_batches: number | null;
-}
-
-export interface ImageGroup {
-  image_ids: string[];
-  strips: string[];
-  one_strip: boolean;
-  separating: string[];
-}
-
 export interface Fingerprint {
   segments: Segment[];
   descriptors: Descriptor[];
   type_shares: Descriptor[];
-  image_groups: ImageGroup[];
-  variance_split: VarianceShare[];
 }
 
 export interface Explanations {
@@ -133,20 +116,107 @@ export interface Evidence {
   verdict: Verdict;
   reasons: string[];
   next_action: string;
+  unit: Unit;
   differences: Difference[];
   drivers: string[];
   power: Power;
-  shared_strips: SharedStrips;
-  odd_strips: OddStrip[];
+  other_unit: UnitView;
+  odd_images: Odd[];
+  odd_strips: Odd[];
   new_type_share: number | null;
   imaging: ImagingCheck;
   controls: Controls;
-  nearest_batch: string | null;
   fingerprint: Fingerprint;
   n_images: Record<string, number>;
   explanations: Explanations;
   provenance: Provenance | null;
   config_version: string;
+}
+
+export interface AttributionReason {
+  feature: string;
+  z: number | null;
+  contribution: number | null;
+}
+
+export interface Deviation {
+  feature: string;
+  z: number | null;
+  direction: string;
+}
+
+export interface AttributedImage {
+  image_id: string;
+  strip_id: string | null;
+  predicted: string;
+  confidence: number | null;
+  assigned?: string | null;
+  reasons: AttributionReason[];
+  baseline_distance: number | null;
+  baseline_threshold: number | null;
+  unfamiliar: boolean | null;
+  n_deviating?: number | null;
+  deviations: Deviation[];
+  [key: `p_${string}`]: number | null;
+}
+
+export interface AttributionModelInfo {
+  fitted_at: string;
+  classes: string[];
+  baseline: string;
+  loso_balanced_accuracy: number | null;
+}
+
+export interface Attribution {
+  run: string;
+  model: AttributionModelInfo;
+  images: AttributedImage[];
+  summary: Record<string, number>;
+}
+
+export interface NullScores {
+  n: number;
+  mean: number | null;
+  p95: number | null;
+  max: number | null;
+}
+
+export interface SharedStripCheck {
+  strip: string;
+  batches: string[];
+  n_images: number;
+  accuracy: number;
+  predicted: Record<string, string[]>;
+}
+
+export interface FamilyResult {
+  families: string[];
+  n_features: number;
+  n_images: number;
+  n_strips: number;
+  balanced_accuracy: number | null;
+  confusion: Record<string, Record<string, number>>;
+  chosen_C: number[];
+  null: NullScores | null;
+  above_null: boolean;
+  shared_strips: SharedStripCheck[];
+  seconds: number | null;
+}
+
+export type RankedFeature = {
+  feature: string;
+  family: string;
+  effect_size: number | null;
+  loso_acc: number | null;
+} & {
+  [key: `mean_${string}`]: number | null;
+};
+
+export interface AttributionEvaluation {
+  n_images: number;
+  batches: string[];
+  family_sets: Record<string, FamilyResult>;
+  top_features: RankedFeature[];
 }
 
 export interface BatchSummary {
@@ -160,10 +230,15 @@ export interface Config {
   baseline: string;
   ci_level: number;
   alpha: number;
-  shared_strips: Variant;
+  unit: Unit;
 }
 
 export type RunEvent =
   | { type: "progress"; done: number; total: number; tile: string }
   | { type: "done"; evidence: Evidence }
+  | { type: "error"; message: string };
+
+export type AttributionEvent =
+  | { type: "progress"; done: number; total: number; tile: string }
+  | { type: "done"; attribution: Attribution }
   | { type: "error"; message: string };

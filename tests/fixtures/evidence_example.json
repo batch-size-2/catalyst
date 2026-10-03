@@ -3,55 +3,63 @@
   "baseline": "example_reference",
   "verdict": "INVESTIGATE",
   "reasons": [
-    "Strip ex_strip_d1 (2 images) is outside the reference range on si_graphite_ratio: 0.186 vs 0.066–0.114.",
+    "Image exb02 (strip ex_strip_d1) is outside the reference range on si_graphite_ratio: 0.184 vs 0.058–0.122.",
+    "Image exb03 (strip ex_strip_d1) is outside the reference range on si_graphite_ratio: 0.188 vs 0.058–0.122.",
     "si_graphite_ratio is unclear: 90% interval -0.005 to 0.055 ratio against a margin of ±0.03.",
     "si_d50_um is unclear: 90% interval -0.1 to 0.4 um against a margin of ±0.375."
   ],
-  "next_action": "Check strip ex_strip_d1: part of the batch may be different material.",
+  "next_action": "Check image exb02: part of the batch may be different material.",
+  "unit": "image",
   "differences": [
     {"name": "si_graphite_ratio", "unit": "ratio", "key": true, "used": true, "note": null,
      "reference": 0.09, "batch": 0.115, "difference": 0.025, "interval": [-0.005, 0.055],
-     "margin": 0.03, "p": 0.18, "status": "UNCLEAR", "n_segments": [6, 7]},
+     "margin": 0.03, "p": 0.18, "status": "UNCLEAR", "n_segments": [9, 11]},
     {"name": "si_d50_um", "unit": "um", "key": true, "used": true, "note": null,
      "reference": 3.2, "batch": 3.35, "difference": 0.15, "interval": [-0.1, 0.4],
-     "margin": 0.375, "p": 0.31, "status": "UNCLEAR", "n_segments": [6, 7]},
+     "margin": 0.375, "p": 0.31, "status": "UNCLEAR", "n_segments": [9, 11]},
     {"name": "si_contrast_ratio", "unit": "ratio", "key": true, "used": true, "note": null,
      "reference": 2.1, "batch": 2.11, "difference": 0.01, "interval": [-0.06, 0.08],
-     "margin": 0.09, "p": 0.88, "status": "SIMILAR", "n_segments": [6, 7]},
+     "margin": 0.09, "p": 0.88, "status": "SIMILAR", "n_segments": [9, 11]},
     {"name": "type_share:porous_si", "unit": "fraction", "key": true, "used": true, "note": null,
      "reference": 0.04, "batch": 0.05, "difference": 0.01, "interval": [-0.02, 0.04],
-     "margin": 0.045, "p": 0.71, "status": "SIMILAR", "n_segments": [6, 7]},
+     "margin": 0.045, "p": 0.71, "status": "SIMILAR", "n_segments": [9, 11]},
     {"name": "porosity_apparent", "unit": "fraction", "key": true, "used": true, "note": null,
      "reference": 0.105, "batch": 0.108, "difference": 0.003, "interval": [-0.006, 0.012],
-     "margin": 0.02, "p": 0.62, "status": "SIMILAR", "n_segments": [6, 7]},
+     "margin": 0.02, "p": 0.62, "status": "SIMILAR", "n_segments": [9, 11]},
     {"name": "si_internal_void_frac", "unit": "fraction", "key": true, "used": false, "note": "not measured",
      "reference": 0.03, "batch": null, "difference": null, "interval": null,
-     "margin": 0.006, "p": null, "status": "UNCLEAR", "n_segments": [0, 7]},
+     "margin": 0.006, "p": null, "status": "UNCLEAR", "n_segments": [0, 11]},
     {"name": "si_area_frac", "unit": "fraction", "key": false, "used": false, "note": null,
      "reference": 0.065, "batch": 0.079, "difference": 0.014, "interval": [0.002, 0.026],
-     "margin": 0.012, "p": null, "status": "UNCLEAR", "n_segments": [6, 7]},
+     "margin": 0.012, "p": null, "status": "UNCLEAR", "n_segments": [9, 11]},
     {"name": "si_d90_um", "unit": "um", "key": false, "used": false, "note": null,
      "reference": 5.6, "batch": 5.7, "difference": 0.1, "interval": [-0.3, 0.5],
-     "margin": 0.6, "p": null, "status": "SIMILAR", "n_segments": [6, 7]},
+     "margin": 0.6, "p": null, "status": "SIMILAR", "n_segments": [9, 11]},
     {"name": "si_dispersion_cv", "unit": "ratio", "key": false, "used": false, "note": null,
      "reference": 0.35, "batch": 0.36, "difference": 0.01, "interval": [-0.02, 0.04],
-     "margin": 0.045, "p": null, "status": "SIMILAR", "n_segments": [6, 7]}
+     "margin": 0.045, "p": null, "status": "SIMILAR", "n_segments": [9, 11]}
   ],
   "drivers": ["si_graphite_ratio", "si_d50_um", "type_share:porous_si", "porosity_apparent", "si_contrast_ratio"],
-  "power": {"n_segments": [6, 7], "n_arrangements": 1716, "min_p": 0.000583, "limited": false, "extra_strips_needed": 0},
-  "shared_strips": {
-    "setting": "exclude",
-    "strips": ["ex_strip_r4"],
-    "other_status": {"si_graphite_ratio": "UNCLEAR", "si_d50_um": "SIMILAR", "si_contrast_ratio": "SIMILAR",
-                     "type_share:porous_si": "SIMILAR", "porosity_apparent": "SIMILAR"},
+  "power": {"n_segments": [9, 11], "n_arrangements": 167960, "min_p": 5.95e-06, "limited": false, "extra_needed": 0},
+  "other_unit": {
+    "unit": "strip",
+    "power": {"n_segments": [7, 5], "n_arrangements": 792, "min_p": 0.00126, "limited": false, "extra_needed": 0},
+    "statuses": {"si_graphite_ratio": "UNCLEAR", "si_d50_um": "UNCLEAR", "si_contrast_ratio": "SIMILAR",
+                 "type_share:porous_si": "SIMILAR", "porosity_apparent": "SIMILAR"},
     "contradictions": []
   },
+  "odd_images": [
+    {"strip_id": "ex_strip_d1", "image_ids": ["exb02"], "quantity": "si_graphite_ratio",
+     "value": 0.184, "range": [0.058, 0.122]},
+    {"strip_id": "ex_strip_d1", "image_ids": ["exb03"], "quantity": "si_graphite_ratio",
+     "value": 0.188, "range": [0.058, 0.122]}
+  ],
   "odd_strips": [
     {"strip_id": "ex_strip_d1", "image_ids": ["exb02", "exb03"], "quantity": "si_graphite_ratio",
      "value": 0.186, "range": [0.066, 0.114]}
   ],
   "new_type_share": 0.013,
-  "imaging": {"changed": false, "changed_metrics": [], "outliers_in_reference": ["ex_strip_p2060"], "curtained_images": []},
+  "imaging": {"changed": false, "changed_metrics": [], "outliers_in_reference": ["exr10", "exr11"], "curtained_images": []},
   "controls": {
     "ran": true,
     "passed": true,
@@ -66,28 +74,27 @@
        "top_driver": "si_graphite_ratio", "passed": true}
     ]
   },
-  "nearest_batch": "example_other",
   "fingerprint": {
     "segments": [
-      {"batch": "example_batch", "strip_id": "ex_strip_r4", "image_ids": ["exb01"], "area_um2": 6120.0, "shared": true,
+      {"batch": "example_batch", "strip_id": "ex_strip_r4", "image_ids": ["exb01"], "area_um2": 6120.0,
        "values": {"si_graphite_ratio": 0.091, "si_d50_um": 3.18, "si_internal_void_frac": null, "si_contrast_ratio": 2.09,
                   "porosity_apparent": 0.104, "si_area_frac": 0.066, "si_d90_um": 5.5, "si_dispersion_cv": 0.34}},
-      {"batch": "example_batch", "strip_id": "ex_strip_d1", "image_ids": ["exb02", "exb03"], "area_um2": 12100.0, "shared": false,
+      {"batch": "example_batch", "strip_id": "ex_strip_d1", "image_ids": ["exb02", "exb03"], "area_um2": 12100.0,
        "values": {"si_graphite_ratio": 0.186, "si_d50_um": 3.4, "si_internal_void_frac": null, "si_contrast_ratio": 2.13,
                   "porosity_apparent": 0.112, "si_area_frac": 0.092, "si_d90_um": 5.9, "si_dispersion_cv": 0.38}},
-      {"batch": "example_batch", "strip_id": "ex_strip_a1", "image_ids": ["exb04"], "area_um2": 5980.0, "shared": false,
+      {"batch": "example_batch", "strip_id": "ex_strip_a1", "image_ids": ["exb04"], "area_um2": 5980.0,
        "values": {"si_graphite_ratio": 0.108, "si_d50_um": 3.3, "si_internal_void_frac": null, "si_contrast_ratio": 2.1,
                   "porosity_apparent": 0.107, "si_area_frac": 0.076, "si_d90_um": 5.6, "si_dispersion_cv": 0.35}},
-      {"batch": "example_batch", "strip_id": "ex_strip_a2", "image_ids": ["exb05"], "area_um2": 6050.0, "shared": false,
+      {"batch": "example_batch", "strip_id": "ex_strip_a2", "image_ids": ["exb05"], "area_um2": 6050.0,
        "values": {"si_graphite_ratio": 0.099, "si_d50_um": 3.35, "si_internal_void_frac": null, "si_contrast_ratio": 2.11,
                   "porosity_apparent": 0.106, "si_area_frac": 0.075, "si_d90_um": 5.7, "si_dispersion_cv": 0.36}},
-      {"batch": "example_batch", "strip_id": "ex_strip_a3", "image_ids": ["exb06"], "area_um2": 6100.0, "shared": false,
+      {"batch": "example_batch", "strip_id": "ex_strip_a3", "image_ids": ["exb06"], "area_um2": 6100.0,
        "values": {"si_graphite_ratio": 0.101, "si_d50_um": 3.3, "si_internal_void_frac": null, "si_contrast_ratio": 2.1,
                   "porosity_apparent": 0.109, "si_area_frac": 0.078, "si_d90_um": 5.6, "si_dispersion_cv": 0.35}},
-      {"batch": "example_batch", "strip_id": "ex_strip_a4", "image_ids": ["exb07", "exb08"], "area_um2": 11950.0, "shared": false,
+      {"batch": "example_batch", "strip_id": "ex_strip_a4", "image_ids": ["exb07", "exb08"], "area_um2": 11950.0,
        "values": {"si_graphite_ratio": 0.1, "si_d50_um": 3.4, "si_internal_void_frac": null, "si_contrast_ratio": 2.12,
                   "porosity_apparent": 0.108, "si_area_frac": 0.077, "si_d90_um": 5.8, "si_dispersion_cv": 0.37}},
-      {"batch": "example_batch", "strip_id": "ex_strip_a5", "image_ids": ["exb09"], "area_um2": 5900.0, "shared": false,
+      {"batch": "example_batch", "strip_id": "ex_strip_a5", "image_ids": ["exb09"], "area_um2": 5900.0,
        "values": {"si_graphite_ratio": 0.096, "si_d50_um": 3.35, "si_internal_void_frac": null, "si_contrast_ratio": 2.1,
                   "porosity_apparent": 0.106, "si_area_frac": 0.076, "si_d90_um": 5.6, "si_dispersion_cv": 0.35}}
     ],
@@ -124,18 +131,6 @@
       {"name": "porous_si", "unit": "fraction", "value": 0.14, "interval": [0.09, 0.19],
        "by_strip": {"ex_strip_r4": 0.12, "ex_strip_d1": 0.21, "ex_strip_a1": 0.13, "ex_strip_a2": 0.14,
                     "ex_strip_a3": 0.12, "ex_strip_a4": 0.13, "ex_strip_a5": 0.13}}
-    ],
-    "image_groups": [
-      {"image_ids": ["exb02", "exb03"], "strips": ["ex_strip_d1"], "one_strip": true,
-       "separating": ["si_graphite_ratio", "si_area_frac"]},
-      {"image_ids": ["exb01", "exb04", "exb05", "exb06", "exb07", "exb08", "exb09"],
-       "strips": ["ex_strip_r4", "ex_strip_a1", "ex_strip_a2", "ex_strip_a3", "ex_strip_a4", "ex_strip_a5"],
-       "one_strip": false, "separating": []}
-    ],
-    "variance_split": [
-      {"name": "si_graphite_ratio", "within_strip": 0.18, "between_strips": 0.61, "between_batches": 0.21},
-      {"name": "si_d50_um", "within_strip": 0.33, "between_strips": 0.55, "between_batches": 0.12},
-      {"name": "porosity_apparent", "within_strip": 0.42, "between_strips": 0.44, "between_batches": 0.14}
     ]
   },
   "n_images": {"batch": 9, "baseline": 11},
@@ -143,7 +138,7 @@
     "operator": "Batch differs from the reference on the silicon-to-graphite ratio, and strip ex_strip_d1 stands out. Hold it and call the process engineer.",
     "engineer": "Silicon to graphite is 0.115 against 0.090 in the reference, and the interval crosses the similarity margin. Possible causes to check: the formulation ratio and the silicon powder lot.",
     "scientist": "The silicon-to-graphite ratio is UNCLEAR at 0.115 vs 0.090 (90% interval -0.005 to 0.055 against a 0.030 margin); strip ex_strip_d1 sits outside the reference range. Particle size and apparent porosity look similar.",
-    "manager": "The batch differs from the reference, driven by the silicon additive: possibly more capacity, but more swelling. About 2 more strips would settle it."
+    "manager": "The batch differs from the reference, driven by the silicon additive: possibly more capacity, but more swelling. About 2 more images would settle it."
   },
   "provenance": {
     "inputs": [

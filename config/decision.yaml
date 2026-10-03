@@ -2,9 +2,15 @@ version: v3-draft
 data_dir: data
 baseline: Batch_3
 reference_exclude: []
+unit: image
 key_descriptors: [si_graphite_ratio, si_d50_um, si_internal_void_frac, si_contrast_ratio, porosity_apparent]
 key_type_shares: true
 imaging_sensitive: [si_contrast_ratio, porosity_apparent]
+imaging_black_outlier: 10
+imaging_widen: 0.1
+imaging_min_pad: {black_level: 2, p1: 2, p50: 2, p99: 2, saturated_frac: 0.001}
+curtaining_max: null
+curtaining_sensitive: [graphite_chord_um, pore_chord_um, graphite_anisotropy]
 ci_level: 0.90
 alpha: 0.10
 similar_margin: 1.5
@@ -12,6 +18,4 @@ margins: {}
 new_type_share: 0.05
 n_resamples: 5000
 seed: 0
-shared_strips: exclude
-shared_disagreement: contradiction
-odd_strip_sd: 3.0
+odd_sd: 3.0
