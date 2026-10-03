@@ -42,6 +42,94 @@ def split_tables(kpis: pd.DataFrame, particles: pd.DataFrame | None = None,
                               imaging=take(imaging, name)) for name in batches}
 
 
+def read_tables(kpis_csv: Path) -> dict[str, Tables]:
+    """Read a KPI table and optional particles/imaging sidecars beside it."""
+    files = {path.name: path for path in sidecars(kpis_csv)}
+    return split_tables(pd.read_csv(kpis_csv),
+                        pd.read_csv(files["particles.csv"]) if "particles.csv" in files else None,
+                        pd.read_csv(files["imaging.csv"]) if "imaging.csv" in files else None)
+
+
+def sidecars(kpis_csv: Path) -> list[Path]:
+    return [path for path in (kpis_csv.with_name("particles.csv"), kpis_csv.with_name("imaging.csv"))
+            if path.exists()]
+
+
+def typed_particles(particles: pd.DataFrame) -> pd.DataFrame:
+    """Keep typed particles with finite numeric area."""
+    columns = ["image_id", "type", "area_um2"]
+    if not set(columns) <= set(particles.columns):
+        return pd.DataFrame(columns=columns)
+    typed = particles[columns].copy().reset_index(drop=True)
+    typed["area_um2"] = pd.to_numeric(typed["area_um2"], errors="coerce")
+    typed = typed.loc[typed["type"].notna() & np.isfinite(typed["area_um2"])].copy()
+    if typed.empty:
+        return typed
+    typed["type"] = typed["type"].astype(str)
+    return typed
+
+
+def type_share_table(particles: pd.DataFrame) -> pd.DataFrame:
+    """Per-image area shares over typed particles with finite area."""
+    typed = typed_particles(particles)
+    if typed.empty:
+        return pd.DataFrame(columns=["image_id"])
+    area = typed.pivot_table(index="image_id", columns="type", values="area_um2",
+                             aggfunc="sum", fill_value=0.0)
+    total = area.sum(axis=1)
+    shares = area.div(total.where(total > 0), axis=0).fillna(0.0)
+    out = shares.drop(columns="unassigned", errors="ignore").add_prefix("type_share:")
+    out["unassigned_share"] = shares["unassigned"] if "unassigned" in shares else 0.0
+    return out.reset_index().rename_axis(columns=None)
+
+
+def new_type_share(particles: pd.DataFrame) -> float | None:
+    """Pooled unassigned share over typed particles with finite area."""
+    typed = typed_particles(particles)
+    total = typed["area_um2"].sum() if len(typed) else 0.0
+    return (float(typed.loc[typed["type"] == "unassigned", "area_um2"].sum() / total)
+            if total > 0 else None)
+
+
+def imaging_check(ref_imaging: pd.DataFrame, batch_imaging: pd.DataFrame, cfg: dict) -> ImagingCheck:
+    """Compare each channel and metric with the non-outlier baseline range."""
+    if ref_imaging.empty or batch_imaging.empty:
+        return ImagingCheck()
+    outliers = set()
+    if {"image_id", "channel", "black_level"} <= set(ref_imaging.columns):
+        medians = ref_imaging.groupby("channel")["black_level"].median()
+        threshold = cfg["imaging_black_outlier"]
+        for row in ref_imaging.dropna(subset=["black_level"]).itertuples():
+            if row.channel in medians and abs(row.black_level - medians[row.channel]) > threshold:
+                outliers.add(str(row.image_id))
+    baseline = ref_imaging[~ref_imaging["image_id"].isin(outliers)]
+    changed = set()
+    metric_pad = cfg["imaging_min_pad"]
+    for channel, rows in baseline.groupby("channel"):
+        batch_rows = batch_imaging[batch_imaging["channel"] == channel]
+        for metric in IMAGING_COLUMNS[4:]:
+            if metric not in rows or metric not in batch_rows:
+                continue
+            values = pd.to_numeric(rows[metric], errors="coerce").dropna()
+            if len(values) < 2:
+                continue
+            low, high = float(values.min()), float(values.max())
+            pad = max(cfg["imaging_widen"] * (high - low), metric_pad.get(metric, 0))
+            batch_values = pd.to_numeric(batch_rows[metric], errors="coerce").dropna()
+            if ((batch_values < low - pad) | (batch_values > high + pad)).any():
+                changed.add(f"{channel}.{metric}")
+    curtained = set()
+    curtain_limit = cfg["curtaining_max"]
+    if curtain_limit is not None:
+        for frame in (ref_imaging, batch_imaging):
+            if {"image_id", "channel", "curtaining_index"} <= set(frame.columns):
+                images = frame.loc[(frame["channel"] == "BSE")
+                                   & (frame["curtaining_index"] > curtain_limit), "image_id"]
+                curtained.update(str(image_id) for image_id in images.dropna())
+    return ImagingCheck(changed=bool(changed), changed_metrics=sorted(changed),
+                        outliers_in_reference=sorted(outliers), curtained_images=sorted(curtained))
+
+
 def evaluate(tables: dict[str, Tables], batch: str, cfg: dict, controls: Controls | None = None) -> Evidence:
     return compare(tables[cfg["baseline"]], tables[batch], cfg, controls)
 
@@ -161,13 +249,13 @@ def permutation_p(units: list[Segment], n1: int, keys: list[str], cfg: dict) -> 
 
 
 def analyze(ref_segs: list[Segment], batch_segs: list[Segment], cfg: dict,
-            quantities: list[str], margins: dict[str, float | None],
+            quantities: list[str], margins: dict[str, float | None], keys: set[str],
+            unusable: dict[str, str],
             ) -> tuple[list[Difference], dict[str, Stats], Power]:
     """Steps A-C at one unit: per-quantity t-stats, family-wise p, status."""
-    key = set(cfg.get("key_descriptors", []))
     stats = {q: t_stats(values_of(batch_segs, q), values_of(ref_segs, q), cfg["ci_level"])
              for q in quantities}
-    used_keys = [q for q in quantities if q in key and stats[q].diff is not None]
+    used_keys = [q for q in quantities if q in keys and q not in unusable and stats[q].diff is not None]
     units = ([s for s in batch_segs if has_value(s, used_keys)]
              + [s for s in ref_segs if has_value(s, used_keys)])
     n1 = len([s for s in batch_segs if has_value(s, used_keys)])
@@ -176,7 +264,9 @@ def analyze(ref_segs: list[Segment], batch_segs: list[Segment], cfg: dict,
     differences = []
     for q in quantities:
         st, margin = stats[q], margins[q]
-        is_key, used = q in key, q in used_keys
+        is_key = q in keys
+        used = is_key and q not in unusable and st.diff is not None
+        note = ("not measured" if st.diff is None else unusable.get(q)) if is_key else None
         lo, hi = st.interval or (None, None)
         status = "UNCLEAR"
         if used:
@@ -191,8 +281,8 @@ def analyze(ref_segs: list[Segment], batch_segs: list[Segment], cfg: dict,
             elif -margin < lo < hi < margin:
                 status = "SIMILAR"
         differences.append(Difference(
-            name=q, unit=KPI_UNITS.get(q, ""), key=is_key, used=used,
-            note="not measured" if is_key and not used else None,
+            name=q, unit=unit_of(q), key=is_key, used=used,
+            note=note,
             reference=num(np.mean(values_of(ref_segs, q))) if values_of(ref_segs, q) else None,
             batch=num(np.mean(values_of(batch_segs, q))) if values_of(batch_segs, q) else None,
             difference=st.diff, interval=st.interval, margin=num(margin),
@@ -203,6 +293,13 @@ def analyze(ref_segs: list[Segment], batch_segs: list[Segment], cfg: dict,
 
 def values_of(segs: list[Segment], q: str) -> list[float]:
     return [s.values[q] for s in segs if s.values.get(q) is not None]
+
+
+def unit_of(q: str) -> str:
+    unit = KPI_UNITS.get(q)
+    if unit is not None:
+        return unit
+    return "fraction" if q.startswith("type_share:") or q == "unassigned_share" else ""
 
 
 def has_value(seg: Segment, keys: list[str]) -> bool:
@@ -251,16 +348,38 @@ def units_to_settle(diff: float, sp: float, n1q: int, n2q: int, margin: float,
 def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = None) -> Evidence:
     """Compare batch and reference at the configured unit, with the other unit alongside."""
     controls = controls or Controls()
-    imaging = ImagingCheck()            # imaging check lands in the next piece
-    new_type_share = None               # particle types land in the next piece
-    ref_kpis = ref.kpis[~ref.kpis["image_id"].isin(cfg.get("reference_exclude") or [])]
-    batch_kpis = batch.kpis
+    excluded = cfg.get("reference_exclude") or []
+    ref_kpis = ref.kpis[~ref.kpis["image_id"].isin(excluded)].copy()
+    ref_particles = ref.particles[~ref.particles["image_id"].isin(excluded)].copy()
+    ref_imaging = ref.imaging[~ref.imaging["image_id"].isin(excluded)].copy()
+    batch_kpis = batch.kpis.copy()
     batch_name = str(batch_kpis["batch"].iloc[0]) if len(batch_kpis) else "?"
+
+    imaging = imaging_check(ref_imaging, batch.imaging, cfg)
+    curtained = set(imaging.curtained_images)
+    for frame in (ref_kpis, batch_kpis):
+        for q in cfg["curtaining_sensitive"]:
+            if q in frame:
+                frame.loc[frame["image_id"].isin(curtained), q] = np.nan
+
+    ref_kpis = ref_kpis.merge(type_share_table(ref_particles), on="image_id", how="left")
+    batch_kpis = batch_kpis.merge(type_share_table(batch.particles), on="image_id", how="left")
+    batch_new_type_share = new_type_share(batch.particles)
+
+    type_share_quantities = sorted({
+        q for frame in (ref_kpis, batch_kpis) for q in frame.columns if q.startswith("type_share:")
+    })
+    key_descriptors = list(cfg.get("key_descriptors", []))
+    keys = set(key_descriptors)
+    if cfg.get("key_type_shares", False):
+        keys.update(type_share_quantities)
+    unusable = ({q: "imaging changed" for q in cfg.get("imaging_sensitive", [])}
+                if imaging.changed else {})
 
     others = [c for c in dict.fromkeys([*ref_kpis.columns, *batch_kpis.columns])
               if c not in NON_QUANTITY
               and any(c in f.columns and pd.api.types.is_numeric_dtype(f[c]) for f in (ref_kpis, batch_kpis))]
-    quantities = list(dict.fromkeys([*cfg.get("key_descriptors", []), *KPI_UNITS, *others]))
+    quantities = list(dict.fromkeys([*key_descriptors, *type_share_quantities, *KPI_UNITS, *others]))
 
     unit = cfg.get("unit", "image")
     other = {"image": "strip", "strip": "image"}[unit]
@@ -278,13 +397,13 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
         margins[q] = margin if margin is not None else (
             cfg["similar_margin"] * float(np.std(ref_vals, ddof=1)) if len(ref_vals) >= 2 else None)
 
-    differences, stats, pow_ = analyze(ref_drive, batch_drive, cfg, quantities, margins)
+    differences, stats, pow_ = analyze(ref_drive, batch_drive, cfg, quantities, margins, keys, unusable)
     drivers = [d.name for d in sorted(
         (d for d in differences if d.used and d.difference is not None and d.margin),
         key=lambda d: -abs(d.difference / d.margin))]
 
     driving_status = {d.name: d.status for d in differences if d.used}
-    other_diffs, _, other_power = analyze(ref_other, batch_other, cfg, quantities, margins)
+    other_diffs, _, other_power = analyze(ref_other, batch_other, cfg, quantities, margins, keys, unusable)
     other_status = {d.name: d.status for d in other_diffs if d.used}
     contra = contradictions(driving_status, other_status)
     odd_images = odd_units(batch_image, ref_image, list(driving_status), cfg)
@@ -293,16 +412,16 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
 
     verdict, reasons, next_action = verdict_of(differences, drivers, other_status, contra,
                                                odds, pow_, unit, imaging, controls,
-                                               new_type_share, stats, cfg)
+                                               batch_new_type_share, stats, cfg)
 
-    def describe(q: str) -> Descriptor:
+    def describe(q: str, name: str | None = None) -> Descriptor:
         vals = values_of(batch_drive, q)
         interval = None
         if len(vals) >= 2:
             half = float(t.ppf((1 + cfg["ci_level"]) / 2, len(vals) - 1)) \
                 * float(np.std(vals, ddof=1)) / float(np.sqrt(len(vals)))
             interval = (float(np.mean(vals) - half), float(np.mean(vals) + half))
-        return Descriptor(name=q, unit=KPI_UNITS.get(q, ""),
+        return Descriptor(name=name or q, unit=unit_of(q),
                           value=num(np.mean(vals)) if vals else None, interval=interval,
                           by_strip={s.strip_id: s.values.get(q) for s in batch_strip})
 
@@ -311,9 +430,12 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
         next_action=next_action, unit=unit, differences=differences, drivers=drivers, power=pow_,
         other_unit=UnitView(unit=other, power=other_power, statuses=other_status, contradictions=contra),
         odd_images=odd_images, odd_strips=odd_strips,
-        new_type_share=new_type_share, imaging=imaging, controls=controls,
+        new_type_share=batch_new_type_share, imaging=imaging, controls=controls,
         fingerprint=Fingerprint(segments=batch_strip,
-                                descriptors=[describe(q) for q in quantities]),
+                                descriptors=[describe(q) for q in quantities
+                                             if q not in type_share_quantities],
+                                type_shares=[describe(q, q.removeprefix("type_share:"))
+                                             for q in type_share_quantities]),
         n_images={"batch": len(batch_kpis), "baseline": len(ref_kpis)},
         config_version=cfg["version"])
 
@@ -440,12 +562,13 @@ if __name__ == "__main__":
     cfg = load_config()
     if args.baseline:
         cfg["baseline"] = args.baseline
-    tables = split_tables(pd.read_csv(args.kpis_csv))
+    tables = read_tables(args.kpis_csv)
     if cfg["baseline"] not in tables:
         raise SystemExit(f"no rows for baseline {cfg['baseline']!r} in {args.kpis_csv}")
+    input_tables = [args.kpis_csv, *sidecars(args.kpis_csv)]
     for name in tables:
         evidence = evaluate(tables, name, cfg)
-        evidence.provenance = provenance([args.kpis_csv], cfg, Path(cfg["data_dir"]))
+        evidence.provenance = provenance(input_tables, cfg, Path(cfg["data_dir"]))
         evidence_path(name).parent.mkdir(parents=True, exist_ok=True)
         evidence_path(name).write_text(evidence.model_dump_json(indent=2))
         n1, n2 = evidence.power.n_segments

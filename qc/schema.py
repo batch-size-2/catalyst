@@ -130,8 +130,8 @@ class Odd(BaseModel):
 class ImagingCheck(BaseModel):
     changed: bool = False
     changed_metrics: list[str] = []      # e.g. "BSE.black_level"
-    outliers_in_reference: list[str] = []  # reference strip_ids left out of the imaging range (§3.3)
-    curtained_images: list[str] = []
+    outliers_in_reference: list[str] = []  # baseline image_ids left out of the imaging range (§3.3)
+    curtained_images: list[str] = []      # image_ids whose run-length descriptors were blanked
 
 
 class ControlResult(BaseModel):

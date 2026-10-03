@@ -43,6 +43,12 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 - Added the runner glue and thin API endpoints, including the 501 response while Pat's module is unavailable.
 - Updated the README architecture, infrastructure, API, attribution and ownership sections.
 
+## Done (step 3, branch `PtrkH/particles-imaging`)
+
+- Added per-image particle type shares, pooled `new_type_share`, key gating and `fingerprint.type_shares`.
+- Added baseline imaging ranges/outliers, imaging-sensitive quantities and optional curtaining blanking.
+- Added CLI sidecar loading, synthetic tests and README documentation.
+
 ## Done (PR #4)
 
 - **Evidence contract**: `qc/schema.py`, mirrored in `web/src/types.ts`; full example in `tests/fixtures/evidence_example.json`.
@@ -66,20 +72,7 @@ Done, see Done. Pending: Pat confirms the contract.
 
 ### 3. Plumbing for Pat's outputs (no edits to her files)
 
-- **`run.py`:**
-  - call `qc.measure.particles(mask, px_um, channels)` and `qc.measure.imaging(channels)` if they exist (`getattr`);
-  - call `qc.types.assign_types(particles, model)` if `qc/types.py` and `config/particle_types.json` exist;
-  - failures give empty frames or NaN and never stop the run;
-  - write `out/particles.csv` (`PARTICLE_COLUMNS`) and `out/imaging.csv` (`IMAGING_COLUMNS`), replacing the rows of re-measured batches, and pass them through `split_tables`.
-- **Per-image features from particles:**
-  - `type_share:<type>` (Si area share of each type) and `unassigned_share`, merged onto the image table. They then become sorter candidates and comparison quantities (key when `key_type_shares`);
-  - batch `new_type_share` = unassigned Si area / all Si area, which feeds the existing new-type trigger;
-  - fill `fingerprint.type_shares`.
-- **Imaging check (PLAN_v3 §3.3), per image:**
-  - reference outliers = baseline images whose black level in any channel is more than 10 grey levels from the baseline median (P2060's four images today);
-  - the range per (channel, metric) = min–max over the other baseline images, widened by 10% of the width;
-  - any batch image outside the range → `changed_metrics` / `changed`, and the `imaging_sensitive` quantities become used=False with a note;
-  - `curtained_images` comes from a config threshold `curtaining_max: null` (off until Pat calibrates it).
+Done, see Done. When `pat/ml-v3` lands: `run()` must pass `split_tables(tables.kpis, tables.particles, tables.imaging)` (her `measure()` returns `Tables`).
 
 ### 4. Explanations: `qc/explain.py`
 
@@ -112,6 +105,7 @@ Done, see Done. Pending: Pat confirms the contract.
 Listed in PR #4, section "For Pat":
 - **Black level:** `Field.black_level` is filled, but `segment()` and `imaging()` don't receive the `Field`. Either she computes it inside, or `run.py` passes it in.
 - **Column names:** confirm the proposed `PARTICLE_COLUMNS` / `IMAGING_COLUMNS`.
+- **When `pat/ml-v3` lands:** `run()` must pass `split_tables(tables.kpis, tables.particles, tables.imaging)` (her `measure()` returns `Tables`).
 - **KPI_UNITS:** add `si_graphite_ratio` and the other descriptors, then regenerate the fixture with `uv run python -m tests.synth`.
 - **Attribution contract:** confirm the proposed `Attribution` schema (step 2).
 - **Her other pieces:** the dictionary content, image pre-processing, particle types, controls.
