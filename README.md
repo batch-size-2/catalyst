@@ -165,7 +165,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | Path | In git? | Contents |
 |---|---|---|
 | `data/<batch>/` | no | Input TIFFs (or symlinks to them). One folder per batch; the folder name is the batch name |
-| `EXAMPLE BATCHES FOR LOCAL REFERENCE/` | no | The 1.6 GB of Polaron images. Don't upload anywhere without Polaron's OK (PLAN_v1 §1, rule 5) |
+| `EXAMPLE BATCHES FOR LOCAL REFERENCE/` | no | The 1.6 GB of Polaron images. Too big for git; screenshots of them are fine |
 | `config/decision.yaml` | yes | Decision settings. Frozen with `git tag rules-frozen` before the unseen batch |
 | `config/particle_types.json` | yes | Fitted particle-type model (GMM centres/covs, names, unassigned threshold). Frozen with `rules-frozen` |
 | `config/kpi_dictionary.yaml` | yes | Plain-language meaning/causes/checks per descriptor (draft; causes need mentor review); read by `explain()` and hashed into provenance |

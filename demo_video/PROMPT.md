@@ -10,7 +10,7 @@ Battery makers buy anode material (graphite + a little silicon) from suppliers. 
 
 ## Real app screenshots: how this works
 
-The microscope images and everything in `data/`, `out/` and `EXAMPLE BATCHES FOR LOCAL REFERENCE/` are confidential (about £50k to collect). **Never read, copy, upload or commit them, or any screenshot of the app taken on them.** So:
+The microscope images and everything in `data/`, `out/` and `EXAMPLE BATCHES FOR LOCAL REFERENCE/` are too big to commit (raw TIFFs). Screenshots of the app on them are fine to commit. So:
 
 1. **You build a capture script** `demo_video/capture/capture.mjs` (Playwright, Chromium or the installed Chrome channel). It opens the running app at `http://localhost:5173`, walks through the shot list below, and saves each shot to `demo_video/public/screens/<name>.png` at 1920×1080 (device scale factor 2 for sharpness), plus `demo_video/public/screens/manifest.json` with the bounding box of every highlighted element (so the video can zoom into and outline the exact element). Find elements by visible text and ARIA roles that already exist in the UI (e.g. the "Main views" nav, the "Sort images" / "What's different" / "Batch verdict" buttons, the "Explanation audience" tablist). If a shot really needs a stable selector, you may add `data-demo="<name>"` attributes in `web/src/` and nothing else there; keep `cd web && npm run build` passing.
 2. **You develop against the example data**, which is synthetic and safe. Start the API and UI with the fixtures as in the README's "Preview the UI with fixtures" section (`cp tests/fixtures/... out/...`, `uv run uvicorn qc.api:app`, `cd web && npm run dev`). Run your capture script against it and build the whole video with those example screenshots.

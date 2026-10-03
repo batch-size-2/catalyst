@@ -6,7 +6,7 @@ The look, the logo and the screen designs for the app. The current `web/` UI is 
 |---|---|
 | `tokens.css` | Colours, type, glass, buttons, pills, segmented control. Import it once in `web/` |
 | `logo/` | The mark, wordmarks, app icon, favicon, a construction drawing, and the cat's moods |
-| `canvas/` | The screen designs as `.dc.html` artboards plus `canvas.json` (layout). Image URLs (`/_blob/…`) only resolve on the live canvas: micrographs stay out of git (AGENTS.md) |
+| `canvas/` | The screen designs as `.dc.html` artboards plus `canvas.json` (layout). Image URLs (`/_blob/…`) only resolve on the live canvas; the raw TIFFs are too big for git (AGENTS.md) |
 
 ## Principles
 

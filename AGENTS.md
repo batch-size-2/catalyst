@@ -41,6 +41,6 @@ cd web && npm run build                                    # typecheck + build, 
 - The highest-numbered `docs/PLAN_vN.md` (currently `docs/PLAN_v3.md`) is the plan and is owned by the team; don't rewrite it from a code PR, and never edit older plan versions. If the code has to deviate from it, say so in the README and the PR.
 - `qc/schema.py` is the ML ↔ backend contract (PLAN_v1 §3.1). Adding a field or KPI is fine. Renaming, removing or changing a unit needs both owners. Update `tests/fixtures/kpis_fake.csv`, `tests/test_contract.py` and `web/src/types.ts` along with it.
 - `qc/api.py` stays a thin wrapper: no QC logic in the API or the UI.
-- Never commit `data/`, `out/` or `EXAMPLE BATCHES FOR LOCAL REFERENCE/`. The images cost £50k to collect: don't upload them to any external service without Polaron's OK (PLAN_v1 §1).
+- Never commit `data/`, `out/` or `EXAMPLE BATCHES FOR LOCAL REFERENCE/` (1.6 GB of raw TIFFs). The dataset has been shared with every hackathon participant, so screenshots of the app on real images are fine in PRs and docs.
 - Don't edit `config/decision.yaml` after the `rules-frozen` git tag.
 - Install npm packages with `npm install --before=<date one week ago>` to avoid brand-new releases.

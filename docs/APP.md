@@ -29,7 +29,7 @@ Read the shared context and rules first.
 
 ### Data
 
-- **Images:** 31 images: Batch_1 = 7, Batch_2 = 7, Batch_3 = 17. Each has three detector files (BSE, ETD or SE, InLens), 8-bit, 25 nm per pixel. The images cost about £50k to collect: keep them local (AGENTS.md).
+- **Images:** 31 images: Batch_1 = 7, Batch_2 = 7, Batch_3 = 17. Each has three detector files (BSE, ETD or SE, InLens), 8-bit, 25 nm per pixel. The images cost about £50k to collect; the raw files stay out of git, screenshots are fine (AGENTS.md).
 - **Anode:** bright = silicon, grey = graphite (particles about 30 µm, so only a few per image), black = pore. There are about 4,000 silicon particles in total.
 - **Imaging quirks** (PLAN_v3 §1.1):
   - the InLens detector saturates (more than 1% of pixels at 255 in 26 of 31 images) and has top-to-bottom shading;
