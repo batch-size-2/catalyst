@@ -38,8 +38,8 @@ cd web && npm run build                                    # typecheck + build, 
 
 - Software-side status and next steps: `docs/HANDOFF.md`. Read it first; delete it and this line once its list is done.
 
-- The highest-numbered `docs/PLAN_vN.md` (currently `docs/PLAN_v3.md`) is the plan and is owned by the team; don't rewrite it from a code PR, and never edit older plan versions. If the code has to deviate from it, say so in the README and the PR.
-- `qc/schema.py` is the ML ↔ backend contract (PLAN_v1 §3.1). Adding a field or KPI is fine. Renaming, removing or changing a unit needs both owners. Update `tests/fixtures/kpis_fake.csv`, `tests/test_contract.py` and `web/src/types.ts` along with it.
+- The highest-numbered `docs/PLAN_vN.md` (currently `docs/PLAN_v4.md`, the only one; older versions are in git history) is the plan and is owned by the team; don't rewrite it from a code PR. What to do next is in its §4. If the code has to deviate from it, say so in the README and the PR.
+- `qc/schema.py` is the ML ↔ backend contract (PLAN_v4 §3.1). Adding a field or KPI is fine. Renaming, removing or changing a unit needs both owners. Update `tests/fixtures/kpis_fake.csv`, `tests/test_contract.py` and `web/src/types.ts` along with it.
 - `qc/api.py` stays a thin wrapper: no QC logic in the API or the UI.
 - Never commit `data/`, `out/` or `EXAMPLE BATCHES FOR LOCAL REFERENCE/` (1.6 GB of raw TIFFs). The dataset has been shared with every hackathon participant, so screenshots of the app on real images are fine in PRs and docs.
 - Don't edit `config/decision.yaml` after the `rules-frozen` git tag.

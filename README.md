@@ -12,11 +12,13 @@ A decision layer on top of SEM microstructure analysis. Batch_3 is the material 
 - **whether it is inside the baseline's distribution at all** (a two-sided z view and an *unfamiliar* flag for an unknown batch N);
 - **accept / investigate / reject**, from plain statistics and a customer tolerance, with the next action.
 
-Measurements come from classic image processing; the verdict from plain statistics on strip segments. The only trained piece is the attribution model (PLAN_v4 §3.15): a regularised logistic regression on named features, evaluated leave-one-strip-out, frozen as readable JSON, and never the verdict.
+Measurements come from classic image processing; the verdict from plain statistics on strip segments. The only trained piece is the attribution model (PLAN_v4 §3.15): a regularised logistic regression on named features or on principal components of frozen DINOv2 image features, evaluated leave-one-strip-out, frozen as readable JSON, and never the verdict. It always assigns a batch, with a checked confidence and reasons in plain language.
 
 ## Plan
 
-[docs/PLAN_v3.md](docs/PLAN_v3.md) is the source of truth for **what to build** (supersedes [PLAN_v2](docs/PLAN_v2.md), [PLAN_v1](docs/PLAN_v1.md) and [PLAN_v0](docs/PLAN_v0.md); §12 lists the evidence behind each decision). [docs/PLAN_v4.md](docs/PLAN_v4.md) is the **draft delta** written after the task designer's clarification (Batch_3 baseline, attribute the held-back images, in/out of distribution); it becomes the plan once both owners have reviewed it. `qc/features.py` and `qc/attribute.py` below implement its §3.14–3.17. Section references to PLAN_v1 below describe the code as built. This README documents **what is built**. Where the code is still a stub, the sections below say so and point to the plan section that describes the target.
+[docs/PLAN_v4.md](docs/PLAN_v4.md) is the plan and the source of truth for **what to build and what to do next** (its §4). It is self-contained: it holds everything that still stands from the earlier plans (v0–v3, deleted; see git history), the task designer's clarifications (Batch_3 baseline, attribute the unseen images, in or out of distribution), the results on the real data (§12) and the evidence behind each decision (§13). Sections 1–3 keep the v3 section numbers. This README documents **what is built**.
+
+Status and next steps of the ML side, in plain language: [docs/PAT_SUMMARY.md](docs/PAT_SUMMARY.md). How to work in the ML code and what its outputs guarantee: [docs/AGENT_HANDOVER.md](docs/AGENT_HANDOVER.md). Software side: [docs/HANDOFF.md](docs/HANDOFF.md) and [docs/APP.md](docs/APP.md).
 
 ## Quickstart
 
@@ -37,9 +39,9 @@ uv run python -m qc.uncertainty --batch data/Batch_3                      # -> o
 uv run python -m qc.features                                              # per-image feature table -> out/features.csv
 uv sync --extra deep && uv run --extra deep python -m qc.deep            # optional: DINOv2 deep_ columns merged into out/features.csv (CPU, local)
 uv run python -m qc.attribute --evaluate                                  # leave-one-strip-out + null per family -> out/attribution/evaluation.json
-uv run python -m qc.attribute --dry-run                                   # hold out 3 images per batch (whole strips), refit, predict
-uv run python -m qc.attribute --fit [--families deep]                     # freeze the model -> config/attribution_model.json
-uv run python -m qc.attribute --images data/<drop> --balanced 3           # attribute unseen images -> out/attribution/<drop>.json
+uv run python -m qc.attribute --dry-run [--repeats 30]                    # hold out 3 images per batch (whole strips), refit, predict; repeats give the spread
+uv run python -m qc.attribute --fit [--families deep | --staged tex:deep] # freeze the model -> config/attribution_model.json
+uv run python -m qc.attribute --images data/<drop> [--balanced k]         # attribute unseen images -> out/attribution/<drop>.json
 
 # Preview the UI with fixtures
 mkdir -p out/evidence out/attribution
@@ -87,8 +89,8 @@ flowchart LR
   subgraph ATTR["ML · qc/features.py · qc/attribute.py (PLAN_v4)"]
     FEAT["image_features(field, mask) → one row per image<br/>reg_ regional tiles · edge_ · tex_ LBP/GLCM · par_ · kpi_ · img_<br/>assert_no_leakage: no strip_id / size / px_um"]
     EVAL["loso_cv · permutation_null · shared_strip_check · rank_features<br/>leave-one-strip-out, segment-shuffled null"]
-    FIT["fit_model → config/attribution_model.json<br/>standardised L2 logistic regression · nested C · baseline_stats"]
-    PRED["predict(model, features) → p_Batch_1/2/3 · reasons<br/>baseline_distance · unfamiliar · balanced_assignment"]
+    FIT["fit_model → config/attribution_model.json<br/>standardised L2 logistic regression (flat or staged) · nested C<br/>calibration · batch_stats · explain tables"]
+    PRED["predict(model, features) → always a batch · p_Batch_1/2/3<br/>confidence tier · stages · prediction_set · readable reasons<br/>baseline_distance · unfamiliar · balanced_assignment"]
   end
 
   subgraph BE["Backend · qc/decide.py"]
@@ -152,7 +154,7 @@ flowchart LR
 
 ## Infrastructure
 
-Everything runs **locally and offline**: no cloud, no database, no network calls in the verdict path (PLAN_v1 §1, rule 4). There are three processes.
+Everything runs **locally and offline**: no cloud, no database, no network calls in the verdict path (PLAN_v4 §2, Rule 4). There are three processes.
 
 | Process | Command | Port | Role |
 |---|---|---|---|
@@ -181,7 +183,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads this, attribution output and masks |
 | `out/features.csv` | no | One row per image: `batch, image_id, strip_id` + `reg_`, `edge_`, `tex_`, `par_`, `kpi_`, `img_` features (`qc/features.py`), plus optional `deep_` columns (`qc/deep.py`). Never strip, size or pixel-size columns |
 | `out/attribution/evaluation.json`, `feature_ranking.csv` | no | Leave-one-strip-out balanced accuracy, confusion, permutation null and shared-strip check per feature family; univariate feature ranking on strip-segment means. Exposed by the API |
-| `out/attribution/<run>.json` | no | Per image: `p_Batch_*`, `predicted`, `confidence`, `reasons`, `baseline_distance`, `unfamiliar`, `deviations`, optional `assigned` (balanced). Exposed by the API |
+| `out/attribution/<run>.json` | no | Per image, always a batch: `p_Batch_*`, `predicted`, `confidence` (temperature-scaled; `confidence_raw`), `confidence_tier` with `confidence_record`, `stage_baseline`, `stage_variation`, `prediction_set`, `reasons` (with plain-language `text`), `baseline_distance`, `outside_baseline`, `deviations`, `predicted_distance`, `unfamiliar` (outside the batch it was assigned to), optional `assigned` (balanced). `model.calibration` holds the out-of-fold record behind the tiers. Exposed by the API |
 | `tests/fixtures/kpis_fake.csv` | yes | Synthetic KPI table (`tests/synth.py`), so the backend and UI can be built with no images |
 | `tests/fixtures/evidence_example.json` | yes | Hand-made, fully populated Evidence. To view it in the UI: `cp tests/fixtures/evidence_example.json out/evidence/example.json` and select `example` |
 | `tests/fixtures/attribution_example.json`, `attribution_evaluation_example.json` | yes | Fixtures mirroring Pat's output format |
@@ -215,7 +217,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 
 ## Data pipeline
 
-One command, `qc.run`, does steps 1–6 for the baseline plus each requested batch. `qc.measure` does steps 1–5 only.
+One command, `qc.run`, does steps 1–9 for the baseline plus each requested batch. `qc.measure` does steps 1–8 only.
 
 | # | Step | Code | Output |
 |---|---|---|---|
@@ -229,7 +231,7 @@ One command, `qc.run`, does steps 1–6 for the baseline plus each requested bat
 | 8 | **Write.** One row per image into the KPI table (incl. `area_um2`, the analysed area), the particle and imaging tables, plus a mask overlay | `run.measure_field`, `run.save_tables`, `run.save_overlay` | `out/kpis.csv`, `out/particles.csv`, `out/imaging.csv`, `out/masks/` |
 | 9 | **Compare** each batch against the baseline on all three tables and record provenance | `decide.split_tables`, `decide.evaluate`, `provenance.provenance` | `out/evidence/<batch>.json` |
 
-**Input details (step 2, from PLAN_v1 §2)**
+**Input details (step 2, PLAN_v4 §1.1)**
 - **Detectors** are normalised to `BSE` / `ETD` / `InLens`; `SE` is an alias for `ETD`. The `img_` prefix is dropped from IDs.
 - **`px_um`** comes from the TIFF `XResolution` / `ResolutionUnit` tags (0.025 µm/px), or NaN if missing.
 - **`strip_id`** is `"<height>_<round(XResolution)>"`, e.g. `2316_1015998`. It groups images cut from one strip; used for the strip-level view and the gallery. The image is the unit of the verdict.
@@ -252,7 +254,7 @@ One command, `qc.run`, does steps 1–6 for the baseline plus each requested bat
 - Top and bottom 5% of rows → `IGNORE` (edge rows may carry FIB damage). Mask upsampled to full resolution.
 - Hole filling and watershed splitting are **not** baked into the mask — they happen in `label_si` at measure time, so the mask stays pure phase codes and area fractions are unaffected by split lines.
 
-**KPIs (step 4, definitions in PLAN_v3 §3.2)** — all implemented:
+**KPIs (step 4, definitions in PLAN_v4 §3.2)** — all implemented:
 
 | KPI | Unit | Status |
 |---|---|---|
@@ -277,21 +279,23 @@ A KPI that isn't computed, or an image whose segmentation crashes, is written as
 
 **Particle types (step 6, `qc/types.py`).** `fit_types` standardises `log_d, contrast_ratio, inlens_ratio, void_frac, texture, solidity`, fits `GaussianMixture` for k = 2, 3, 4 and picks k by leave-one-strip-out stability (ARI against the full fit, preferring smaller k within 0.02), merges types that differ only in size (< 0.5 z on every feature but `log_d`), and names each type from its features in units. `assign_types` assigns the nearest type by Mahalanobis distance; beyond the 99th percentile of training distances → `unassigned`; with `--porous-rule`, `void_frac > 0.1` → `porous`. `uv run python -m qc.types` fits on `out/particles.csv` (optionally excluding batches), writes `config/particle_types.json`, rewrites the `type` column and saves example crops to `out/crops/`.
 
-**Controls (`qc/controls.py`, PLAN_v3 §3.7 + §3.13).** `make_controls` builds negative controls (brightness/contrast ±20%, black +20, noise σ5, synthetic curtaining) and positive controls (donor Si pasted to +50%/+100%, voids punched into 30% of particles, non-border Si scaled 1.5× with 1/2.25 thinning to hold Si amount constant) from a random choice of reference strips. `shared_strip_controls` splits reference strips between a test batch and the reference (`kept_in_reference` holds the image_ids that stay) to test both readings of shared strips. `uv run python -m qc.controls` measures every control against its untransformed originals and writes `out/controls/summary.csv`.
+**Controls (`qc/controls.py`, PLAN_v4 §3.7 + §3.13).** `make_controls` builds negative controls (brightness/contrast ±20%, black +20, noise σ5, synthetic curtaining) and positive controls (donor Si pasted to +50%/+100%, voids punched into 30% of particles, non-border Si scaled 1.5× with 1/2.25 thinning to hold Si amount constant) from a random choice of reference strips. `shared_strip_controls` splits reference strips between a test batch and the reference (`kept_in_reference` holds the image_ids that stay) to test both readings of shared strips. `uv run python -m qc.controls` measures every control against its untransformed originals and writes `out/controls/summary.csv`.
 
-**Features (`qc/features.py`, PLAN_v4 §3.14).** `image_features(field)` returns one row per image: regional descriptors per ~15 µm tile summarised over tiles (mean, SD, CV, p10/p50/p90, normalised depth slope, top/bottom ratio), the ignored top/bottom 5% bands measured separately, uniform-LBP histograms per channel (and BSE inside graphite and inside Si) plus GLCM statistics at 0.1 and 0.4 µm, image-level particle aggregates (incl. type shares if `config/particle_types.json` exists), the 15 KPIs, and the imaging descriptors. `assert_no_leakage()` refuses any column whose name mentions strip, height, width, px_um, xres or shape. `uv run python -m qc.features` writes `out/features.csv`.
+**Features (`qc/features.py`, PLAN_v4 §3.14).** `image_features(field)` returns one row per image: regional descriptors per ~15 µm tile summarised over tiles (mean, SD, CV, p10/p50/p90, normalised depth slope, top/bottom ratio), the ignored top/bottom 5% bands measured separately, uniform-LBP histograms per channel (and BSE inside graphite and inside Si) plus GLCM statistics at 0.05 and 0.2 µm, image-level particle aggregates (incl. type shares if `config/particle_types.json` exists), the 15 KPIs, and the imaging descriptors. `assert_no_leakage()` refuses any column whose name mentions strip, height, width, px_um, xres or shape. `uv run python -m qc.features` writes `out/features.csv`.
 
 **Deep features (`qc/deep.py`, optional, PLAN_v4 §3.14).** `uv sync --extra deep` adds CPU torch + transformers (CPU wheel index on Linux/Windows, PyPI on macOS). `deep_features(field)` embeds the InLens channel with the public `facebook/dinov2-small` (pinned revision, no fine-tuning): valid rows, p1–p99 stretch, 2×2 binning, 224 px tiles, CLS + mean patch token per tile, mean and SD over tiles → 1,536 `deep_inlens_s2_*` columns. Weights download once to the Hugging Face cache; set `HF_HUB_OFFLINE=1` afterwards. Images never leave the machine. `python -m qc.deep` merges the columns into `out/features.csv` (re-run it after `qc.features` rewrites a batch). `qc.attribute --images` computes them automatically when the frozen model uses them.
 
 **Attribution and familiarity (`qc/attribute.py`, PLAN_v4 §3.15–3.17).** Material families only by default (`reg, edge, tex, par, kpi`; `img_` is reported apart because it is acquisition, not material). `loso_cv` holds out every image of one physical strip across all folders, standardises inside the fold and picks `C` from {0.01…1} by an inner leave-one-strip-out. `permutation_null` shuffles batch labels across strip segments (≥200×). `shared_strip_check` asks whether images of strips imaged in two folders were attributed to their own folder. `rank_features` scores each feature alone on strip-segment means. `fit_model` saves readable JSON; `predict` gives probabilities, the five largest `coef × z` reasons, the two-sided RMS-z distance to the Batch_3 strip segments with an `unfamiliar` flag (threshold = the baseline's own maximum held-out distance), and, with `--balanced k`, the Hungarian assignment of exactly *k* images per batch. `dry_run` rehearses the nine-image test holding out whole strips. `deep_` columns are replaced by 10 principal components (`Reducer`) fit on the training rows of each fold; the frozen JSON stores the PCA mean, SD and components next to the coefficients, and reasons name `deep_pc01…10`.
 
-**Uncertainty (`qc/uncertainty.py`, PLAN_v3 §3.6).** `threshold_variants` re-runs segment+kpis at thresholds ±5 grey levels; `integral_range` estimates the phase-fraction SD for a given imaged area (and the area for a target SD) from the two-point correlation — the "how many images are enough" number. CLI writes `out/uncertainty/`.
+**Always a bet, with confidence and reasons (`qc/attribute.py`, PLAN_v4 Rule 11).** Every image gets a batch; nothing in the output is a non-answer. `calibrate` reads the model's own out-of-fold (strip-held-out) probabilities and stores in the model: a temperature that minimises their log loss (`predict` applies it to every probability), how often calls in each confidence tier (high ≥ 0.75, medium ≥ 0.5, low) were right, the split-conformal `qhat` behind `prediction_set` (α = 0.2), and the right / n of each stage. `stage_baseline` answers "different from the baseline?" and `stage_variation` "in what way?", each with its own confidence. `unfamiliar` compares the image with the strip segments of the batch it was assigned to (`batch_stats`); `outside_baseline` is the same test against Batch_3. `explain_tables` stores what makes reasons readable: for each `deep_pcNN` the named material features it correlates with on the training rows (|r| ≥ 0.5, at most three), and for each named feature its plain name (`features.describe`, `config/kpi_dictionary.yaml`), its Batch_3 mean and SD over strip segments and each batch's mean; every reason then carries a `text` such as "InLens texture smoothness at 0.05 um: 2.1 SD above Batch_3". `--staged a:b` fits a two-stage model (baseline-or-not on families `a`, which variation on families `b`) and multiplies the stages. `dry_runs` (`--dry-run --repeats N`) repeats the rehearsal over held-out draws and reports the spread, the per-tier record and the prediction-set coverage on images the model never saw.
+
+**Uncertainty (`qc/uncertainty.py`, PLAN_v4 §3.6).** `threshold_variants` re-runs segment+kpis at thresholds ±5 grey levels; `integral_range` estimates the phase-fraction SD for a given imaged area (and the area for a target SD) from the two-point correlation — the "how many images are enough" number. CLI writes `out/uncertainty/`.
 
 ## Decision algorithm (`qc/decide.py`)
 
-Pure statistics on KPI, particle and imaging tables; it never sees image pixels. It follows PLAN_v3 §3.5, with the deviations listed below.
+Pure statistics on KPI, particle and imaging tables; it never sees image pixels. It follows PLAN_v4 §3.5; how it got there from the v3 design is listed below.
 
-**1. Tables and units.** `split_tables` groups `out/kpis.csv` into one `Tables` per batch (`kpis` now, `particles`/`imaging` once they exist). `compare(ref, batch, cfg)` builds both image units (one per image) and strip units (one per `strip_id`, with a value area-weighted over its images; equal weights where area is missing). `unit` selects which view drives the verdict; the other is reported alongside it. An image with a missing `strip_id` uses its `image_id` as the strip id.
+**1. Tables and units.** `split_tables` groups `out/kpis.csv` into one `Tables` per batch (`kpis`, `particles`, `imaging`). `compare(ref, batch, cfg)` builds both image units (one per image) and strip units (one per `strip_id`, with a value area-weighted over its images; equal weights where area is missing). `unit` selects which view drives the verdict; the other is reported alongside it. An image with a missing `strip_id` uses its `image_id` as the strip id.
 
 **2. Quantities.** `key_descriptors` in config order, then type-share quantities sorted by name, `KPI_UNITS`, then other numeric columns. Type shares count as keys when `key_type_shares` is true. `used` = key and measured on both sides (`note: "not measured"` otherwise).
 
@@ -309,9 +313,9 @@ Pure statistics on KPI, particle and imaging tables; it never sees image pixels.
 
 **9. Fingerprint and provenance.** `fingerprint.segments` stays at strip level for the image gallery; each descriptor's value and t-interval use the driving unit, with `by_strip` values from the strip segments. Type shares are listed separately in `fingerprint.type_shares`; `imaging`, `controls` and `explanations` remain available. Nearest batch, image groups and variance split were dropped: batch attribution (Pat's `qc/attribute.py`) replaces them. `qc/provenance.py` fills `provenance` (§3.11): SHA-256 per input TIFF, git commit + dirty flag, a canonical hash of the config plus hashes of `config/particle_types.json`/`config/kpi_dictionary.yaml` when present, the `rules-frozen` tag if it exists, and a timestamp — the only field that differs between identical runs.
 
-### Deviations from PLAN_v3
+### Changes from the v3 design
 
-Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; implemented in `qc/decide.py`.
+Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real strip layout; implemented in `qc/decide.py`. PLAN_v4 now states these as the plan; "the plan" and the section numbers in this list refer to the v3 text it replaced (git history).
 
 > **Mentor update (3 Oct), implemented here.** The image is the unit of the verdict, the strip view is computed alongside, and shared-strip logic is removed. Sorting images into batches is Pat's `qc/attribute.py`; the software side wraps it (see [docs/HANDOFF.md](docs/HANDOFF.md)).
 
@@ -355,13 +359,7 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 | `n_resamples`, `seed` | `5000`, `0` | Resampling budget and seed |
 | `odd_sd` | `3.0` | Odd range = baseline mean ± this × baseline SD at each unit; `null` turns it off |
 
-**Not built yet** (next pieces): controls (§3.7). The verdict logic already reacts to `new_type_share` and `imaging.changed` once they are filled; the batch-attribution views live in the web UI's Identify place.
-
-**Held-out protocol** (for batch attribution):
-1. Put the new images in their own folders under `data/`, never inside the known batch folders.
-2. Freeze the model, then `git tag rules-frozen`.
-3. Predict once.
-4. Commit the output unchanged.
+**Not built yet:** running the controls (§3.7) inside `run()`, so `Evidence.controls` stays empty. The verdict logic already reacts to it, to `new_type_share` and to `imaging.changed`.
 
 ### Evidence JSON (`schema.Evidence`)
 
@@ -412,17 +410,20 @@ For `si_graphite_ratio` r, silicon share is `s = r / (1 + r)`. Theoretical capac
 
 ## Batch attribution (Pat's `qc/attribute.py`)
 
-The software reads Pat's output as written on `pat/ml-v3` (4557035); it defines no classifier or attribution schema. `load_model()` reads the frozen model, and `attribute_images(image_dir, model, balanced=None)` writes `out/attribution/<folder>.json`. `qc.run.attribute()` calls those functions and sanitizes NaN/Infinity to JSON `null` for the browser.
+The software reads Pat's output as written; it defines no classifier or attribution schema. `load_model()` reads the model, and `attribute_images(image_dir, model, balanced=None)` writes `out/attribution/<folder>.json`. `qc.run.attribute()` calls those functions and sanitizes NaN/Infinity to JSON null.
 
-The per-run file contains the model summary, one image record with class probabilities, prediction/confidence, signed feature reasons, baseline distance/deviations and optional balanced assignment, plus prediction/unfamiliar counts. `--evaluate` writes `out/attribution/evaluation.json` with family-set LOSO scores, confusion, permutation nulls, shared-strip checks and ranked features.
+The per-run file contains the model summary and one record per image; the fields are listed under Folders above and explained in [docs/AGENT_HANDOVER.md](docs/AGENT_HANDOVER.md) §3.4. The UI shows the class probabilities, prediction and confidence, the reasons as code names, the baseline deviations and the optional balanced assignment; it does not yet show the tier, the stages, the prediction set or the reasons' plain-language text. `--evaluate` writes `out/attribution/evaluation.json` with family-set LOSO scores, confusion, permutation nulls, shared-strip checks and the feature ranking.
 
 The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution/{name}`, `GET /api/attribution-evaluation`, and `POST /api/attribution/{name}?balanced={k}`.
 
-**Drop protocol (PLAN_v4 §4)**
-1. Dry run with `uv run python -m qc.attribute --dry-run`.
-2. Fit the frozen model with `uv run python -m qc.attribute --fit`.
-3. Tag `rules-frozen`, covering `decision.yaml`, `particle_types.json` and `attribution_model.json`.
-4. Run `uv run python -m qc.attribute --images data/<drop> --balanced 3` once, then commit its output unchanged.
+**Held-out protocol (PLAN_v4 §4)**
+1. Put the new images in their own folder under `data/`, never inside the known batch folders.
+2. Rehearse with `uv run python -m qc.attribute --dry-run --repeats 30`.
+3. Fit the model with `uv run python -m qc.attribute --fit` (add `--families` or `--staged`).
+4. Tag `rules-frozen`, covering `decision.yaml`, `particle_types.json` and `attribution_model.json`.
+5. Run `uv run python -m qc.attribute --images data/<drop>` once, then copy `out/attribution/<drop>.json` to `results/` and commit it unchanged (`out/` is gitignored). Add `--balanced k` only if the split per batch is confirmed.
+
+The first unseen folder (`Hackathon-Polaron-test`, 3 samples) arrived on 3 Oct and is not scored yet; more images come shortly before judging. The order of work is in PLAN_v4 §4.
 
 ## Who owns what
 
@@ -435,15 +436,20 @@ The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution
 | `qc/types.py`, `qc/controls.py`, `qc/uncertainty.py`, `config/kpi_dictionary.yaml`, `tests/test_ml.py` | ML (Pat) |
 | `qc/features.py`, `qc/deep.py`, `qc/attribute.py`, `tests/test_attribute.py` | ML (Pat) |
 | `config/attribution_model.json` | ML (Pat), **frozen at `rules-frozen`** |
+| `docs/PAT_SUMMARY.md`, `docs/AGENT_HANDOVER.md` | ML (Pat) |
+| `docs/HANDOFF.md`, `docs/APP.md` | Software (Patrik) |
+| `docs/PLAN_v4.md` | **Both** |
 | `config/particle_types.json` | ML (Pat), **frozen at `rules-frozen`** |
 | `qc/explain.py` | Software (Patrik) |
 | `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
 | `qc/api.py`, `web/` | Software (Patrik) |
 | `qc/io.py`, `qc/run.py` | Shared glue |
 
-## Deviations from PLAN_v3
+## Changes from the v3 design (ML side)
 
-0. **A classifier trained on batch labels exists** (`qc/attribute.py`), against PLAN_v3 rule 2 and §3.12. It follows the task designer's clarification that the entry is judged on attributing held-back images to their batch; PLAN_v4 §2 narrows rule 2 to this track. The verdict path (`qc/decide.py`) stays statistical and does not use it. `config/decision.yaml` now says `baseline: Batch_3` on this branch too (same change as Patrik's `PtrkH/compare-v3`); `qc.attribute` reads it from the config.
+PLAN_v4 now states these as the plan; they are kept here as the record of what changed from the v3 text (git history).
+
+0. **A classifier trained on batch labels exists** (`qc/attribute.py`), against the v3 plan's rule 2 and §3.12. It follows the task designer's clarification that the entry is judged on attributing held-back images to their batch; PLAN_v4 §2 narrows rule 2 to this track. The verdict path (`qc/decide.py`) stays statistical and does not use it. `config/decision.yaml` now says `baseline: Batch_3` on this branch too (same change as Patrik's `PtrkH/compare-v3`); `qc.attribute` reads it from the config.
 
 1. **Hole filling and watershed splitting happen in `label_si()` at measure time**, not baked into the mask. The mask stays pure phase codes, so area fractions aren't altered by split lines.
 2. **Black level is computed inside `qc/measure.py`** (0.5th percentile per channel, identical to the planned `Field.black_level`), so the ML side doesn't depend on `qc/io.py` changes.
@@ -452,4 +458,4 @@ The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution
 5. **The "curtaining high → run-length descriptors NaN" rule is not applied in `kpis()`**: the threshold will be set from the real `curtaining_index` distribution; compare/run can apply it from `imaging.csv`.
 6. **`particles.csv` has extra `y_px, x_px` columns** (full-res centroid), used for example crops and the UI.
 7. **The integral range is computed as the angular integral** `2π·∫r·C̄(r)dr` of the count-weighted radial C(r) — mathematically identical to the 2D sum but far less noisy — and truncated at the first zero crossing. The literal uniform-weighted 2D sum is badly biased by the large-lag tail (it goes negative even for a random medium).
-8. **Si objects with median BSE < 1.5× the graphite mode are relabelled BINDER.** Not in PLAN_v3; added after the P2316 overlays showed carbon-binder and through-pore surfaces (1.3–1.5× graphite) labelled as Si. Real Si measured 1.6–2.4×. Knob: `SI_MIN_CONTRAST`.
+8. **Si objects with median BSE < 1.5× the graphite mode are relabelled BINDER.** Not in the v3 plan; added after the P2316 overlays showed carbon-binder and through-pore surfaces (1.3–1.5× graphite) labelled as Si. Real Si measured 1.6–2.4×. Knob: `SI_MIN_CONTRAST`.

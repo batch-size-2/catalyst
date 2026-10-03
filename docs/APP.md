@@ -21,27 +21,32 @@ Read the shared context and rules first.
 
 - **Baseline:** Batch_3 is what the supplier "promised". Batch_1 and Batch_2 arrived later. They are not better or worse; they show the kinds of variation we need to pick up.
 - **Defects:** the baseline isn't necessarily defect-free, and defects alone don't define the batches: "there's a lot of complex morphology features to examine".
-- **How the batches were made:** the data is real but the batches are synthetic. There is "usually some pattern that clusters the samples in a batch together".
+- **How the batches were made:** the data is real but the batches are synthetic: sampled from one of the organisers' datasets and "backward engineered" to create the task. There is "usually some pattern that clusters the samples in a batch together".
 - **Strips:** tiles cut from one long image (same `strip_id`) don't matter. Don't build on them. Never use them as features, nor image height or resolution tags, which identify strips. Hold whole strips out when estimating accuracy, because images from one strip are correlated.
 - **Tolerance:** a manufacturer would be wary of anything too far outside the baseline's standard deviation, in either direction.
 - **The judged test:** identify what is different about the batches, and so categorise held-back samples correctly. If that works, an unknown batch N can be called in or out of distribution. The core feature might be "given a sample image, can you categorise it into one of your batches?"
+- **Always a bet:** every image is assigned to a batch, with a confidence and an explanation. The system may say it is very unsure, but it never declines to answer.
+- **Silicon:** the bright particles are silicon; "the content % is for you to figure out". Show silicon content as a percentage in the compare view (PLAN_v4 §3.8).
+- **Imaging:** the unseen images use the same detectors. Everything was "normalised as best as possible by the user; preprocessing is up to you".
 - **Feature asks:** "a nice comparison UI that allows us to compare 2 batches and see their differences nicely visualised". Extra: "how would this material wear over time and degrade?"
 
 ### Data
 
-- **Images:** 31 images: Batch_1 = 7, Batch_2 = 7, Batch_3 = 17. Each has three detector files (BSE, ETD or SE, InLens), 8-bit, 25 nm per pixel. The images cost about £50k to collect; the raw files stay out of git, screenshots are fine (AGENTS.md).
+- **Images:** 31 images: Batch_1 = 7, Batch_2 = 7, Batch_3 = 17. Each has three detector files (BSE, ETD or SE, InLens), 8-bit, 25 nm per pixel. The images cost about £50k to collect.
 - **Anode:** bright = silicon, grey = graphite (particles about 30 µm, so only a few per image), black = pore. There are about 4,000 silicon particles in total.
-- **Imaging quirks** (PLAN_v3 §1.1):
+- **Imaging quirks** (PLAN_v4 §1.1):
   - the InLens detector saturates (more than 1% of pixels at 255 in 26 of 31 images) and has top-to-bottom shading;
   - four baseline images have a raised black level (22–23 instead of 0 in BSE);
   - coloured stitch columns at the edges are cropped at load.
-- **Still to come:**
-  - **9 held-back images** (27 files) from the three known batches, split unknown. Keep them unseen until attribution is frozen with a git tag, score them once, commit the result, then add them to training.
-  - **2 images at the presentation**, "which batch do they belong to, and WHY". (The brief also mentions an unseen batch dropping on day one; the organisers' latest messages describe it as the held-back samples above.)
-- **What Pat's first real measurements show** (branch `pat/ml-v3`, `docs/AGENT_HANDOVER.md`; first results, 3 Oct):
-  - with the current features, three-way attribution is at chance when whole strips are held out;
-  - Batch_3 vs the rest does separate on texture and material features, but imaging features alone also separate it, so acquisition differences must be ruled out;
-  - Batch_1's higher silicon comes almost entirely from one strip.
+- **Unseen images** (PLAN_v4 §1.3):
+  - **Arrived on 3 Oct:** folder `Hackathon-Polaron-test`, 9 files = **3 samples**, not the nine images we expected. The split across batches is unknown. Keep them unseen until attribution is frozen with a git tag, score them once and commit the result.
+  - **Still to come:** "further images coming just before the judging". Earlier we were told 2 images at the presentation, "which batch do they belong to, and WHY". There will be no time to refit: the live path is one command on the frozen model.
+- **What Pat's measurements show** (PLAN_v4 §12, 3 Oct evening):
+  - "Batch_3 or not" is right for 24–26 of 31 images when whole strips are held out;
+  - the three-way call reaches 0.64 with the deep features (shuffled labels give 0.54); the named features alone stay at chance;
+  - Batch_1 against Batch_2 is not separable with anything reliable, so that part of every call is a weak, labelled lean;
+  - imaging features alone also separate Batch_3 from the rest, so acquisition differences are not ruled out;
+  - Batch_1's higher silicon comes almost entirely from one strip; silicon content does not sort the batches (8.3 / 5.7 / 6.2 area %).
 
 ### How the features fit together
 
@@ -61,19 +66,18 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics,
 
 ### Rules for every feature agent
 
-- **Read first:** `AGENTS.md`, `README.md` (what's built), `docs/HANDOFF.md` (status and design notes), `docs/PLAN_v3.md` (the team plan).
+- **Read first:** `AGENTS.md`, `README.md` (what's built), `docs/HANDOFF.md` (status and design notes), `docs/PLAN_v4.md` (the team plan; what to do next is its §4).
 - **The model is Pat's,** including batch attribution.
   - She owns segmentation, KPIs, particles, particle types, imaging metrics, controls, uncertainty, the per-image feature table, the attribution model, and the content of `config/kpi_dictionary.yaml`.
   - Her files: `qc/measure.py`, `qc/types.py`, `qc/controls.py`, `qc/uncertainty.py`, `qc/features.py`, `qc/attribute.py`, `config/particle_types.json`, `config/attribution_model.json` and `KPI_UNITS`.
   - Don't edit them. Consume her outputs: `out/kpis.csv`, `out/particles.csv`, `out/imaging.csv`, `out/features.csv`, `out/attribution/<run>.json`.
-  - Her plan and status are in `docs/AGENT_HANDOVER.md` and the draft `docs/PLAN_v4.md` on branch `pat/ml-v3`.
+  - Her status is in `docs/PAT_SUMMARY.md` and `docs/AGENT_HANDOVER.md`; results are in `docs/PLAN_v4.md` §12.
 - **Feature-agnostic code.** New descriptor columns must flow through without code changes.
 - **Testing:**
   - judge model quality only on Pat's features, with whole strips held out;
   - test your own code on synthetic tables (`tests/synth.py`);
   - never train or tune on held-back images.
 - **Contract:** `qc/schema.py` changes are additive; mirror them in `web/src/types.ts`. Small PRs, with `uv run pytest` and `cd web && npm run build` green and the README in sync.
-- **No language model** measures, decides or explains: the organisers saw an LLM describe images well but fail to group batches.
 - **Shared prerequisite:** feeding Pat's particle and imaging outputs into the tables (HANDOFF step 3). Her branch already writes `out/particles.csv` and `out/imaging.csv` from `qc/run.py`, so check it before building any plumbing. Whoever needs it first does the rest as its own small PR.
 
 ### One visual language
@@ -138,7 +142,7 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics,
 **Why it matters:** "there is usually some pattern that clusters the samples in a batch together"; "given a set of images, would we be able to categorise them into batches?"
 
 **Core challenge:**
-- **Sampling noise vs real variation.** One image covers only a few graphite particles, so separate genuine variation from sampling noise. A useful yardstick is the expected spread for one image's area, from the two-point correlation / integral range (PLAN_v3 §3.6).
+- **Sampling noise vs real variation.** One image covers only a few graphite particles, so separate genuine variation from sampling noise. A useful yardstick is the expected spread for one image's area, from the two-point correlation / integral range (PLAN_v4 §3.6).
 - **Unsupervised check:** does clustering *without* labels recover the batches?
 - **Flag outliers inside a batch, including the baseline.** For example, the four baseline images with a raised black level.
 
@@ -223,7 +227,7 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics,
   - keeping it fast (instanced meshes, a few thousand particles, smooth on a laptop);
   - changing it visibly *and* truthfully when the metrics change.
 
-**Builds on:** PLAN_v3 §3.8 (indicative consequences).
+**Builds on:** PLAN_v4 §3.8 (indicative consequences).
 
 ### 7. Audit trail and traceability
 
@@ -246,7 +250,7 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics,
   - Exhibit B: the SHA-256 of every input image;
   - Exhibit C: the rules-frozen tag time ("the rules were fixed before the batch arrived");
   - Exhibit D: the images.
-- **The damages line is an obvious joke** built from inputs the presenter can change (vehicles recalled × cost per vehicle). It is labelled as made-up numbers: no real statistics (PLAN_v3: don't quote figures without a source).
+- **The damages line is an obvious joke** built from inputs the presenter can change (vehicles recalled × cost per vehicle). It is labelled as made-up numbers: no real statistics (PLAN_v4 §8: don't quote figures without a source).
 - **Fictional parties only:** never real carmakers, cell makers, suppliers or the sponsor. "PARODY. NOT LEGAL ADVICE." on screen and on the printout.
 - **Fixed templates, offline.** Optional flourishes: typewriter reveal, gavel sound, "Download PDF".
 - **The point underneath:** after a recall, a record like this decides who pays along the liability chain (carmaker → cell maker → supplier), and ours is ready.
@@ -261,7 +265,7 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics,
 
 **Great looks like:** "N images are enough to tell these batches apart", with the curve behind it.
 
-**Builds on:** PLAN_v3 §3.6, Pat's attribution evaluation (strip-held-out CV, permutation null) and `qc/uncertainty.py` (`integral_range`, `area_needed`), and the verdict's next action.
+**Builds on:** PLAN_v4 §3.6, Pat's attribution evaluation (strip-held-out CV, permutation null) and `qc/uncertainty.py` (`integral_range`, `area_needed`), and the verdict's next action.
 
 ### 9. The app: one product, and the demo
 

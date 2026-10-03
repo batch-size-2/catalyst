@@ -1,4 +1,4 @@
-"""The contract between the two halves of the pipeline (PLAN_v3 §3.1).
+"""The contract between the two halves of the pipeline (PLAN_v4 §3.1).
 
     ML side:      channels -> segment() -> mask -> kpis() -> one row  (qc/measure.py)
     Glue:         data/<batch>/*.tif -> out/kpis.csv -> evidence      (qc/run.py)
@@ -70,7 +70,7 @@ IMAGING_COLUMNS = ["batch", "image_id", "strip_id", "channel", "black_level", "p
 
 
 class Tables(NamedTuple):
-    """The measured tables of one batch (PLAN_v3 §3.1)."""
+    """The measured tables of one batch (PLAN_v4 §3.1)."""
 
     kpis: pd.DataFrame
     particles: pd.DataFrame
@@ -79,7 +79,7 @@ class Tables(NamedTuple):
 
 @dataclass
 class Control:
-    """A synthetic batch built from reference fields with a known answer (PLAN_v3 §3.7, §3.13).
+    """A synthetic batch built from reference fields with a known answer (PLAN_v4 §3.7, §3.13).
 
     kept_in_reference holds image_ids of split-strip images that stay in the reference.
     """
