@@ -224,3 +224,5 @@ Real-data run (31 images, all 93 TIFFs present locally): numbers in PLAN_v4 §12
 - Batch_1 vs Batch_2 is at chance.
 - Dry run: 3/9 correct, with all three Batch_3 images right.
 Next: find the B1/B2 signal (tile-level or deep features; normalise imaging before texture).
+
+Deep features (`qc/deep.py`, optional `deep` extra): pretrained DINOv2-small on InLens tiles, local CPU, pinned weights, no fine-tuning. `uv sync --extra deep && uv run --extra deep python -m qc.deep` merges 1,536 `deep_inlens_s2_*` columns into `out/features.csv`; `qc/attribute.py` reduces them to 10 PCs per training fold (`Reducer`). Use `--families deep` for evaluate/fit/dry-run. Numbers in PLAN_v4 §12. Caveats: the per-set nulls in `evaluation.json` don't correct for picking the best of 10 family sets; probabilities from the deep model are close to uniform (C picked at 0.01), so treat its confidence as weak; Batch_1 is still the weak class.

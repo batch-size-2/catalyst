@@ -123,3 +123,54 @@ def test_rank_features_uses_segment_means(table):
     assert {"feature", "family", "effect_size", "loso_acc", "mean_Batch_1", "mean_Batch_3"} <= set(rank.columns)
     assert rank["loso_acc"].iloc[0] >= 0.75
     assert rank["family"].isin(F.FAMILIES).all()
+
+
+# ---------------------------------------------------------------- deep_ family (no torch needed)
+
+def _fake_embed(x: np.ndarray) -> np.ndarray:
+    """Stand-in for DINOv2: a few tile statistics, so the plumbing is tested without the model."""
+    return np.stack([x.mean((1, 2)), x.std((1, 2)), np.percentile(x, 10, axis=(1, 2)), np.percentile(x, 90, axis=(1, 2))], 1)
+
+
+def test_deep_features_columns_and_merge(table):
+    from qc import deep as D
+
+    ch, _, _ = synth_field(seed=7, shape=(480, 960), n_si=20)
+    field = Field("Batch_1", "img_x", "1_1016000", ch, PX)
+    assert D.tiles(D.stretch(ch["InLens"]), scale=2, tile=64).shape[1:] == (64, 64)
+    assert D.tiles(np.zeros((40, 40), np.float32), scale=2, tile=64).shape == (1, 64, 64)  # padded
+    row = D.deep_features(field, embed=_fake_embed, tile=64)
+    cols = [c for c in row if c.startswith("deep_")]
+    assert cols[0] == "deep_inlens_s2_mean_000" and len(cols) == 8
+    F.assert_no_leakage(row)
+    deep = pd.DataFrame([row | {"image_id": table["image_id"].iloc[0], "batch": table["batch"].iloc[0]}])
+    merged = D.merge_deep(table, deep)
+    assert len(merged) == len(table) and merged[cols].notna().sum().min() == 1
+    again = D.merge_deep(merged, deep.assign(**{cols[0]: 99.0}))  # replaces, never duplicates
+    assert len(again) == len(table) and again[cols[0]].max() == 99.0
+
+
+@pytest.fixture(scope="module")
+def deep_table(table) -> pd.DataFrame:
+    """The synthetic table plus 300 deep_ columns: noise, with the batch signal in 3 directions."""
+    rng = np.random.default_rng(0)
+    y = table["batch"].map({"Batch_1": -1.0, "Batch_2": 1.0, "Batch_3": 0.0}).to_numpy()
+    basis = rng.normal(size=(3, 300))
+    deep = rng.normal(size=(len(table), 300)) + 3 * np.column_stack([y, y**2, y]) @ basis
+    return pd.concat([table, pd.DataFrame(deep, columns=[f"deep_inlens_s2_mean_{k:03d}" for k in range(300)])], axis=1)
+
+
+def test_reducer_fits_pca_inside_folds_and_roundtrips(deep_table, tmp_path):
+    cv = A.loso_cv(deep_table, ("deep",))
+    assert cv["n_features"] == 300 and cv["balanced_accuracy"] >= 0.75
+    model = A.fit_model(deep_table, "Batch_3", ("deep",))
+    assert model["model_features"] == [f"deep_pc{i:02d}" for i in range(1, A.DEEP_COMPONENTS + 1)]
+    assert len(model["coef"][0]) == A.DEEP_COMPONENTS and len(model["baseline_stats"]["mean"]) == A.DEEP_COMPONENTS
+    A.save_model(model, tmp_path / "m.json")
+    loaded = A.load_model(tmp_path / "m.json")
+    p1, p2 = A.predict(model, deep_table), A.predict(loaded, deep_table)
+    assert np.allclose(p1["p_Batch_1"], p2["p_Batch_1"])
+    assert all(r["feature"].startswith("deep_pc") for r in p1["reasons"].iloc[0])
+    mixed = A.fit_model(deep_table, "Batch_3", (*F.MATERIAL_FAMILIES, "deep"))  # material columns pass through
+    assert mixed["model_features"][-1] == f"deep_pc{A.DEEP_COMPONENTS:02d}" and "kpi_si_d50_um" in mixed["model_features"]
+    assert A.predict(mixed, deep_table)["predicted"].notna().all()

@@ -35,9 +35,10 @@ uv run python -m qc.types [--exclude Batch_2] [--porous-rule]             # fit 
 uv run python -m qc.controls --baseline data/Batch_3                      # controls -> out/controls/summary.csv
 uv run python -m qc.uncertainty --batch data/Batch_3                      # -> out/uncertainty/*.csv
 uv run python -m qc.features                                              # per-image feature table -> out/features.csv
+uv sync --extra deep && uv run --extra deep python -m qc.deep            # optional: DINOv2 deep_ columns merged into out/features.csv (CPU, local)
 uv run python -m qc.attribute --evaluate                                  # leave-one-strip-out + null per family -> out/attribution/evaluation.json
 uv run python -m qc.attribute --dry-run                                   # hold out 3 images per batch (whole strips), refit, predict
-uv run python -m qc.attribute --fit                                       # freeze the model -> config/attribution_model.json
+uv run python -m qc.attribute --fit [--families deep]                     # freeze the model -> config/attribution_model.json
 uv run python -m qc.attribute --images data/<drop> --balanced 3           # attribute unseen images -> out/attribution/<drop>.json
 
 # UI: two terminals
@@ -160,7 +161,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `out/controls/summary.csv` | no | Measured KPI shifts for every control |
 | `out/uncertainty/` | no | `threshold_variants.csv` (KPIs at thresholds ±5) and `integral_range.csv` (per image and phase) |
 | `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads only this and the masks |
-| `out/features.csv` | no | One row per image: `batch, image_id, strip_id` + `reg_`, `edge_`, `tex_`, `par_`, `kpi_`, `img_` features (`qc/features.py`). Never strip, size or pixel-size columns |
+| `out/features.csv` | no | One row per image: `batch, image_id, strip_id` + `reg_`, `edge_`, `tex_`, `par_`, `kpi_`, `img_` features (`qc/features.py`), plus optional `deep_` columns (`qc/deep.py`). Never strip, size or pixel-size columns |
 | `out/attribution/evaluation.json`, `feature_ranking.csv` | no | Leave-one-strip-out balanced accuracy, confusion, permutation null and shared-strip check per feature family; univariate feature ranking on strip-segment means |
 | `out/attribution/<drop>.json` | no | Per image: `p_Batch_*`, `predicted`, `confidence`, `reasons`, `baseline_distance`, `unfamiliar`, `deviations`, optional `assigned` (balanced) |
 | `tests/fixtures/kpis_fake.csv` | yes | Hand-made KPI table, so the backend and UI can be built with no images |
@@ -248,7 +249,9 @@ A KPI that isn't computed, or a tile whose segmentation crashes, is written as *
 
 **Features (`qc/features.py`, PLAN_v4 §3.14).** `image_features(field)` returns one row per image: regional descriptors per ~15 µm tile summarised over tiles (mean, SD, CV, p10/p50/p90, normalised depth slope, top/bottom ratio), the ignored top/bottom 5% bands measured separately, uniform-LBP histograms per channel (and BSE inside graphite and inside Si) plus GLCM statistics at 0.1 and 0.4 µm, image-level particle aggregates (incl. type shares if `config/particle_types.json` exists), the 15 KPIs, and the imaging descriptors. `assert_no_leakage()` refuses any column whose name mentions strip, height, width, px_um, xres or shape. `uv run python -m qc.features` writes `out/features.csv`.
 
-**Attribution and familiarity (`qc/attribute.py`, PLAN_v4 §3.15–3.17).** Material families only by default (`reg, edge, tex, par, kpi`; `img_` is reported apart because it is acquisition, not material). `loso_cv` holds out every image of one physical strip across all folders, standardises inside the fold and picks `C` from {0.01…1} by an inner leave-one-strip-out. `permutation_null` shuffles batch labels across strip segments (≥200×). `shared_strip_check` asks whether images of strips imaged in two folders were attributed to their own folder. `rank_features` scores each feature alone on strip-segment means. `fit_model` saves readable JSON; `predict` gives probabilities, the five largest `coef × z` reasons, the two-sided RMS-z distance to the Batch_3 strip segments with an `unfamiliar` flag (threshold = the baseline's own maximum held-out distance), and, with `--balanced k`, the Hungarian assignment of exactly *k* images per batch. `dry_run` rehearses the nine-image test holding out whole strips.
+**Deep features (`qc/deep.py`, optional, PLAN_v4 §3.14).** `uv sync --extra deep` adds CPU torch + transformers (CPU wheel index on Linux/Windows, PyPI on macOS). `deep_features(field)` embeds the InLens channel with the public `facebook/dinov2-small` (pinned revision, no fine-tuning): valid rows, p1–p99 stretch, 2×2 binning, 224 px tiles, CLS + mean patch token per tile, mean and SD over tiles → 1,536 `deep_inlens_s2_*` columns. Weights download once to the Hugging Face cache; set `HF_HUB_OFFLINE=1` afterwards. Images never leave the machine. `python -m qc.deep` merges the columns into `out/features.csv` (re-run it after `qc.features` rewrites a batch). `qc.attribute --images` computes them automatically when the frozen model uses them.
+
+**Attribution and familiarity (`qc/attribute.py`, PLAN_v4 §3.15–3.17).** Material families only by default (`reg, edge, tex, par, kpi`; `img_` is reported apart because it is acquisition, not material). `loso_cv` holds out every image of one physical strip across all folders, standardises inside the fold and picks `C` from {0.01…1} by an inner leave-one-strip-out. `permutation_null` shuffles batch labels across strip segments (≥200×). `shared_strip_check` asks whether images of strips imaged in two folders were attributed to their own folder. `rank_features` scores each feature alone on strip-segment means. `fit_model` saves readable JSON; `predict` gives probabilities, the five largest `coef × z` reasons, the two-sided RMS-z distance to the Batch_3 strip segments with an `unfamiliar` flag (threshold = the baseline's own maximum held-out distance), and, with `--balanced k`, the Hungarian assignment of exactly *k* images per batch. `dry_run` rehearses the nine-image test holding out whole strips. `deep_` columns are replaced by 10 principal components (`Reducer`) fit on the training rows of each fold; the frozen JSON stores the PCA mean, SD and components next to the coefficients, and reasons name `deep_pc01…10`.
 
 **Uncertainty (`qc/uncertainty.py`, PLAN_v3 §3.6).** `threshold_variants` re-runs segment+kpis at thresholds ±5 grey levels; `integral_range` estimates the phase-fraction SD for a given imaged area (and the area for a target SD) from the two-point correlation — the "how many images are enough" number. CLI writes `out/uncertainty/`.
 
@@ -357,7 +360,7 @@ What that means at our sample sizes:
 | `qc/schema.py`, `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv` | **Both.** The contract: changes need both of us |
 | `qc/measure.py` (`segment`, `kpis`, `particles`, `imaging`, `label_si`, `two_point`) | ML (Pat) |
 | `qc/types.py`, `qc/controls.py`, `qc/uncertainty.py`, `config/kpi_dictionary.yaml`, `tests/test_ml.py` | ML (Pat) |
-| `qc/features.py`, `qc/attribute.py`, `tests/test_attribute.py` | ML (Pat) |
+| `qc/features.py`, `qc/deep.py`, `qc/attribute.py`, `tests/test_attribute.py` | ML (Pat) |
 | `config/attribution_model.json` | ML (Pat), **frozen at `rules-frozen`** |
 | `config/particle_types.json` | ML (Pat), **frozen at `rules-frozen`** |
 | `qc/decide.py` (`judge`), `config/decision.yaml` | Software (Patrik) |

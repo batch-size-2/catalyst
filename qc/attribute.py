@@ -4,7 +4,9 @@ Answers two questions, kept apart from the QC verdict in qc/decide.py:
 
   1. Which known batch does an unseen image look like? A standardised, L2-regularised multinomial
      logistic regression on the per-image features from qc/features.py (material families only by
-     default). Evaluated with leave-one-strip-out CV, a permutation null over strip segments and a
+     default). The optional deep_ family (qc/deep.py, pretrained DINOv2) is first reduced to
+     DEEP_COMPONENTS principal components fit on the training rows (see Reducer); reasons then name
+     deep_pcNN. Evaluated with leave-one-strip-out CV, a permutation null over strip segments and a
      shared-strip check. The fitted coefficients are saved as JSON so every prediction is auditable.
   2. Is it inside the baseline's (Batch_3) distribution at all? Two-sided z-scores per feature against
      the baseline strip segments, a root-mean-square z distance, and an "unfamiliar" flag calibrated
@@ -16,7 +18,7 @@ only: the accept/reject verdict is still the statistical comparison in qc/decide
 
 Usage:
   uv run python -m qc.attribute --evaluate [--families reg,tex,...]   # out/attribution/evaluation.json
-  uv run python -m qc.attribute --fit                                  # config/attribution_model.json
+  uv run python -m qc.attribute --fit [--families deep]                # config/attribution_model.json
   uv run python -m qc.attribute --dry-run [--seed 0]                   # hold out 3 images per batch, refit, predict
   uv run python -m qc.attribute --images data/<drop> [--balanced 3]    # out/attribution/<drop>.json
 """
@@ -31,7 +33,7 @@ import pandas as pd
 from scipy.optimize import linear_sum_assignment
 from sklearn.linear_model import LogisticRegression
 
-from qc.features import FAMILIES, MATERIAL_FAMILIES, META_COLUMNS, assert_no_leakage, family_of, feature_columns, load_features
+from qc.features import ALL_FAMILIES, DEEP_FAMILY, FAMILIES, MATERIAL_FAMILIES, META_COLUMNS, assert_no_leakage, family_of, feature_columns, load_features
 from qc.schema import ATTRIBUTION_DIR, ATTRIBUTION_MODEL_PATH, attribution_path, load_config
 
 C_GRID = (0.01, 0.03, 0.1, 0.3, 1.0)
@@ -40,6 +42,7 @@ MIN_FRACTION_FINITE = 0.8     # features with fewer finite values are dropped be
 UNFAMILIAR_QUANTILE = 1.0     # flag threshold = this quantile of the baseline's own held-out distances
 Z_FLAG = 2.0                  # |z| beyond which a feature is listed as deviating from the baseline
 N_REASONS = 5
+DEEP_COMPONENTS = 10          # deep_ columns are replaced by this many principal components
 
 
 # ---------------------------------------------------------------- groups and matrices
@@ -80,6 +83,47 @@ class Standardiser:
     def __call__(self, X: np.ndarray) -> np.ndarray:
         Z = (X - self.mean) / self.sd
         return np.nan_to_num(Z, nan=0.0, posinf=0.0, neginf=0.0)
+
+
+class Reducer:
+    """Replaces the deep_ columns by their first DEEP_COMPONENTS principal components, fit on the
+    training rows after standardising; every other column passes through unchanged."""
+
+    def __init__(self, X: np.ndarray | None, features: list[str], k: int = DEEP_COMPONENTS):
+        self.features = list(features)
+        self.deep = np.array([f.startswith(f"{DEEP_FAMILY}_") for f in self.features], bool)
+        self.std, self.components = None, None
+        if X is not None and self.deep.any():
+            self.std = Standardiser(X[:, self.deep])
+            Z = self.std(X[:, self.deep])
+            k = max(1, min(k, len(Z) - 1, Z.shape[1]))
+            _, _, vt = np.linalg.svd(Z - Z.mean(axis=0), full_matrices=False)
+            self.components = vt[:k] * np.sign(vt[:k, [0]] + 1e-12)  # deterministic sign
+
+    @property
+    def names(self) -> list[str]:
+        kept = [f for f, d in zip(self.features, self.deep) if not d]
+        n = 0 if self.components is None else len(self.components)
+        return kept + [f"{DEEP_FAMILY}_pc{i + 1:02d}" for i in range(n)]
+
+    def __call__(self, X: np.ndarray) -> np.ndarray:
+        if self.components is None:
+            return X[:, ~self.deep]
+        return np.hstack([X[:, ~self.deep], self.std(X[:, self.deep]) @ self.components.T])
+
+    def to_json(self) -> dict | None:
+        if self.components is None:
+            return None
+        return {"mean": self.std.mean.tolist(), "sd": self.std.sd.tolist(), "components": self.components.tolist()}
+
+    @classmethod
+    def from_json(cls, features: list[str], d: dict | None) -> "Reducer":
+        r = cls(None, features)
+        if d:
+            r.std = Standardiser.__new__(Standardiser)
+            r.std.mean, r.std.sd = np.asarray(d["mean"]), np.asarray(d["sd"])
+            r.components = np.asarray(d["components"])
+        return r
 
 
 def _fit_lr(Z: np.ndarray, y: np.ndarray, C: float, seed: int = 0) -> LogisticRegression:
@@ -145,8 +189,10 @@ def loso_cv(df: pd.DataFrame, families=MATERIAL_FAMILIES, features: list[str] | 
         if len(np.unique(y[~test])) < 2:
             pred[test] = classes[0]
             continue
-        std = Standardiser(X[~test])
-        Ztr, Zte = std(X[~test]), std(X[test])
+        red = Reducer(X[~test], features)
+        Xtr, Xte = red(X[~test]), red(X[test])
+        std = Standardiser(Xtr)
+        Ztr, Zte = std(Xtr), std(Xte)
         C = _choose_c(Ztr, y[~test], groups[~test], seed=seed) if nested else C_GRID[2]
         chosen.append(C)
         model = _fit_lr(Ztr, y[~test], C, seed)
@@ -252,6 +298,7 @@ def evaluate(df: pd.DataFrame, families_sets: dict[str, tuple] | None = None, n_
     families_sets = families_sets or {
         "regional": ("reg",), "edge": ("edge",), "texture": ("tex",), "particles": ("par",), "kpis": ("kpi",),
         "imaging": ("img",), "material": MATERIAL_FAMILIES, "all": FAMILIES,
+        "deep": (DEEP_FAMILY,), "deep+material": (*MATERIAL_FAMILIES, DEEP_FAMILY),
     }
     report: dict = {"n_images": int(len(df)), "batches": sorted(df["batch"].unique()), "family_sets": {}}
     for name, fams in families_sets.items():
@@ -282,17 +329,21 @@ def fit_model(df: pd.DataFrame, baseline: str, families=MATERIAL_FAMILIES, seed:
     """
     features = usable_features(df, families)
     X, y, groups = _matrix(df, features), df["batch"].to_numpy(str), df["strip_id"].map(strip_group).to_numpy(str)
-    std = Standardiser(X)
-    Z = std(X)
+    red = Reducer(X, features)
+    Xr = red(X)
+    std = Standardiser(Xr)
+    Z = std(Xr)
     C = C or _choose_c(Z, y, groups, seed=seed)
     lr = _fit_lr(Z, y, C, seed)
     cv = loso_cv(df, families, features=features, seed=seed)
-    base = baseline_stats(df, features, baseline)
+    base = baseline_stats(df, features, baseline, red)
     return {
         "version": "v4-draft",
         "fitted_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "families": list(families),
         "features": features,
+        "model_features": red.names,
+        "reducer": red.to_json(),
         "classes": [str(c) for c in lr.classes_],
         "baseline": baseline,
         "C": C,
@@ -306,7 +357,7 @@ def fit_model(df: pd.DataFrame, baseline: str, families=MATERIAL_FAMILIES, seed:
     }
 
 
-def baseline_stats(df: pd.DataFrame, features: list[str], baseline: str) -> dict:
+def baseline_stats(df: pd.DataFrame, features: list[str], baseline: str, reducer: "Reducer | None" = None) -> dict:
     """Mean/SD per feature over the baseline's strip segments, and the unfamiliar threshold.
 
     Threshold: for each baseline strip, standardise by the other baseline strips and take the RMS z of
@@ -316,8 +367,10 @@ def baseline_stats(df: pd.DataFrame, features: list[str], baseline: str) -> dict
     ref = df[df["batch"].astype(str) == str(baseline)]
     if ref.empty:
         return {"n_segments": 0, "mean": None, "sd": None, "threshold": None, "held_out_distances": []}
+    reducer = reducer or Reducer(None, features)
+    R = pd.DataFrame(reducer(_matrix(ref, features)), columns=reducer.names, index=ref.index)
     seg = ref["strip_id"].map(strip_group)
-    seg_means = ref.groupby(seg)[features].mean(numeric_only=True)
+    seg_means = R.groupby(seg).mean()
     mean = seg_means.mean().to_numpy(float)
     sd = seg_means.std(ddof=1).to_numpy(float) if len(seg_means) > 1 else np.full(len(features), np.nan)
     sd = np.where(np.isfinite(sd) & (sd > 0), sd, np.nan)
@@ -328,7 +381,7 @@ def baseline_stats(df: pd.DataFrame, features: list[str], baseline: str) -> dict
             continue
         m, d = others.mean().to_numpy(float), others.std(ddof=1).to_numpy(float)
         d = np.where(np.isfinite(d) & (d > 0), d, np.nan)
-        Xs = _matrix(ref[seg == s], features)
+        Xs = R[seg == s].to_numpy(float)
         distances += [_rms_z((x - m) / d) for x in Xs]
     threshold = float(np.quantile(distances, UNFAMILIAR_QUANTILE)) if distances else None
     return {
@@ -361,7 +414,9 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
     class that maximises the summed log-probability (for the designed 3-per-batch test).
     """
     features, classes = model["features"], model["classes"]
+    names = model.get("model_features", features)
     X = feats.reindex(columns=features).apply(pd.to_numeric, errors="coerce").to_numpy(float)
+    X = Reducer.from_json(features, model.get("reducer"))(X)
     Z = np.nan_to_num((X - np.asarray(model["mean"])) / np.asarray(model["sd"]))
     coef, intercept = np.asarray(model["coef"]), np.asarray(model["intercept"])
     logits = Z @ coef.T + intercept
@@ -376,7 +431,7 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
         k = pred_idx[i]
         contrib = coef[k] * Z[i]
         order = np.argsort(-np.abs(contrib))[:N_REASONS]
-        reasons = [{"feature": features[j], "z": round(float(Z[i, j]), 2), "contribution": round(float(contrib[j]), 3)} for j in order if contrib[j] != 0]
+        reasons = [{"feature": names[j], "z": round(float(Z[i, j]), 2), "contribution": round(float(contrib[j]), 3)} for j in order if contrib[j] != 0]
         dist = baseline_distance(model, X[i])
         rows.append(
             {
@@ -406,7 +461,7 @@ def baseline_distance(model: dict, x: np.ndarray) -> dict:
     z = (x - mean) / sd
     order = np.argsort(-np.abs(np.nan_to_num(z)))
     deviations = [
-        {"feature": model["features"][j], "z": round(float(z[j]), 2), "direction": "above" if z[j] > 0 else "below"}
+        {"feature": model.get("model_features", model["features"])[j], "z": round(float(z[j]), 2), "direction": "above" if z[j] > 0 else "below"}
         for j in order[:N_REASONS] if np.isfinite(z[j]) and abs(z[j]) >= Z_FLAG
     ]
     dist = _rms_z(z)
@@ -474,6 +529,10 @@ def attribute_images(image_dir: Path, model: dict, balanced: int | None = None) 
     from qc.features import build_features
 
     feats = build_features([image_dir], lambda d, t, s: print(f"[{d}/{t}] {s}"))
+    if any(f.startswith(f"{DEEP_FAMILY}_") for f in model["features"]):
+        from qc.deep import build_deep, merge_deep
+
+        feats = merge_deep(feats, build_deep([image_dir], lambda d, t, s: print(f"[{d}/{t}] deep {s}")))
     pred = predict(model, feats, balanced=balanced)
     result = {
         "run": image_dir.name,
@@ -510,7 +569,7 @@ if __name__ == "__main__":
     ap.add_argument("--fit", action="store_true", help="fit on all rows of out/features.csv and save config/attribution_model.json")
     ap.add_argument("--dry-run", action="store_true", help="hold out 3 images per batch, refit, predict")
     ap.add_argument("--images", type=Path, help="flat folder of unseen images to attribute with the saved model")
-    ap.add_argument("--families", default=",".join(MATERIAL_FAMILIES), help=f"comma list from {FAMILIES}")
+    ap.add_argument("--families", default=",".join(MATERIAL_FAMILIES), help=f"comma list from {ALL_FAMILIES} (deep needs qc.deep)")
     ap.add_argument("--balanced", type=int, default=None, help="also report the k-per-batch balanced assignment")
     ap.add_argument("--permutations", type=int, default=N_PERMUTATIONS)
     ap.add_argument("--seed", type=int, default=0)

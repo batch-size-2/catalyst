@@ -11,6 +11,7 @@ family can be switched on or off in qc/attribute.py:
     par_   particle aggregates from particles(): size quantiles, contrast, voids, shape, type shares
     kpi_   the 15 whole-image descriptors from kpis()
     img_   imaging descriptors per channel: acquisition, not material. Kept apart on purpose
+    deep_  optional: pretrained DINOv2 tile embeddings, added by qc/deep.py (not computed here)
 
 Leakage rule (AGENT_HANDOVER §4 G4): strip_id, image height or width, px_um and XResolution are
 never features. `assert_no_leakage()` enforces it on every table this module writes.
@@ -38,6 +39,8 @@ from qc.schema import FEATURE_TABLE, KPI_UNITS, Field, Phase
 META_COLUMNS = ["batch", "image_id", "strip_id"]
 FAMILIES = ("reg", "edge", "tex", "par", "kpi", "img")
 MATERIAL_FAMILIES = ("reg", "edge", "tex", "par", "kpi")
+DEEP_FAMILY = "deep"           # pretrained DINOv2 embeddings, written by qc/deep.py (optional extra)
+ALL_FAMILIES = (*FAMILIES, DEEP_FAMILY)
 FORBIDDEN = ("strip", "height", "width", "px_um", "xres", "resolution", "shape")
 
 TILE_UM = 15.0

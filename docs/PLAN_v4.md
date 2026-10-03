@@ -72,7 +72,7 @@ One row per image, `batch, image_id, strip_id` plus features in six families, ea
 | KPIs | `kpi_` | The 15 descriptors of `kpis()` | The v3 whole-image view, kept as its own family so its (lack of) separation stays visible |
 | Imaging | `img_` | `imaging()` per channel | Acquisition, not material. In the table, out of the default model |
 
-Rules: no `strip_id`, height, width, `px_um` or XResolution in any feature; `assert_no_leakage()` runs on every table written. Tile size is in µm so nothing depends on image size. Positions are normalised 0–1. Deep features (plain DINOv2 patch embeddings, not Polaron's HR-Dv2) are a possible seventh family if the six above fail the protocol of §3.17; they need torch and a permission answer to v3 §10 Q8 for any hosted inference, so they stay a plan item until then.
+Rules: no `strip_id`, height, width, `px_um` or XResolution in any feature; `assert_no_leakage()` runs on every table written. Tile size is in µm so nothing depends on image size. Positions are normalised 0–1. Deep features (`qc/deep.py`, the seventh family `deep_`, optional extra): the public `facebook/dinov2-small` checkpoint at a pinned revision, used as is (no fine-tuning), run locally on CPU; no image leaves the machine and no hosted inference is used (v3 §10 Q8 untouched). Not Polaron's HR-Dv2. Per image: InLens only, valid rows, p1–p99 stretch (removes the black-level difference), 2×2 binning, 224 px tiles (~11 µm), CLS + mean patch token per tile, mean and SD over tiles: 1,536 columns. `qc/attribute.py` reduces them to 10 principal components fit inside each training fold before the logistic fit, so reasons read `deep_pc01…10`. The deep family explains *that* images differ, not *how* in µm; the material families and the statistical comparison stay the explanation.
 
 Command: `uv run python -m qc.features` → `out/features.csv`.
 
@@ -227,6 +227,18 @@ Two-way splits, same protocol (one-off script, not yet a CLI option):
 - **Shared strips:** no family set consistently places the images of a shared strip into their own folders.
 
 Reading: the current features can say "looks like the promised Batch_3, or not", at about 0.85 against a null of about 0.70, with the acquisition caveat above. They cannot yet tell Batch_1 from Batch_2. The nine-image test needs that, so the designed B1/B2 signal is still missing from the feature set.
+
+### 12.1 Deep features (`qc/deep.py`, InLens DINOv2-small, 10 PCs per fold)
+
+| Check | Result |
+|---|---|
+| Three-way LOSO, nested `C` (`loso_cv(df, ("deep",))`) | 0.64; Batch_1 3/7, Batch_2 5/7, Batch_3 13/17 |
+| Same, fixed `C` = 0.1 (exploration) | 0.68 |
+| Selection-aware null: best of 6 deep settings per shuffle, 100 segment shuffles | p95 0.60, p99 0.67 |
+| Batch_1 vs Batch_2 alone (exploration) | 0.57 against a null p95 of 0.71: not separable |
+| Dry run `--families deep` (same 9 images as §12) | 6/9 unconstrained, 3/9 balanced; every probability about 0.34 because the inner CV picks `C` = 0.01 |
+
+Reading: the deep family is the first one above its null for the three-way question, and Batch_2 has a fine-scale InLens look of its own. Batch_1 is still confused with the other two (strip 2316 reads as Batch_3), and the near-uniform probabilities mean any single call is weak. Full `--evaluate` numbers per family set will be added after the run.
 
 ## 13. Evidence for the new decisions
 

@@ -17,6 +17,13 @@ dependencies = [
     "uvicorn>=0.54.0",
 ]
 
+[project.optional-dependencies]
+# pretrained DINOv2 features (qc/deep.py): uv sync --extra deep. CPU-only torch on Linux/Windows.
+deep = [
+    "torch>=2.8",
+    "transformers>=4.56,<5",
+]
+
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
@@ -25,6 +32,14 @@ dev = [
 
 [tool.uv]
 exclude-newer = "2026-09-26T00:00:00Z"
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
