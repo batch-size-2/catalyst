@@ -1,6 +1,6 @@
 import type {
   Attribution, AttributionEvaluation, AttributionEvent, BatchSummary, Config, Evidence,
-  KpiDictionary, RunEvent, Tile, VerifyResult,
+  KpiDictionary, ModelStatus, RunEvent, Tile, VerifyResult,
 } from "./types";
 
 async function getJson<T>(url: string): Promise<T> {
@@ -18,6 +18,7 @@ export const listAttributions = () => getJson<string[]>("/api/attribution");
 export const getAttribution = (name: string) => getJson<Attribution>(`/api/attribution/${enc(name)}`);
 export const getAttributionEvaluation = () =>
   getJson<AttributionEvaluation>("/api/attribution-evaluation");
+export const getModelStatus = () => getJson<ModelStatus>("/api/attribution-model");
 export const getTiles = () => getJson<Tile[]>("/api/tiles");
 export const getKpiDictionary = () => getJson<KpiDictionary>("/api/kpis");
 

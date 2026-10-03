@@ -1,4 +1,4 @@
-import { getConfig, getEvidence, getTiles } from "./api";
+import { getConfig, getModelStatus, getTiles } from "./api";
 import Audit from "./components/Audit";
 import Compare from "./components/Compare";
 import Identify from "./components/Identify";
@@ -13,16 +13,14 @@ export default function App() {
   const config = useApi(getConfig);
   const tiles = useApi(getTiles, [route.join("/")]);
   const baseline = config.data?.baseline ?? null;
-  const baselineEvidence = useApi(
-    () => (baseline ? getEvidence(baseline).catch(() => null) : Promise.resolve(null)),
-    [baseline],
-  );
+  const model = useApi(getModelStatus, [route.join("/")]);
 
   const info: ShellInfo = {
     baseline,
     baselineTiles: baseline ? (tiles.data?.filter((t) => t.batch === baseline).length ?? null) : null,
     totalTiles: tiles.data?.filter((t) => !isUploadBatch(t.batch)).length ?? null,
-    frozen: baselineEvidence.data?.provenance?.rules_frozen_commit ?? null,
+    frozen: model.data?.matches_frozen ? model.data.rules_frozen_commit : null,
+    modelChanged: model.data?.matches_frozen === false,
   };
 
   const crumbs: Record<string, React.ReactNode[]> = {

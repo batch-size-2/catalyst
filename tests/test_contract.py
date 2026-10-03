@@ -16,6 +16,7 @@ from qc.api import app
 from qc.decide import evaluate, power, split_tables
 from qc.io import field_paths, iter_fields, preview_png
 from qc.measure import kpis, segment
+from qc.provenance import sha256
 from qc.run import attribution_module, read_json, run
 from qc.schema import (
     DETECTORS, KPI_TABLE_COLUMNS, KPI_UNITS, Evidence, Phase, evidence_path, load_config, mask_path,
@@ -127,6 +128,21 @@ def test_api_reads_pat_attribution_files(tmp_path, monkeypatch):
     assert client.get("/api/attribution/missing").status_code == 404
     evaluation_path.unlink()
     assert client.get("/api/attribution-evaluation").status_code == 404
+
+
+def test_api_reports_the_attribution_model_in_use(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    client = TestClient(app)
+    assert client.get("/api/attribution-model").status_code == 404
+    Path("config").mkdir()
+    model = {"kind": "staged", "staged": [["tex"], ["deep"]], "fitted_at": "2026-10-03T21:27:23", "classes": ["Batch_1", "Batch_3"],
+             "baseline": "Batch_3", "trained_on": {"Batch_1": ["a"], "Batch_3": ["b", "c"]}, "loso": {"balanced_accuracy": 0.66}}
+    Path("config/attribution_model.json").write_text(json.dumps(model))
+    status = client.get("/api/attribution-model").json()
+    assert status["kind"] == "staged" and status["fitted_at"] == model["fitted_at"]
+    assert status["n_trained_on"] == {"Batch_1": 1, "Batch_3": 2} and status["loso_balanced_accuracy"] == 0.66
+    assert status["sha256"] == sha256(Path("config/attribution_model.json"))
+    assert status["matches_frozen"] is None  # no rules-frozen tag here
 
 
 def test_read_json_maps_nonstandard_numbers_to_null(tmp_path):

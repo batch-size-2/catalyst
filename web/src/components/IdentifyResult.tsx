@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { getKpiDictionary, imageUrl } from "../api";
-import { batchColor, batchLabel, featureLabel, sigmaPos, useApi } from "../lib";
+import { getKpiDictionary, getModelStatus, imageUrl } from "../api";
+import { batchColor, batchLabel, featureLabel, modelName, record, shortHash, sigmaPos, useApi } from "../lib";
 import { href } from "../router";
-import type { Attribution, AttributedImage } from "../types";
+import type { Attribution, AttributedImage, AttributionReason, KpiDictionary, ModelStatus } from "../types";
 import { Cat, Panel } from "./bits";
 
 export default function IdentifyResult({
@@ -16,6 +16,7 @@ export default function IdentifyResult({
 }) {
   const [index, setIndex] = useState(0);
   const dict = useApi(getKpiDictionary);
+  const current = useApi(getModelStatus);
   const image = attribution.images[Math.min(index, attribution.images.length - 1)];
   if (!image) return null;
   const detector = "BSE";
@@ -80,12 +81,12 @@ export default function IdentifyResult({
             <h2 className="m-0 text-lg font-medium tracking-[-0.01em]">Why {batchLabel(image.predicted)}</h2>
             <span className="flex items-center gap-1.5 text-xs text-cx-muted">
               <span className="h-3 w-0.5 bg-cx-text-strong" />
-              This tile · −3σ to +3σ vs the baseline
+              This tile · −3σ to +3σ vs {batchLabel(attribution.model.baseline)}
             </span>
           </div>
           <div className="lbl grid grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_140px] gap-5 border-b border-cx-line py-2">
-            <span>Feature the model used</span>
-            <span>Score vs baseline (σ)</span>
+            <span>What the model looked at</span>
+            <span>What it found</span>
             <span className="text-right">Pull</span>
           </div>
           {image.reasons.map((reason) => (
@@ -93,6 +94,7 @@ export default function IdentifyResult({
               key={reason.feature}
               reason={reason}
               predicted={image.predicted}
+              baseline={attribution.model.baseline}
               dict={dict.data}
               maxContribution={Math.max(
                 1e-9,
@@ -107,22 +109,8 @@ export default function IdentifyResult({
         </Panel>
 
         <div className="col-span-4 flex min-w-0 flex-col gap-4">
-          <CatCard image={image} classes={attribution.model.classes} />
-          <Panel className="flex flex-col gap-3">
-            <h3 className="m-0 text-[15px] font-medium">The counts</h3>
-            <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-[13px]">
-              <dt className="text-cx-faint">Fitted</dt>
-              <dd className="mono m-0 text-right">{attribution.model.fitted_at.slice(0, 10)}</dd>
-              <dt className="text-cx-faint">Deviating</dt>
-              <dd className="mono m-0 text-right">{image.n_deviating ?? 0} features</dd>
-              {image.strip_id && (
-                <>
-                  <dt className="text-cx-faint">Strip</dt>
-                  <dd className="mono m-0 text-right">{image.strip_id}</dd>
-                </>
-              )}
-            </dl>
-          </Panel>
+          <CatCard image={image} baseline={attribution.model.baseline} />
+          <ModelPanel image={image} attribution={attribution} current={current.data} />
         </div>
       </div>
 
@@ -137,7 +125,7 @@ export default function IdentifyResult({
           <div className="grid grid-cols-4 gap-3">
             {image.deviations.map((dev) => (
               <div key={dev.feature} className="panel flex flex-col gap-3 rounded-[18px] p-[18px]">
-                <span className="text-[13px] text-cx-muted">{featureLabel(dev.feature, dict.data)}</span>
+                <span className="text-[13px] text-cx-muted">{dev.label ?? featureLabel(dev.feature, dict.data)}</span>
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="mono text-[22px] tracking-[-0.02em]">
                     {dev.z != null ? `${dev.z > 0 ? "+" : ""}${dev.z.toFixed(1)}σ` : "—"}
@@ -165,7 +153,7 @@ export default function IdentifyResult({
         ) : (
           <Panel className="flex items-center gap-3 text-sm text-cx-muted">
             <Cat mood="ready" size={30} />
-            Every measured feature sits inside the baseline range — nothing deviates beyond ±2σ.
+            Every feature the model uses sits inside the baseline range — nothing deviates beyond ±2σ.
           </Panel>
         )}
       </section>
@@ -187,10 +175,14 @@ function Hero({
   const probs = attribution.model.classes
     .map((cls) => ({ cls, p: image[`p_${cls}`] ?? 0 }))
     .sort((a, b) => b.p - a.p);
-  const accuracy = attribution.model.loso_balanced_accuracy;
-  const chance = attribution.model.classes.length ? 1 / attribution.model.classes.length : null;
   const distance = image.baseline_distance;
   const threshold = image.baseline_threshold;
+  const baseline = attribution.model.baseline;
+  const alpha = attribution.model.calibration?.conformal?.alpha;
+  const own =
+    image.predicted_distance != null && image.predicted_threshold != null
+      ? ` (${image.predicted_distance.toFixed(1)} against a limit of ${image.predicted_threshold.toFixed(1)})`
+      : "";
 
   return (
     <section aria-label="Verdict" className="flex flex-col">
@@ -206,7 +198,7 @@ function Hero({
         style={{ background: "linear-gradient(180deg, rgba(30,31,36,.55), rgba(18,19,22,.72))" }}
       >
         <div className="col-span-7 flex min-w-0 flex-col gap-3.5">
-          <div className="lbl">Closest match</div>
+          <div className="lbl">Our bet</div>
           <div className="flex flex-wrap items-center gap-4">
             <span
               className="h-[18px] w-[18px] rounded-md"
@@ -220,30 +212,26 @@ function Hero({
             )}
           </div>
           <p className="m-0 max-w-[520px] text-base leading-normal text-cx-text-2">
-            {heroSentence(image, probs)}
+            {heroSentence(image, probs, baseline)}
           </p>
           <div className="flex flex-wrap gap-2 pt-1">
+            {image.confidence_tier && <TierPill image={image} />}
             {image.unfamiliar === true ? (
               <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-cx-investigate/40 bg-cx-investigate/10 px-3 text-[13px] text-cx-investigate-text">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="M12 4l9 16H3l9-16z" />
                   <path d="M12 10v4M12 17h.01" />
                 </svg>
-                Unfamiliar: outside the range of known tiles
+                Unfamiliar: outside the range of the {batchLabel(image.predicted)} tiles we know{own}
               </span>
-            ) : (
-              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-cx-accept/30 bg-cx-accept/10 px-3 text-[13px] text-cx-accept-text">
+            ) : image.unfamiliar === false ? (
+              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-cx-line bg-white/5 px-3 text-[13px] text-cx-text-2">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="M5 12l5 5 9-10" />
                 </svg>
-                Familiar: within the range of known tiles
+                Within the range of the {batchLabel(image.predicted)} tiles we know{own}
               </span>
-            )}
-            {accuracy != null && chance != null && (
-              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-cx-line bg-white/5 px-3 text-[13px] text-cx-text-2">
-                Model is right {Math.round(accuracy * 100)}% of the time · chance {Math.round(chance * 100)}%
-              </span>
-            )}
+            ) : null}
           </div>
         </div>
         <div className="col-span-5 flex min-w-0 flex-col justify-center gap-3.5">
@@ -259,24 +247,48 @@ function Hero({
               <span className="mono text-right text-cx-text-2">{Math.round(p * 100)}%</span>
             </div>
           ))}
-          <div className="flex items-center gap-2.5 border-t border-cx-line pt-2.5 text-[13px] text-cx-muted">
-            <span>Distance from baseline</span>
-            <div className="relative h-1.5 flex-1 rounded-[3px] bg-white/[0.07]">
-              {distance != null && threshold ? (
-                <>
+          <div className="flex flex-col gap-2 border-t border-cx-line pt-3 text-[13px]">
+            {image.stage_baseline && (
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-cx-muted">Different from the baseline?</span>
+                <span>
+                  {image.stage_baseline.call === baseline ? `No, fits ${batchLabel(baseline)}` : `Yes, not ${batchLabel(baseline)}`}{" "}
+                  <span className="mono text-cx-text-2">{pct(image.stage_baseline.confidence)}</span>
+                </span>
+              </div>
+            )}
+            {image.stage_variation && (
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-cx-muted">In what way?</span>
+                <span>
+                  Leans to {batchLabel(image.stage_variation.call)}{" "}
+                  <span className="mono text-cx-text-2">{pct(image.stage_variation.confidence)}</span>
+                </span>
+              </div>
+            )}
+            {image.prediction_set && image.prediction_set.length > 0 && (
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-cx-muted">
+                  Could be{alpha != null ? ` (right about ${Math.round((1 - alpha) * 10)} times in 10)` : ""}
+                </span>
+                <span>{image.prediction_set.map(batchLabel).join(" or ")}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2.5 text-cx-muted">
+              <span>Distance from baseline</span>
+              <div className="relative h-1.5 flex-1 rounded-[3px] bg-white/[0.07]">
+                {distance != null && threshold ? (
                   <div
                     className="absolute inset-y-0 left-0 rounded-[3px] bg-white/55"
                     style={{ width: `${Math.min(100, (distance / threshold) * 100)}%` }}
                   />
-                  <div className="absolute -top-[5px] -bottom-[5px] left-full w-0.5 bg-cx-investigate" />
-                </>
-              ) : (
+                ) : null}
                 <div className="absolute -top-[5px] -bottom-[5px] left-full w-0.5 bg-cx-investigate" />
-              )}
+              </div>
+              <span className="mono text-cx-text">
+                {distance != null ? `${distance.toFixed(1)} / ${threshold?.toFixed(1) ?? "?"}` : "—"}
+              </span>
             </div>
-            <span className="mono text-cx-text">
-              {distance != null ? `${distance.toFixed(1)} / ${threshold?.toFixed(1) ?? "?"}` : "—"}
-            </span>
           </div>
         </div>
       </div>
@@ -284,54 +296,105 @@ function Hero({
   );
 }
 
-function heroSentence(image: AttributedImage, probs: { cls: string; p: number }[]): string {
-  const second = probs[1];
-  if (image.unfamiliar) {
-    return `Closest to ${batchLabel(image.predicted)}, but the tile sits outside what the model knows — treat the call with care.`;
-  }
-  if (second && image.confidence != null && image.confidence - second.p > 0.3) {
-    return `Clearly closer to ${batchLabel(image.predicted)} than to the others. ${batchLabel(second.cls)} is a distant second at ${Math.round(second.p * 100)}%.`;
-  }
-  if (second) {
-    return `Closest to ${batchLabel(image.predicted)}, with ${batchLabel(second.cls)} not far behind at ${Math.round(second.p * 100)}%.`;
-  }
-  return `Closest to ${batchLabel(image.predicted)}.`;
+/** Folder names as people read them: "Batch_3" -> "Batch 3". */
+const plain = (text: string) => text.replace(/Batch_(\w+)/g, "Batch $1");
+
+const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)}%`);
+
+const TIER_STYLE: Record<string, string> = {
+  high: "border-cx-accept/30 bg-cx-accept/10 text-cx-accept-text",
+  medium: "border-cx-line bg-white/5 text-cx-text-2",
+  low: "border-cx-investigate/40 bg-cx-investigate/10 text-cx-investigate-text",
+};
+
+/** The confidence tier with its record: how often held-out calls this sure were right. */
+function TierPill({ image }: { image: AttributedImage }) {
+  const tier = image.confidence_tier ?? "low";
+  const rec = image.confidence_record;
+  return (
+    <span className={`inline-flex min-h-8 items-center gap-2 rounded-full border px-3 text-[13px] ${TIER_STYLE[tier]}`}>
+      <span className="font-medium capitalize">{tier} confidence</span>
+      {rec && <span>· calls this sure were right {record(rec)} times on strips the model never saw</span>}
+    </span>
+  );
 }
+
+function heroSentence(image: AttributedImage, probs: { cls: string; p: number }[], baseline: string): string {
+  const first = image.stage_baseline;
+  const second = image.stage_variation;
+  if (first && first.call === baseline) {
+    return `Fits the baseline: ${pct(first.confidence)} that this tile is ${batchLabel(baseline)}.`;
+  }
+  if (first && second) {
+    const weak = image.confidence_tier === "low" ? " That lean is weak; the first half is the reliable part." : "";
+    return `Different from the baseline: ${pct(first.confidence)} that it is not ${batchLabel(baseline)}. Between the other batches it leans to ${batchLabel(second.call)} (${pct(second.confidence)}).${weak}`;
+  }
+  const runnerUp = probs[1];
+  return runnerUp
+    ? `Closest to ${batchLabel(image.predicted)}, with ${batchLabel(runnerUp.cls)} next at ${pct(runnerUp.p)}.`
+    : `Closest to ${batchLabel(image.predicted)}.`;
+}
+
+const STAGE_LABEL = (stage: string | undefined, baseline: string) =>
+  stage === "baseline" ? `${batchLabel(baseline)} or not` : stage === "variation" ? "Which other batch" : null;
 
 function ReasonRow({
   reason,
   predicted,
+  baseline,
   dict,
   maxContribution,
 }: {
-  reason: { feature: string; z: number | null; contribution: number | null };
+  reason: AttributionReason;
   predicted: string;
-  dict: import("../types").KpiDictionary | null;
+  baseline: string;
+  dict: KpiDictionary | null;
   maxContribution: number;
 }) {
-  const z = reason.z ?? 0;
   const c = reason.contribution ?? 0;
   const toward = c >= 0;
   const width = Math.min(50, (Math.abs(c) / maxContribution) * 50);
+  const label = reason.label ?? featureLabel(reason.feature, dict);
+  // the pull is toward the call of the reason's own stage
+  const target =
+    reason.stage === "baseline" ? (predicted === baseline ? batchLabel(baseline) : `not ${batchLabel(baseline)}`) : batchLabel(predicted);
+  const stage = STAGE_LABEL(reason.stage, baseline);
+  const z = reason.baseline_z;
+  const sentence = reason.text?.startsWith(`${label}: `) ? reason.text.slice(label.length + 2) : reason.text;
   return (
-    <div className="grid min-h-16 grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_140px] items-center gap-5 border-b border-cx-line-soft">
+    <div className="grid min-h-16 grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_140px] items-center gap-5 border-b border-cx-line-soft py-3">
       <div className="flex min-w-0 flex-col gap-[3px]">
-        <span className="text-sm">{featureLabel(reason.feature, dict)}</span>
-        <span className="mono text-[11px] text-cx-faint">
-          {reason.feature} · {reason.z != null ? `${z > 0 ? "+" : ""}${z.toFixed(1)}σ` : "—"}
+        <span className="text-sm">{label}</span>
+        <span className="mono text-[11px] break-all text-cx-faint">
+          {stage ? `${stage} · ` : ""}
+          {reason.feature}
         </span>
       </div>
-      <div className="relative h-[38px]">
-        <div className="absolute inset-y-0 left-1/2 w-px bg-white/[0.12]" />
-        <div className="absolute inset-y-0 left-[16.7%] w-px bg-white/[0.05]" />
-        <div className="absolute inset-y-0 left-[33.3%] w-px bg-white/[0.05]" />
-        <div className="absolute inset-y-0 left-[66.7%] w-px bg-white/[0.05]" />
-        <div className="absolute inset-y-0 left-[83.3%] w-px bg-white/[0.05]" />
-        {reason.z != null && (
-          <div
-            className="absolute inset-y-0 w-0.5 bg-cx-text-strong"
-            style={{ left: `calc(${sigmaPos(z)}% - 1px)`, boxShadow: "0 0 0 3px rgba(10,11,13,.9)" }}
-          />
+      <div className="flex min-w-0 flex-col gap-2 text-[13px] leading-snug text-cx-text-2">
+        {reason.related?.length ? (
+          <>
+            <span className="text-cx-muted">An image pattern that moves with:</span>
+            <ul className="m-0 flex list-none flex-col gap-1 p-0">
+              {reason.related.map((clause) => (
+                <li key={clause.feature}>{plain(clause.text)}</li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <span className="first-letter:uppercase">{sentence ? plain(sentence) : "—"}</span>
+        )}
+        {z != null && (
+          <div className="relative h-[14px]">
+            <div className="absolute inset-y-0 left-1/2 w-px bg-white/[0.12]" />
+            <div className="absolute inset-x-0 top-1/2 h-px bg-white/[0.06]" />
+            <div
+              className="absolute inset-y-0 w-0.5 bg-cx-text-strong"
+              style={{ left: `calc(${sigmaPos(z)}% - 1px)`, boxShadow: "0 0 0 3px rgba(10,11,13,.9)" }}
+            />
+          </div>
+        )}
+        {reason.closest_batch && (
+          <span className="text-xs text-cx-faint">Closest to the typical {batchLabel(reason.closest_batch)} tile</span>
         )}
       </div>
       <div className="flex flex-col items-end gap-1.5">
@@ -346,34 +409,36 @@ function ReasonRow({
             }
           />
         </div>
-        <span className="text-xs" style={{ color: toward ? "var(--cx-text-2)" : "var(--cx-muted)" }}>
+        <span className="text-right text-xs" style={{ color: toward ? "var(--cx-text-2)" : "var(--cx-muted)" }}>
           <span className="mono">{`${c > 0 ? "+" : "−"}${Math.abs(c).toFixed(2)}`}</span>{" "}
-          {toward ? `Toward ${batchLabel(predicted)}` : `Away from ${batchLabel(predicted)}`}
+          {toward ? `Toward ${target}` : `Away from ${target}`}
         </span>
       </div>
     </div>
   );
 }
 
-function CatCard({ image, classes }: { image: AttributedImage; classes: string[] }) {
-  const sure = (image.confidence ?? 0) >= 0.5 && !image.unfamiliar;
+function CatCard({ image, baseline }: { image: AttributedImage; baseline: string }) {
+  const rec = image.confidence_record;
+  const right = rec ? `Calls this sure were right ${record(rec)} times on strips the model never saw.` : "";
+  const first = image.stage_baseline;
   const [mood, title, body] = image.unfamiliar
     ? ([
         "unsure",
-        "Looks like none of them.",
-        "This tile is outside the range the model was fitted on. The batch call is a guess, not a match — compare it as a batch instead.",
+        "Our bet, but an unfamiliar tile.",
+        `This tile sits outside the range of the ${batchLabel(image.predicted)} tiles we know. ${batchLabel(image.predicted)} is still the nearest batch — treat the call with care.`,
       ] as const)
-    : sure
-      ? ([
-          "sure",
-          "Fairly sure, not certain.",
-          `At ${Math.round((image.confidence ?? 0) * 100)}% this is one of the model's stronger calls. Below 50% we'd say so up front and suggest imaging another field.`,
-        ] as const)
-      : ([
-          "unsure",
-          "Not sure enough.",
-          `Below half a chance across ${classes.length} batches, this is a hint rather than a call. Image another field, or compare the whole batch.`,
-        ] as const);
+    : image.confidence_tier === "high"
+      ? (["sure", "A strong call.", right] as const)
+      : image.confidence_tier === "medium"
+        ? (["sure", "A fair call, not a sure one.", right] as const)
+        : ([
+            "unsure",
+            "A weak lean.",
+            `Every tile gets a bet, and this is ours. ${right}${
+              first ? ` The more reliable half is "${batchLabel(baseline)} or not": ${pct(first.confidence)}.` : ""
+            }`,
+          ] as const);
   return (
     <div className="glass flex items-start gap-3.5 rounded-[22px] p-[22px]">
       <Cat mood={mood} size={36} className="shrink-0" />
@@ -382,5 +447,70 @@ function CatCard({ image, classes }: { image: AttributedImage; classes: string[]
         <span className="text-[13px] leading-normal text-cx-muted">{body}</span>
       </div>
     </div>
+  );
+}
+
+/** Which model made this result, and whether it is the one the app would use now. */
+function ModelPanel({
+  image,
+  attribution,
+  current,
+}: {
+  image: AttributedImage;
+  attribution: Attribution;
+  current: ModelStatus | null;
+}) {
+  const model = attribution.model;
+  const stages = model.calibration?.stages;
+  const stale = current != null && current.fitted_at !== model.fitted_at;
+  return (
+    <Panel className="flex flex-col gap-3">
+      <h3 className="m-0 text-[15px] font-medium">The model behind this call</h3>
+      <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-[13px]">
+        <dt className="text-cx-faint">Model</dt>
+        <dd className="m-0 text-right">{modelName(model)}</dd>
+        <dt className="text-cx-faint">Fitted</dt>
+        <dd className="mono m-0 text-right">{model.fitted_at.replace("T", " ")}</dd>
+        {current && !stale && (
+          <>
+            <dt className="text-cx-faint">Frozen</dt>
+            <dd className="m-0 text-right">
+              {current.matches_frozen ? (
+                <>
+                  Yes · <span className="mono">{shortHash(current.rules_frozen_commit, 7)}</span>
+                </>
+              ) : (
+                "No"
+              )}
+            </dd>
+          </>
+        )}
+        {stages?.baseline && (
+          <>
+            <dt className="text-cx-faint">{batchLabel(model.baseline)} or not</dt>
+            <dd className="m-0 text-right">right {record(stages.baseline)} held-out</dd>
+          </>
+        )}
+        {stages?.variation && (
+          <>
+            <dt className="text-cx-faint">Which other batch</dt>
+            <dd className="m-0 text-right">right {record(stages.variation)} held-out</dd>
+          </>
+        )}
+        <dt className="text-cx-faint">Deviating</dt>
+        <dd className="mono m-0 text-right">{image.n_deviating ?? 0} features</dd>
+        {image.strip_id && (
+          <>
+            <dt className="text-cx-faint">Strip</dt>
+            <dd className="mono m-0 text-right">{image.strip_id}</dd>
+          </>
+        )}
+      </dl>
+      {stale && (
+        <p className="m-0 rounded-xl border border-cx-investigate/40 bg-cx-investigate/10 px-3 py-2 text-[13px] leading-snug text-cx-investigate-text">
+          This result was made by an earlier model. Identify the tile again to use the current one.
+        </p>
+      )}
+    </Panel>
   );
 }

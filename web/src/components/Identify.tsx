@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import {
-  getAttribution, getAttributionEvaluation, imageUrl, listAttributions, runAttribution, uploadBatch,
+  getAttribution, getModelStatus, imageUrl, listAttributions, runAttribution, uploadBatch,
 } from "../api";
-import { batchLabel, useApi } from "../lib";
+import { batchLabel, modelName, record, useApi } from "../lib";
 import { href } from "../router";
-import type { Attribution } from "../types";
+import type { Attribution, ModelStatus } from "../types";
 import { BatchDot, CAT, Cat, ErrorPanel, IconWarn, Panel, Spinner } from "./bits";
 import IdentifyResult from "./IdentifyResult";
 
@@ -34,7 +34,7 @@ export default function Identify() {
   const [dragging, setDragging] = useState(false);
   const [reload, setReload] = useState(0);
   const picker = useRef<HTMLInputElement>(null);
-  const evaluation = useApi(getAttributionEvaluation, []);
+  const model = useApi(getModelStatus, []);
   const recent = useApi(async () => {
     const names = await listAttributions();
     const results = await Promise.allSettled(names.map((n) => getAttribution(n)));
@@ -227,7 +227,7 @@ export default function Identify() {
                   <th className="px-5 py-3 font-normal">Drop</th>
                   <th className="px-2 py-3 font-normal">Closest batch</th>
                   <th className="px-2 py-3 font-normal">Confidence</th>
-                  <th className="px-2 py-3 font-normal">Fits baseline?</th>
+                  <th className="px-2 py-3 font-normal">Baseline or not</th>
                   <th className="px-5 py-3 text-right font-normal">Tiles</th>
                 </tr>
               </thead>
@@ -255,17 +255,28 @@ export default function Identify() {
                           </span>
                         )}
                       </td>
-                      <td className="mono px-2 py-3.5">
-                        {first?.confidence != null ? `${Math.round(first.confidence * 100)}%` : "—"}
+                      <td className="px-2 py-3.5">
+                        <span className="mono">
+                          {first?.confidence != null ? `${Math.round(first.confidence * 100)}%` : "—"}
+                        </span>
+                        {first?.confidence_tier && (
+                          <span className="pl-2 text-cx-muted">{first.confidence_tier}</span>
+                        )}
                       </td>
                       <td className="px-2 py-3.5">
-                        {unfamiliar ? (
-                          <span className="inline-flex items-center gap-1.5 text-cx-investigate">
+                        {first?.stage_baseline ? (
+                          <span className="text-cx-muted">
+                            {batchLabel(first.stage_baseline.call)}{" "}
+                            <span className="mono">{Math.round(first.stage_baseline.confidence * 100)}%</span>
+                          </span>
+                        ) : (
+                          <span className="text-cx-faint">—</span>
+                        )}
+                        {unfamiliar > 0 && (
+                          <span className="inline-flex items-center gap-1.5 pl-2 text-cx-investigate">
                             <IconWarn />
                             Unfamiliar
                           </span>
-                        ) : (
-                          <span className="text-cx-muted">Yes</span>
                         )}
                       </td>
                       <td className="px-5 py-3.5 text-right text-cx-faint">{a.images.length}</td>
@@ -284,15 +295,15 @@ export default function Identify() {
 
         <Panel className="glass flex flex-col gap-4 border-0">
           <h2 className="m-0 text-[15px] font-medium">How sure can it be?</h2>
-          {evaluation.data ? (
-            <EvaluationGauge evaluation={evaluation.data} />
+          {model.data ? (
+            <ModelGauge model={model.data} />
           ) : (
             <p className="m-0 text-[13px] leading-normal text-cx-muted">
-              No evaluation yet — run <code className="mono text-cx-text-2">uv run python -m qc.attribute --evaluate</code>.
+              No model yet — run <code className="mono text-cx-text-2">uv run python -m qc.attribute --fit</code>.
             </p>
           )}
           <p className="m-0 mt-auto text-[13px] leading-normal text-cx-muted">
-            Every answer shows its probabilities and says when a tile looks like none of the batches.
+            Every tile gets a batch. Each answer says how sure it is and how often answers that sure were right.
           </p>
         </Panel>
       </div>
@@ -300,35 +311,57 @@ export default function Identify() {
   );
 }
 
-function EvaluationGauge({ evaluation }: { evaluation: import("../types").AttributionEvaluation }) {
-  const sets = Object.entries(evaluation.family_sets);
-  const [name, fam] = sets.find(([n]) => n === "material") ?? sets[0] ?? [];
-  const acc = fam?.balanced_accuracy;
-  const classes = Array.isArray(evaluation.batches) ? evaluation.batches.length : evaluation.batches;
-  const chance = classes ? 1 / classes : null;
-  if (!fam || acc == null)
-    return <p className="m-0 text-[13px] text-cx-muted">No family set evaluated yet.</p>;
+/** The model in config/attribution_model.json: what it got right on strips it never saw. */
+function ModelGauge({ model }: { model: ModelStatus }) {
+  const acc = model.loso_balanced_accuracy;
+  const chance = model.classes.length ? 1 / model.classes.length : null;
+  const cal = model.calibration;
+  const total = Object.values(model.n_trained_on).reduce((a, b) => a + b, 0);
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-baseline gap-2.5">
-        <span className="text-[40px] font-semibold tracking-[-0.03em]">{Math.round(acc * 100)}%</span>
-        <span className="text-[13px] text-cx-muted">right on held-out strips</span>
-      </div>
-      <div className="relative h-2 rounded bg-white/[0.07]">
-        <div className="absolute inset-y-0 left-0 rounded bg-cx-text" style={{ width: `${acc * 100}%` }} />
-        {chance != null && (
-          <div
-            className="absolute -top-1 -bottom-1 w-0.5 bg-cx-orange"
-            style={{ left: `${chance * 100}%` }}
-          />
+      {acc != null && (
+        <>
+          <div className="flex items-baseline gap-2.5">
+            <span className="text-[40px] font-semibold tracking-[-0.03em]">{Math.round(acc * 100)}%</span>
+            <span className="text-[13px] text-cx-muted">right on held-out strips, all {model.classes.length} batches</span>
+          </div>
+          <div className="relative h-2 rounded bg-white/[0.07]">
+            <div className="absolute inset-y-0 left-0 rounded bg-cx-text" style={{ width: `${acc * 100}%` }} />
+            {chance != null && (
+              <div className="absolute -top-1 -bottom-1 w-0.5 bg-cx-orange" style={{ left: `${chance * 100}%` }} />
+            )}
+          </div>
+        </>
+      )}
+      <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 text-[13px]">
+        {cal?.stages.baseline && (
+          <>
+            <dt className="text-cx-muted">{batchLabel(model.baseline)} or not</dt>
+            <dd className="mono m-0 text-right">{record(cal.stages.baseline)}</dd>
+          </>
         )}
-      </div>
-      <div className="flex justify-between text-xs text-cx-faint">
+        {cal?.stages.variation && (
+          <>
+            <dt className="text-cx-muted">Which other batch</dt>
+            <dd className="mono m-0 text-right">{record(cal.stages.variation)}</dd>
+          </>
+        )}
+        {cal?.tiers.map((t) => (
+          <div key={t.tier} className="contents">
+            <dt className="text-cx-muted">Calls marked {t.tier}</dt>
+            <dd className="mono m-0 text-right">{record(t)}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="flex flex-col gap-1 text-xs text-cx-faint">
         <span>
-          Chance <span className="text-cx-orange-text">{chance != null ? `${Math.round(chance * 100)}%` : "—"}</span>
+          Chance <span className="text-cx-orange-text">{chance != null ? `${Math.round(chance * 100)}%` : "—"}</span> ·{" "}
+          {total} training tiles
         </span>
+        <span>{modelName(model)}</span>
         <span>
-          {evaluation.n_images} training tiles · {name} features
+          Fitted <span className="mono">{model.fitted_at?.replace("T", " ")}</span> ·{" "}
+          {model.matches_frozen ? "frozen" : model.matches_frozen === false ? "differs from the frozen model" : "not frozen"}
         </span>
       </div>
     </div>

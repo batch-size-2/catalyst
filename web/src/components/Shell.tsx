@@ -52,7 +52,8 @@ export interface ShellInfo {
   baseline: string | null;
   baselineTiles: number | null;
   totalTiles: number | null;
-  frozen: string | null;
+  frozen: string | null;        // commit of rules-frozen, when the model file is the tagged one
+  modelChanged: boolean;        // the model file differs from the one under rules-frozen
 }
 
 export default function Shell({
@@ -129,6 +130,8 @@ export default function Shell({
               <>
                 Rules frozen · <span className="mono">{shortHash(info.frozen, 7)}</span>
               </>
+            ) : info.modelChanged ? (
+              <span className="text-cx-investigate-text">Model differs from the frozen one</span>
             ) : (
               "Rules not frozen yet"
             )}

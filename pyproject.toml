@@ -14,11 +14,14 @@ dependencies = [
     "scikit-learn>=1.9.1",
     "scipy>=1.17.1",
     "tifffile>=2026.3.3",
+    # the frozen attribution model needs the DINOv2 features (qc/deep.py), so the API does too
+    "torch>=2.8",
+    "transformers>=4.56,<5",
     "uvicorn>=0.54.0",
 ]
 
 [project.optional-dependencies]
-# pretrained DINOv2 features (qc/deep.py): uv sync --extra deep. CPU-only torch on Linux/Windows.
+# kept so the documented `--extra deep` commands still work; the same packages are regular dependencies now.
 deep = [
     "torch>=2.8",
     "transformers>=4.56,<5",

@@ -37,10 +37,10 @@ uv run python -m qc.types [--exclude Batch_2] [--porous-rule]             # fit 
 uv run python -m qc.controls --baseline data/Batch_3                      # controls -> out/controls/summary.csv
 uv run python -m qc.uncertainty --batch data/Batch_3                      # -> out/uncertainty/*.csv
 uv run python -m qc.features                                              # per-image feature table -> out/features.csv
-uv sync --extra deep && uv run --extra deep python -m qc.deep            # optional: DINOv2 deep_ columns merged into out/features.csv (CPU, local)
+uv run python -m qc.deep                                                  # DINOv2 deep_ columns merged into out/features.csv (CPU, local)
 uv run python -m qc.attribute --evaluate                                  # leave-one-strip-out + null per family -> out/attribution/evaluation.json
 uv run python -m qc.attribute --dry-run [--repeats 30]                    # hold out 3 images per batch (whole strips), refit, predict; repeats give the spread
-uv run python -m qc.attribute --fit [--families deep | --staged tex:deep] # freeze the model -> config/attribution_model.json
+uv run python -m qc.attribute --fit [--families deep | --staged tex:deep] # fit the model -> config/attribution_model.json (frozen since `rules-frozen`: do not refit)
 uv run python -m qc.attribute --images data/<drop> [--balanced k]         # attribute unseen images -> out/attribution/<drop>.json
 
 # Preview the UI with fixtures
@@ -109,7 +109,7 @@ flowchart LR
     CR["crops/{type}/{n}.png<br/>example crops per particle type"]
   end
 
-  API["qc/api.py · FastAPI :8000<br/>GET config · batches · evidence · tiles · images · kpis · masks · attribution · attribution-evaluation<br/>POST upload · run · attribution · verify (NDJSON progress)"]
+  API["qc/api.py · FastAPI :8000<br/>GET config · batches · evidence · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation<br/>POST upload · run · attribution · verify (NDJSON progress)"]
   WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile · compare batch · library + viewer · audit log + batch passport"]
   CLI["python -m qc.run / qc.measure / qc.features / qc.attribute"]
 
@@ -200,6 +200,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `GET /api/evidence/{batch}` | `Evidence` |
 | `GET /api/attribution` | Sorted attribution run names |
 | `GET /api/attribution/{name}` | `Attribution` |
+| `GET /api/attribution-model` | The model `POST /api/attribution` will use: kind, families, fit time, held-out record, sha256, and `matches_frozen` (the file is the one under `rules-frozen`) |
 | `GET /api/attribution-evaluation` | Pat's feature-family evaluation report |
 | `GET /api/masks/{batch}/{image_id}.png` | Mask overlay |
 | `GET /api/tiles` | `[{batch, image_id, strip_id, detectors, kpis, has_mask}]`: every image in `data/` joined with `out/kpis.csv` |
@@ -283,7 +284,7 @@ A KPI that isn't computed, or an image whose segmentation crashes, is written as
 
 **Features (`qc/features.py`, PLAN_v4 §3.14).** `image_features(field)` returns one row per image: regional descriptors per ~15 µm tile summarised over tiles (mean, SD, CV, p10/p50/p90, normalised depth slope, top/bottom ratio), the ignored top/bottom 5% bands measured separately, uniform-LBP histograms per channel (and BSE inside graphite and inside Si) plus GLCM statistics at 0.05 and 0.2 µm, image-level particle aggregates (incl. type shares if `config/particle_types.json` exists), the 15 KPIs, and the imaging descriptors. `assert_no_leakage()` refuses any column whose name mentions strip, height, width, px_um, xres or shape. `uv run python -m qc.features` writes `out/features.csv`.
 
-**Deep features (`qc/deep.py`, optional, PLAN_v4 §3.14).** `uv sync --extra deep` adds CPU torch + transformers (CPU wheel index on Linux/Windows, PyPI on macOS). `deep_features(field)` embeds the InLens channel with the public `facebook/dinov2-small` (pinned revision, no fine-tuning): valid rows, p1–p99 stretch, 2×2 binning, 224 px tiles, CLS + mean patch token per tile, mean and SD over tiles → 1,536 `deep_inlens_s2_*` columns. Weights download once to the Hugging Face cache; set `HF_HUB_OFFLINE=1` afterwards. Images never leave the machine. `python -m qc.deep` merges the columns into `out/features.csv` (re-run it after `qc.features` rewrites a batch). `qc.attribute --images` computes them automatically when the frozen model uses them.
+**Deep features (`qc/deep.py`, PLAN_v4 §3.14).** CPU torch + transformers are regular dependencies, because the frozen model needs them (CPU wheel index on Linux/Windows, PyPI on macOS); the `deep` extra is kept only so older `--extra deep` commands still work. `deep_features(field)` embeds the InLens channel with the public `facebook/dinov2-small` (pinned revision, no fine-tuning): valid rows, p1–p99 stretch, 2×2 binning, 224 px tiles, CLS + mean patch token per tile, mean and SD over tiles → 1,536 `deep_inlens_s2_*` columns. Weights download once to the Hugging Face cache; set `HF_HUB_OFFLINE=1` afterwards. Images never leave the machine. `python -m qc.deep` merges the columns into `out/features.csv` (re-run it after `qc.features` rewrites a batch). `qc.attribute --images` computes them automatically when the frozen model uses them.
 
 **Attribution and familiarity (`qc/attribute.py`, PLAN_v4 §3.15–3.17).** Material families only by default (`reg, edge, tex, par, kpi`; `img_` is reported apart because it is acquisition, not material). `loso_cv` holds out every image of one physical strip across all folders, standardises inside the fold and picks `C` from {0.01…1} by an inner leave-one-strip-out. `permutation_null` shuffles batch labels across strip segments (≥200×). `shared_strip_check` asks whether images of strips imaged in two folders were attributed to their own folder. `rank_features` scores each feature alone on strip-segment means. `fit_model` saves readable JSON; `predict` gives probabilities, the five largest `coef × z` reasons, the two-sided RMS-z distance to the Batch_3 strip segments with an `unfamiliar` flag (threshold = the baseline's own maximum held-out distance), and, with `--balanced k`, the Hungarian assignment of exactly *k* images per batch. `dry_run` rehearses the nine-image test holding out whole strips. `deep_` columns are replaced by 10 principal components (`Reducer`) fit on the training rows of each fold; the frozen JSON stores the PCA mean, SD and components next to the coefficients, and reasons name `deep_pc01…10`.
 
@@ -412,9 +413,9 @@ For `si_graphite_ratio` r, silicon share is `s = r / (1 + r)`. Theoretical capac
 
 The software reads Pat's output as written; it defines no classifier or attribution schema. `load_model()` reads the model, and `attribute_images(image_dir, model, balanced=None)` writes `out/attribution/<folder>.json`. `qc.run.attribute()` calls those functions and sanitizes NaN/Infinity to JSON null.
 
-The per-run file contains the model summary and one record per image; the fields are listed under Folders above and explained in [docs/AGENT_HANDOVER.md](docs/AGENT_HANDOVER.md) §3.4. The UI shows the class probabilities, prediction and confidence, the reasons as code names, the baseline deviations and the optional balanced assignment; it does not yet show the tier, the stages, the prediction set or the reasons' plain-language text. `--evaluate` writes `out/attribution/evaluation.json` with family-set LOSO scores, confusion, permutation nulls, shared-strip checks and the feature ranking.
+The per-run file contains the model summary and one record per image; the fields are listed under Folders above and explained in [docs/AGENT_HANDOVER.md](docs/AGENT_HANDOVER.md) §3.4. The Identify screen shows the bet and the class probabilities, the confidence tier with its held-out record, the two stages ("different from the baseline?" and "in what way?"), the prediction set, the reasons as plain-language sentences with the stage each belongs to, the distance to the assigned batch and to the baseline, and which model made the call (kind, fit time, frozen or not, and a warning if the result predates the current model). Its accuracy panel and the sidebar's freeze line read `GET /api/attribution-model`, so they describe the model file in use. `--evaluate` writes `out/attribution/evaluation.json` with family-set LOSO scores, confusion, permutation nulls, shared-strip checks and the feature ranking.
 
-The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution/{name}`, `GET /api/attribution-evaluation`, and `POST /api/attribution/{name}?balanced={k}`.
+The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution/{name}`, `GET /api/attribution-model`, `GET /api/attribution-evaluation`, and `POST /api/attribution/{name}?balanced={k}`.
 
 **Held-out protocol (PLAN_v4 §4)**
 1. Put the new images in their own folder under `data/`, never inside the known batch folders.

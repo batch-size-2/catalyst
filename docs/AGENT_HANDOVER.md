@@ -20,7 +20,7 @@ Where to read what:
 | Pat's files | `qc/measure.py`, `qc/types.py`, `qc/controls.py`, `qc/uncertainty.py`, `qc/features.py`, `qc/deep.py`, `qc/attribute.py`, `tests/test_ml.py`, `tests/test_attribute.py`, `config/particle_types.json`, `config/kpi_dictionary.yaml`, `config/attribution_model.json`, `KPI_UNITS` in `qc/schema.py` |
 | Shared | `qc/schema.py` (the contract: additive changes only, tell the other owner), `qc/io.py`, `qc/run.py`, `README.md` |
 | Plan | PLAN_v4 is the team plan and is self-contained; both owners have agreed to it |
-| Python | `uv sync`, then `uv run pytest -q` (67 tests, about 80 s). Deep features need `uv sync --extra deep`; after that, run with `uv run --extra deep …`, because a plain `uv run` removes torch again |
+| Python | `uv sync`, then `uv run pytest -q` (67 tests, about 80 s). Torch and transformers are regular dependencies since the freeze (the frozen model needs the deep features), so a plain `uv run …` works; `--extra deep` is still accepted |
 | Data | `data/Batch_1`, `data/Batch_2`, `data/Batch_3`: 31 samples, each three 8-bit files (BSE, ETD or SE, InLens), 2316 × about 7000 px, 0.025 µm/px. Gitignored |
 | Unseen images | The first folder arrived on 3 Oct: `Hackathon-Polaron-test`, 9 files = 3 samples (`3e122cbj`, `fn0mhxef`, `xrv9xvzb`). More images come shortly before judging. Kept in their own folder, never inside a batch folder; not opened and not yet linked into `data/`. Unseen until the model is frozen with `git tag rules-frozen`; then scored once and the output committed unchanged (PLAN_v4 §1.3, §4) |
 
