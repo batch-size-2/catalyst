@@ -200,3 +200,27 @@ Never cut: steps 1–2 (attribution), the frozen tag, provenance, controls, temp
 - `uv run pytest -q` green before every commit; README in sync per `AGENTS.md`.
 - Any number shown to Pat or the designer (accuracies, effect sizes, z-scores) must come from a script the agent wrote and checked itself, with strip-grouped evaluation and a permutation null. Never report leave-one-image-out accuracy as the model's accuracy.
 - Eyeball overlays and heatmaps on real images (save them to `/tmp/qc_review/`) before claiming a feature is real rather than an artefact.
+
+---
+
+## 7. Update 2026-10-03 (later): attribution track built
+
+The task designer's framing (relayed by Pat): Batch_3 is what the supplier promised; Batch_1 and Batch_2 arrived later and are *different*, not better or worse; the entry is judged on attributing held-back images to their batch, which stands in for "is unknown batch N in or out of distribution".
+
+Done on `pat/ml-v3` (uncommitted until Pat OKs):
+- `docs/PLAN_v4.md`: draft delta on PLAN_v3 (questions A–D, rule 2 narrowed to attribution, §3.14–3.19, evaluation protocol, updated sync points and steps for both owners). Not yet reviewed by Patrik.
+- `qc/features.py` (step 1 of §5): six families `reg_ edge_ tex_ par_ kpi_ img_`, `assert_no_leakage()`, CLI → `out/features.csv`. Deep features not built (plan item).
+- `qc/attribute.py` (steps 2–3 of §5): `loso_cv` (nested C), `permutation_null` (segment-shuffled), `shared_strip_check`, `rank_features`, `evaluate`, `fit_model`/`save_model` → `config/attribution_model.json`, `predict` (probabilities, reasons, two-sided baseline z distance, `unfamiliar` flag), `balanced_assignment`, `dry_run`, `attribute_images`. CLI flags `--evaluate --fit --dry-run --images --balanced`.
+- `qc/schema.py`: additive paths `FEATURE_TABLE`, `ATTRIBUTION_DIR`, `ATTRIBUTION_MODEL_PATH`, `attribution_path()`.
+- `config/decision.yaml`: `baseline: Batch_3` (G11).
+- `tests/test_attribute.py`: 8 synthetic tests. Full suite 23 pass.
+- README synced (diagram, commands, folders, ownership, deviation 0).
+
+Still open: tile heatmaps, deep features, `qc/degrade.py`, measurement-quality items (§5 step 5), Evidence/UI integration (Patrik, PLAN_v4 §6), refit particle types, fill PLAN_v4 §12 with the real numbers.
+
+Real-data run (31 images, all 93 TIFFs present locally): numbers in PLAN_v4 §12. In short:
+- Three-way attribution is at chance for every family set under leave-one-strip-out (best: edge 0.55 against a null p95 of 0.54).
+- Batch_3 vs not separates: texture 0.88 against null 0.74, material 0.85 against 0.69. Imaging alone also gets 0.79, so check for acquisition confounding.
+- Batch_1 vs Batch_2 is at chance.
+- Dry run: 3/9 correct, with all three Batch_3 images right.
+Next: find the B1/B2 signal (tile-level or deep features; normalise imaging before texture).

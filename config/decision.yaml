@@ -1,6 +1,6 @@
 version: v1-draft
 data_dir: data
-baseline: Batch_1
+baseline: Batch_3
 reference_exclude: []
 band_coverage: 0.95
 ci_level: 0.90

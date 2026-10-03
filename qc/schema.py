@@ -141,7 +141,10 @@ KPI_TABLE = OUT_DIR / "kpis.csv"
 PARTICLE_TABLE = OUT_DIR / "particles.csv"
 IMAGING_TABLE = OUT_DIR / "imaging.csv"
 PARTICLE_TYPES_PATH = Path("config/particle_types.json")
+ATTRIBUTION_MODEL_PATH = Path("config/attribution_model.json")
 EVIDENCE_DIR = OUT_DIR / "evidence"
+FEATURE_TABLE = OUT_DIR / "features.csv"
+ATTRIBUTION_DIR = OUT_DIR / "attribution"
 
 
 def crop_path(type_id: str, n: int) -> Path:
@@ -150,6 +153,11 @@ def crop_path(type_id: str, n: int) -> Path:
 
 def evidence_path(batch: str) -> Path:
     return EVIDENCE_DIR / f"{batch}.json"
+
+
+def attribution_path(name: str) -> Path:
+    """Batch attribution result (qc/attribute.py) for one run, e.g. a drop folder."""
+    return ATTRIBUTION_DIR / f"{name}.json"
 
 
 def mask_path(batch: str, image_id: str) -> Path:
