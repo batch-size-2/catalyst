@@ -53,11 +53,18 @@ KPI_UNITS: dict[str, str] = {
     "si_fragments_per_1e4um2": "count",
     "si_dispersion_cv": "ratio",
     "porosity_apparent": "fraction",
+    "si_graphite_ratio": "ratio",
+    "si_agglomerate_frac": "fraction",
+    "si_corr_length_um": "um",
+    "graphite_chord_um": "um",
+    "graphite_anisotropy": "ratio",
+    "pore_chord_um": "um",
+    "pore_connectivity": "fraction",
 }
 
 KPI_TABLE_COLUMNS = ["batch", "image_id", "strip_id", "px_um", "area_um2", *KPI_UNITS]
 PARTICLE_COLUMNS = ["batch", "image_id", "strip_id", "particle_id", "d_um", "area_um2", "contrast_ratio",
-                    "inlens_ratio", "void_frac", "texture", "solidity", "border", "type"]
+                    "inlens_ratio", "void_frac", "texture", "solidity", "border", "type", "y_px", "x_px"]
 IMAGING_COLUMNS = ["batch", "image_id", "strip_id", "channel", "black_level", "p1", "p50", "p99",
                    "noise", "sharpness", "saturated_frac", "curtaining_index"]
 
@@ -68,6 +75,21 @@ class Tables(NamedTuple):
     kpis: pd.DataFrame
     particles: pd.DataFrame
     imaging: pd.DataFrame
+
+
+@dataclass
+class Control:
+    """A synthetic batch built from reference fields with a known answer (PLAN_v3 §3.7, §3.13).
+
+    kept_in_reference holds image_ids of split-strip images that stay in the reference.
+    """
+
+    name: str
+    kind: Literal["negative", "positive"]
+    expected_driver: str | None
+    source_strips: list[str]
+    fields: list[Field]
+    kept_in_reference: list[str] = field(default_factory=list)
 
 
 Verdict = Literal["ACCEPT", "INVESTIGATE", "REJECT"]
@@ -213,10 +235,15 @@ OUT_DIR = Path("out")
 KPI_TABLE = OUT_DIR / "kpis.csv"
 PARTICLE_TABLE = OUT_DIR / "particles.csv"
 IMAGING_TABLE = OUT_DIR / "imaging.csv"
+PARTICLE_TYPES_PATH = Path("config/particle_types.json")
 ATTRIBUTION_MODEL_PATH = Path("config/attribution_model.json")
 EVIDENCE_DIR = OUT_DIR / "evidence"
 FEATURE_TABLE = OUT_DIR / "features.csv"
 ATTRIBUTION_DIR = OUT_DIR / "attribution"
+
+
+def crop_path(type_id: str, n: int) -> Path:
+    return OUT_DIR / "crops" / type_id / f"{n}.png"
 
 
 def evidence_path(batch: str) -> Path:
