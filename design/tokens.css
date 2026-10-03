@@ -1,0 +1,142 @@
+/* Catalyst design tokens. Source of truth for colours, type and surfaces.
+   Import once at the root of the web app: @import "../../design/tokens.css";
+   Fonts: Geist + Geist Mono (Google Fonts, or the `geist` npm package for offline use). */
+
+:root {
+  /* Ground and ink */
+  --cx-bg: #0A0B0D;
+  --cx-surface: rgba(14, 15, 18, 0.82);   /* solid panels: tables, charts */
+  --cx-sidebar: rgba(8, 9, 11, 0.72);
+  --cx-line: rgba(255, 255, 255, 0.08);   /* panel borders */
+  --cx-line-soft: rgba(255, 255, 255, 0.06); /* row dividers */
+  --cx-grid: rgba(255, 255, 255, 0.032);  /* the 32 px background grid */
+  --cx-text: #EDECE8;
+  --cx-text-strong: #F6F5F2;
+  --cx-text-2: #C4C5C9;
+  --cx-muted: #A3A4A9;                    /* body copy on dark, 8:1 */
+  --cx-faint: #8A8C92;                    /* labels and captions, 5.9:1 */
+
+  /* Brand: orange belongs to the cat (and to silicon in images) */
+  --cx-orange: #FF7A2F;
+  --cx-orange-hover: #FF8C4A;
+  --cx-orange-text: #FF9A5C;              /* links and accents on dark */
+  --cx-on-orange: #1A0A00;
+  --cx-orange-print: #E8641C;             /* mark on light paper */
+  --cx-paper: #F3F1EC;                    /* passport / print surface */
+
+  /* Batches: one colour each, everywhere (charts, chips, thumbnails) */
+  --cx-batch-3: #2DD4BF;                  /* baseline */
+  --cx-batch-1: #6EA8FF;
+  --cx-batch-2: #B794FF;
+  --cx-new: #F6F5F2;                      /* a new sample: white marker */
+
+  /* Verdicts: always shown with a word, never colour alone */
+  --cx-accept: #4ADE80;
+  --cx-accept-text: #86EFAC;
+  --cx-investigate: #FACC15;
+  --cx-investigate-text: #FDE68A;
+  --cx-reject: #F87171;
+  --cx-reject-text: #FCA5A5;
+
+  /* Segmentation phases (overlay colours) */
+  --cx-phase-si: #FF9A3C;
+  --cx-phase-pore: #38BDF8;
+  --cx-phase-binder: #C48CFF;
+  --cx-phase-graphite: #55575D;
+
+  /* Type */
+  --cx-font: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --cx-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Radii: controls 10–14, cards 18–22, hero surfaces 26–28 */
+  --cx-r-control: 12px;
+  --cx-r-card: 22px;
+  --cx-r-hero: 28px;
+}
+
+/* Page ground with the 32 px grid */
+.cx {
+  font-family: var(--cx-font);
+  color: var(--cx-text);
+  background-color: var(--cx-bg);
+  background-image:
+    linear-gradient(var(--cx-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--cx-grid) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: var(--cx-mono); }
+
+/* Glass: for anything that floats (verdicts, toolbars over images, pickers).
+   Over a micrograph, darken the fill (e.g. background: rgba(14,15,18,.45)). */
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025));
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 24px 48px -24px rgba(0, 0, 0, 0.7);
+}
+
+/* Solid panel: tables, charts, lists */
+.panel {
+  background: var(--cx-surface);
+  border: 1px solid var(--cx-line);
+  border-radius: var(--cx-r-card);
+}
+
+/* Small uppercase mono label */
+.lbl {
+  font-family: var(--cx-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cx-faint);
+}
+
+/* Sidebar nav item */
+.nav {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 40px; padding: 0 10px; border-radius: 10px;
+  color: var(--cx-muted); font-size: 14px; text-decoration: none;
+}
+.nav:hover { background: rgba(255, 255, 255, 0.05); color: var(--cx-text); }
+.nav.on, .nav[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.07); color: var(--cx-text-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Buttons: 44 px touch target */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 18px; border-radius: var(--cx-r-control);
+  font: 500 14px var(--cx-font); color: var(--cx-text);
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer; text-decoration: none;
+}
+.btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.btn.pri {
+  background: var(--cx-orange); border-color: var(--cx-orange); color: var(--cx-on-orange);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 8px 24px -8px rgba(255, 122, 47, 0.6);
+}
+.btn.pri:hover { background: var(--cx-orange-hover); color: var(--cx-on-orange); }
+
+/* Verdict pill */
+.verdict {
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: 36px; padding: 0 14px; border-radius: 999px;
+  font: 600 13px var(--cx-mono); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.verdict.accept { color: var(--cx-accept-text); background: rgba(74, 222, 128, 0.12); border: 1px solid rgba(74, 222, 128, 0.35); }
+.verdict.investigate { color: var(--cx-investigate-text); background: rgba(250, 204, 21, 0.14); border: 1px solid rgba(250, 204, 21, 0.4); }
+.verdict.reject { color: var(--cx-reject-text); background: rgba(248, 113, 113, 0.14); border: 1px solid rgba(248, 113, 113, 0.4); }
+
+/* Segmented control (detector switch, audience tabs) */
+.seg { display: flex; gap: 2px; padding: 4px; border-radius: 14px; }
+.seg > button {
+  min-height: 36px; padding: 0 14px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--cx-text-2); font: 500 13px var(--cx-font); cursor: pointer;
+}
+.seg > button[aria-selected="true"], .seg > button.on {
+  background: rgba(255, 255, 255, 0.14); color: var(--cx-text-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}

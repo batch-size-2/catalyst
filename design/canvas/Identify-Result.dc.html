@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Catalyst · Tile result</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400..600&amp;display=swap">
+<style>
+body{margin:0;background:#0A0B0D}
+.cx{font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#EDECE8;background-color:#0A0B0D;background-image:linear-gradient(rgba(255,255,255,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.032) 1px,transparent 1px);background-size:32px 32px;-webkit-font-smoothing:antialiased}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.glass{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.025));-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 48px -24px rgba(0,0,0,.7)}
+.lbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8A8C92}
+.nav{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:10px;color:#A3A4A9;font-size:14px;text-decoration:none}
+.nav:hover{background:rgba(255,255,255,.05);color:#EDECE8}
+.nav.on{background:rgba(255,255,255,.07);color:#F6F5F2;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;font:500 14px 'Geist',sans-serif;color:#EDECE8;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);cursor:pointer;text-decoration:none}
+.btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.btn.pri{background:#FF7A2F;border-color:#FF7A2F;color:#1A0A00;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 24px -8px rgba(255,122,47,.6)}
+.btn.pri:hover{background:#FF8C4A;color:#1A0A00}
+a{color:#FF9A5C}a:hover{color:#FFB98A}
+</style>
+</helmet>
+<div class="cx" style="min-height: 1560px; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<aside style="flex: 1 1 232px; max-width: 260px; box-sizing: border-box; padding: 20px 14px; display: flex; flex-direction: column; gap: 28px; border-right: 1px solid rgba(255,255,255,.07); background: rgba(8,9,11,.72)">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 4px 8px; text-decoration: none; color: #F6F5F2">
+    <svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><rect x="22.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><rect x="36.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path><path d="M10 41 L1 38 M10 46 L2 49 M54 41 L63 38 M54 46 L62 49" stroke="#FF7A2F" stroke-width="3" stroke-linecap="round"></path></svg>
+    <span style="font-size: 19px; font-weight: 600; letter-spacing: -0.02em">catalyst</span>
+  </a>
+  <nav aria-label="Main" style="display: flex; flex-direction: column; gap: 2px">
+    <div class="lbl" style="padding: 0 10px 8px">Analyse</div>
+    <a class="nav on" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><circle cx="12" cy="12" r="3"></circle></svg>Identify tile</a>
+    <a class="nav" href="Compare.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="16" rx="1.5"></rect><rect x="14" y="4" width="7" height="16" rx="1.5"></rect></svg>Compare batch</a>
+    <a class="nav" href="Viewer.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>Library<span class="mono" style="margin-left: auto; font-size: 11px; color: #8A8C92">31</span></a>
+    <div class="lbl" style="padding: 20px 10px 8px">Trust</div>
+    <a class="nav" href="Audit.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>Audit log</a>
+    <div class="lbl" style="padding: 20px 10px 8px">Labs</div>
+    <a class="nav" href="#" style="color: #8A8C92"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"></path></svg>Wear &amp; impact<span class="mono" style="margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">SOON</span></a>
+    <a class="nav" href="#" style="color: #8A8C92"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>Sample size<span class="mono" style="margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">SOON</span></a>
+  </nav>
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+    <div class="glass" style="border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px">
+      <div class="lbl">Baseline</div>
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500"><span style="width: 9px; height: 9px; border-radius: 3px; background: #2DD4BF"></span>Batch 3<span style="margin-left: auto; font-size: 12px; color: #8A8C92">17 tiles</span></div>
+      <div style="font-size: 12px; color: #A3A4A9; line-height: 1.45">What the supplier promised.</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; color: #A3A4A9"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Rules frozen · <span class="mono">f424aaf</span></div>
+  </div>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 64px; padding: 0 40px; border-bottom: 1px solid rgba(255,255,255,.07)">
+    <div style="font-size: 14px; color: #A3A4A9">Analyse <span style="color: #5F6166">/</span> <a href="Main.dc.html" style="color: #A3A4A9">Identify tile</a> <span style="color: #5F6166">/</span> <span class="mono" style="color: #EDECE8">r17byphk</span></div>
+    <label style="margin-left: auto; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03); color: #8A8C92; font-size: 13px; min-width: 240px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" placeholder="Search tiles and batches" aria-label="Search tiles and batches" style="flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: #EDECE8; font: 13px 'Geist',sans-serif"><span class="mono" style="font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">⌘K</span></label>
+    <button type="button" aria-label="Account: Patrik" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); background: #1B1C20; color: #EDECE8; font: 600 12px 'Geist',sans-serif">PH</button>
+  </header>
+  <div style="width: 100%; max-width: 1180px; box-sizing: border-box; padding: 40px 40px 64px; display: flex; flex-direction: column; gap: 28px">
+    <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div class="lbl" style="color: #FF9A5C">Identify · result</div>
+        <div style="display: flex; align-items: center; gap: 12px; font-size: 14px; color: #A3A4A9"><span class="mono" style="color: #EDECE8; font-size: 15px">r17byphk</span><span>3 detectors</span><span>·</span><span>174 × 52 µm</span><span>·</span><span>98 Si particles</span></div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px">
+        <a class="btn" href="Viewer.dc.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>Open in viewer</a>
+        <button class="btn" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"></path></svg>Export</button>
+        <a class="btn pri" href="Main.dc.html">Identify another</a>
+      </div>
+    </div>
+
+    <section aria-label="Verdict" style="display: flex; flex-direction: column">
+      <div style="position: relative; border-radius: 28px; overflow: hidden; aspect-ratio: 1800 / 536; border: 1px solid rgba(255,255,255,.1); background: #000">
+        <img src="/_blob/effa497b0fd734e7cec5e9943ee881d3" alt="BSE micrograph of tile r17byphk with silicon highlighted" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(.7) saturate(0)">
+        <img src="/_blob/a770fa925452417aeb0005b5e356af39" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+        <div class="mono" style="position: absolute; top: 16px; right: 18px; font-size: 11px; color: rgba(255,255,255,.8); display: flex; align-items: center; gap: 8px"><span style="width: 63px; height: 2px; background: rgba(255,255,255,.85)"></span>10 µm</div>
+      </div>
+      <div class="glass" style="position: relative; margin: -150px 24px 0; border-radius: 26px; padding: 28px 32px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 32px; background: linear-gradient(180deg, rgba(30,31,36,.55), rgba(18,19,22,.72))">
+        <div style="grid-column: span 7; display: flex; flex-direction: column; gap: 14px; min-width: 0">
+          <div class="lbl">Closest match</div>
+          <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap">
+            <span style="width: 18px; height: 18px; border-radius: 6px; background: #B794FF; box-shadow: 0 0 24px rgba(183,148,255,.6)"></span>
+            <span style="font-size: 60px; line-height: 1; font-weight: 600; letter-spacing: -0.04em">Batch 2</span>
+            <span class="mono" style="font-size: 28px; color: #C9B3FF">81%</span>
+          </div>
+          <p style="margin: 0; font-size: 16px; line-height: 1.5; color: #C4C5C9; max-width: 520px">Clearly closer to Batch 2 than to the others. Batch 1 is a distant second at 14%.</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px">
+            <span style="display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 12px; border-radius: 999px; background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.28); color: #86EFAC; font-size: 13px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Familiar: within the range of known tiles</span>
+            <span style="display: inline-flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: #C4C5C9; font-size: 13px">Model is right 55% of the time · chance 33%</span>
+          </div>
+        </div>
+        <div style="grid-column: span 5; display: flex; flex-direction: column; gap: 14px; justify-content: center; min-width: 0">
+          <div style="display: grid; grid-template-columns: 72px minmax(0, 1fr) 44px; align-items: center; gap: 12px; font-size: 14px"><span>Batch 2</span><div style="height: 10px; border-radius: 5px; background: rgba(255,255,255,.07)"><div style="width: 81%; height: 100%; border-radius: 5px; background: #B794FF"></div></div><span class="mono" style="text-align: right">81%</span></div>
+          <div style="display: grid; grid-template-columns: 72px minmax(0, 1fr) 44px; align-items: center; gap: 12px; font-size: 14px; color: #C4C5C9"><span>Batch 1</span><div style="height: 10px; border-radius: 5px; background: rgba(255,255,255,.07)"><div style="width: 14%; height: 100%; border-radius: 5px; background: #6EA8FF"></div></div><span class="mono" style="text-align: right">14%</span></div>
+          <div style="display: grid; grid-template-columns: 72px minmax(0, 1fr) 44px; align-items: center; gap: 12px; font-size: 14px; color: #C4C5C9"><span>Batch 3</span><div style="height: 10px; border-radius: 5px; background: rgba(255,255,255,.07)"><div style="width: 5%; height: 100%; border-radius: 5px; background: #2DD4BF"></div></div><span class="mono" style="text-align: right">5%</span></div>
+          <div style="display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08); font-size: 13px; color: #A3A4A9">
+            <span>Distance from baseline</span>
+            <div style="flex: 1; position: relative; height: 6px; border-radius: 3px; background: rgba(255,255,255,.07)"><div style="position: absolute; left: 0; top: 0; bottom: 0; width: 37.5%; border-radius: 3px; background: rgba(255,255,255,.55)"></div><div style="position: absolute; left: 100%; top: -5px; bottom: -5px; width: 2px; background: #FACC15"></div></div>
+            <span class="mono" style="color: #EDECE8">0.9 / 2.4</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px">
+      <section style="grid-column: span 8; border-radius: 22px; border: 1px solid rgba(255,255,255,.08); background: rgba(14,15,18,.82); padding: 24px; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+        <div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 10px">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 500; letter-spacing: -0.01em">Why Batch 2</h2>
+          <div style="display: flex; gap: 14px; font-size: 12px; color: #A3A4A9">
+            <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; height: 6px; border-radius: 3px; background: #2DD4BF"></span>Batch 3</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; height: 6px; border-radius: 3px; background: #6EA8FF"></span>Batch 1</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 14px; height: 6px; border-radius: 3px; background: #B794FF"></span>Batch 2</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 2px; height: 12px; background: #F6F5F2"></span>This tile</span>
+          </div>
+        </div>
+        <div class="lbl" style="display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.6fr) 140px; gap: 20px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.07)"><span>Feature the model used</span><span>Typical range per batch · −3σ to +3σ</span><span style="text-align: right">Pull</span></div>
+        <sc-for list="{{reasons}}" as="r" hint-placeholder-count="5">
+          <div style="display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.6fr) 140px; gap: 20px; align-items: center; min-height: 64px; border-bottom: 1px solid rgba(255,255,255,.06)">
+            <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
+              <span style="font-size: 14px">{{r.name}}</span>
+              <span class="mono" style="font-size: 11px; color: #8A8C92">{{r.code}} · {{r.zText}}</span>
+            </div>
+            <div style="position: relative; height: 38px">
+              <div style="position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(255,255,255,.12)"></div>
+              <div style="{{r.b3Style}}"></div>
+              <div style="{{r.b1Style}}"></div>
+              <div style="{{r.b2Style}}"></div>
+              <div style="{{r.markStyle}}"></div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+              <div style="position: relative; width: 100%; height: 6px; border-radius: 3px; background: rgba(255,255,255,.06)"><div style="position: absolute; top: -3px; bottom: -3px; left: 50%; width: 1px; background: rgba(255,255,255,.25)"></div><div style="{{r.barStyle}}"></div></div>
+              <span style="font-size: 12px; {{r.dirColor}}"><span class="mono">{{r.cText}}</span> {{r.dir}}</span>
+            </div>
+          </div>
+        </sc-for>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.5; color: #8A8C92">These are the model's own top five reasons (coefficient × value), not a story added afterwards.</p>
+      </section>
+
+      <section style="grid-column: span 4; display: flex; flex-direction: column; gap: 16px; min-width: 0">
+        <div style="border-radius: 22px; border: 1px solid rgba(255,255,255,.08); background: rgba(14,15,18,.82); padding: 24px; display: flex; flex-direction: column; gap: 16px">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 500; letter-spacing: -0.01em">Most similar known tiles</h2>
+          <a href="Viewer.dc.html" style="display: flex; gap: 14px; align-items: center; color: #EDECE8; text-decoration: none"><img src="/_blob/081a661932192ec08768d38e6611682f" alt="Tile i9jiqjwl" style="width: 64px; height: 64px; border-radius: 12px; object-fit: cover; border: 2px solid #B794FF"><span style="display: flex; flex-direction: column; gap: 4px; flex: 1"><span class="mono" style="font-size: 13px">i9jiqjwl</span><span style="font-size: 12px; color: #A3A4A9">Batch 2</span></span><span class="mono" style="font-size: 13px">0.92</span></a>
+          <a href="Viewer.dc.html" style="display: flex; gap: 14px; align-items: center; color: #EDECE8; text-decoration: none"><img src="/_blob/9b76fa7d8aaea78947187eb8d6a14c5b" alt="Tile avn74qx1" style="width: 64px; height: 64px; border-radius: 12px; object-fit: cover; border: 2px solid #B794FF"><span style="display: flex; flex-direction: column; gap: 4px; flex: 1"><span class="mono" style="font-size: 13px">avn74qx1</span><span style="font-size: 12px; color: #A3A4A9">Batch 2</span></span><span class="mono" style="font-size: 13px">0.88</span></a>
+          <a href="Viewer.dc.html" style="display: flex; gap: 14px; align-items: center; color: #EDECE8; text-decoration: none"><img src="/_blob/07686c5f2f5e8fb75ae86b59f947a6a4" alt="Tile fzrt2k6r" style="width: 64px; height: 64px; border-radius: 12px; object-fit: cover; border: 2px solid #6EA8FF"><span style="display: flex; flex-direction: column; gap: 4px; flex: 1"><span class="mono" style="font-size: 13px">fzrt2k6r</span><span style="font-size: 12px; color: #A3A4A9">Batch 1</span></span><span class="mono" style="font-size: 13px">0.71</span></a>
+        </div>
+        <div class="glass" style="border-radius: 22px; padding: 22px; display: flex; gap: 14px; align-items: flex-start">
+          <svg width="36" height="36" viewBox="0 0 64 64" aria-hidden="true" style="flex: none"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><path d="M22 36 Q25 32 28 36 M36 36 Q39 32 42 36" stroke="#0A0B0D" stroke-width="3" fill="none" stroke-linecap="round"></path><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path></svg>
+          <div style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 14px; font-weight: 500">Fairly sure, not certain.</span><span style="font-size: 13px; line-height: 1.5; color: #A3A4A9">At 81% this is one of the model's stronger calls. Below 50% we'd say so up front and suggest imaging another field.</span></div>
+        </div>
+      </section>
+    </div>
+
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 500; letter-spacing: -0.01em">Measured on this tile</h2>
+        <span style="font-size: 13px; color: #8A8C92">Dot = this tile · shaded = baseline (Batch 3) ±1σ and ±2σ</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{kpis}}" as="k" hint-placeholder-count="8">
+          <div style="border-radius: 18px; border: 1px solid rgba(255,255,255,.08); background: rgba(14,15,18,.82); padding: 18px; display: flex; flex-direction: column; gap: 12px">
+            <span style="font-size: 13px; color: #A3A4A9">{{k.name}}</span>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px"><span class="mono" style="font-size: 22px; letter-spacing: -0.02em">{{k.v}}</span><span class="mono" style="font-size: 12px; color: #8A8C92">{{k.zText}}</span></div>
+            <sc-if value="{{k.hasZ}}" hint-placeholder-val="{{true}}">
+              <div style="position: relative; height: 4px; border-radius: 2px; background: rgba(255,255,255,.06)">
+                <div style="position: absolute; top: 0; bottom: 0; left: 16.67%; width: 66.66%; background: rgba(45,212,191,.16)"></div>
+                <div style="position: absolute; top: 0; bottom: 0; left: 33.33%; width: 33.33%; background: rgba(45,212,191,.38)"></div>
+                <div style="{{k.dotStyle}}"></div>
+              </div>
+            </sc-if>
+            <span style="font-size: 12px; color: #8A8C92">Baseline {{k.base}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 1440, "height": 1560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const C = { b1: '#6EA8FF', b2: '#B794FF', b3: '#2DD4BF' };
+    const pct = (z) => ((Math.max(-3, Math.min(3, z)) + 3) / 6) * 100;
+    const band = (lo, hi, color, top) =>
+      `position: absolute; top: ${top}px; height: 6px; border-radius: 3px; left: ${pct(lo)}%; width: ${pct(hi) - pct(lo)}%; background: ${color}`;
+    const reasons = [
+      { name: 'BSE micro-texture', code: 'tex_bse_lbp_04', z: 1.2, c: 0.43, b1: [-0.6, 1.2], b2: [0.4, 2.2] },
+      { name: 'Silicon patchiness across the tile', code: 'reg_si_frac_cv', z: -0.8, c: -0.29, b1: [-0.2, 1.6], b2: [-0.2, 1.8] },
+      { name: 'Median silicon particle size', code: 'par_d50_um', z: 0.5, c: 0.14, b1: [0.6, 2.4], b2: [0.0, 1.6] },
+      { name: 'Silicon dispersion', code: 'kpi_si_dispersion_cv', z: 0.2, c: 0.06, b1: [-1.2, 0.8], b2: [-0.2, 2.2] },
+      { name: 'Silicon near the top edge', code: 'edge_si_frac_top', z: -0.1, c: -0.03, b1: [-1.4, 0.6], b2: [-0.4, 1.4] },
+    ].map((r) => {
+      const w = Math.min(50, (Math.abs(r.c) / 0.5) * 50);
+      const toward = r.c >= 0;
+      return {
+        ...r,
+        zText: (r.z > 0 ? '+' : '') + r.z.toFixed(1) + 'σ',
+        cText: (r.c > 0 ? '+' : '−') + Math.abs(r.c).toFixed(2),
+        dir: toward ? 'Toward Batch 2' : 'Away from Batch 2',
+        dirColor: toward ? 'color: #C9B3FF' : 'color: #A3A4A9',
+        b3Style: band(-1, 1, C.b3, 6),
+        b1Style: band(r.b1[0], r.b1[1], C.b1, 16),
+        b2Style: band(r.b2[0], r.b2[1], C.b2, 26),
+        markStyle: `position: absolute; top: 0; bottom: 0; left: calc(${pct(r.z)}% - 1px); width: 2px; background: #F6F5F2; box-shadow: 0 0 0 3px rgba(10,11,13,.9)`,
+        barStyle: toward
+          ? `position: absolute; top: 0; bottom: 0; left: 50%; width: ${w}%; border-radius: 0 4px 4px 0; background: #B794FF`
+          : `position: absolute; top: 0; bottom: 0; right: 50%; width: ${w}%; border-radius: 4px 0 0 4px; background: #6B6D73`,
+      };
+    });
+    const kpis = [
+      { name: 'Silicon : graphite', v: '0.056', base: '0.075', z: -1.36 },
+      { name: 'Silicon area', v: '4.7%', base: '6.2%', z: -1.38 },
+      { name: 'Si particle D50', v: '3.80 µm', base: '3.66 µm', z: 0.22 },
+      { name: 'Si particle D90', v: '6.91 µm', base: '6.59 µm', z: 0.30 },
+      { name: 'Apparent porosity', v: '11.8%', base: '10.7%', z: 0.61 },
+      { name: 'Si dispersion (CV)', v: '0.92', base: '0.65', z: 1.45 },
+      { name: 'Agglomerated Si', v: '42%', base: '44%', z: -0.14 },
+      { name: 'Si particles', v: '98', base: '—', z: null },
+    ].map((k) => ({
+      ...k,
+      hasZ: k.z !== null,
+      zText: k.z === null ? '' : (k.z > 0 ? '+' : '') + k.z.toFixed(1) + 'σ',
+      dotStyle: k.z === null ? '' : `position: absolute; top: -3px; width: 10px; height: 10px; border-radius: 50%; left: calc(${pct(k.z)}% - 5px); background: ${Math.abs(k.z) > 2 ? '#FACC15' : '#F6F5F2'}; box-shadow: 0 0 0 3px #111215`,
+    }));
+    return { reasons, kpis };
+  }
+}
+</script>
+</body>
+</html>
