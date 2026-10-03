@@ -1,0 +1,252 @@
+{
+ "id": "identify",
+ "text": "When a new delivery comes in, drop in an image. I measure the silicon, the particles and the pores, then tell you which batch it looks like and how sure I am, with the reasons. If it doesn't look like anything I've seen before, I'll say so.",
+ "hash": "9c707c68255f9dbc",
+ "voice_id": "awmINsgxT6tx4sTpVomM",
+ "model_id": "eleven_multilingual_v2",
+ "voice_settings": {
+  "stability": 0.45,
+  "similarity_boost": 0.75,
+  "style": 0.3,
+  "use_speaker_boost": true,
+  "speed": 1.08
+ },
+ "duration": 16.068,
+ "words": [
+  {
+   "text": "When",
+   "start": 0.0,
+   "end": 0.244
+  },
+  {
+   "text": "a",
+   "start": 0.302,
+   "end": 0.337
+  },
+  {
+   "text": "new",
+   "start": 0.441,
+   "end": 0.639
+  },
+  {
+   "text": "delivery",
+   "start": 0.72,
+   "end": 1.219
+  },
+  {
+   "text": "comes",
+   "start": 1.289,
+   "end": 1.544
+  },
+  {
+   "text": "in,",
+   "start": 1.614,
+   "end": 1.858
+  },
+  {
+   "text": "drop",
+   "start": 2.02,
+   "end": 2.357
+  },
+  {
+   "text": "in",
+   "start": 2.426,
+   "end": 2.519
+  },
+  {
+   "text": "an",
+   "start": 2.577,
+   "end": 2.647
+  },
+  {
+   "text": "image.",
+   "start": 2.705,
+   "end": 3.17
+  },
+  {
+   "text": "I",
+   "start": 3.367,
+   "end": 3.471
+  },
+  {
+   "text": "measure",
+   "start": 3.634,
+   "end": 4.005
+  },
+  {
+   "text": "the",
+   "start": 4.052,
+   "end": 4.145
+  },
+  {
+   "text": "silicon,",
+   "start": 4.226,
+   "end": 4.888
+  },
+  {
+   "text": "the",
+   "start": 4.946,
+   "end": 5.062
+  },
+  {
+   "text": "particles",
+   "start": 5.132,
+   "end": 5.642
+  },
+  {
+   "text": "and",
+   "start": 5.689,
+   "end": 5.805
+  },
+  {
+   "text": "the",
+   "start": 5.875,
+   "end": 5.956
+  },
+  {
+   "text": "pores,",
+   "start": 6.014,
+   "end": 6.525
+  },
+  {
+   "text": "then",
+   "start": 6.629,
+   "end": 6.896
+  },
+  {
+   "text": "tell",
+   "start": 6.966,
+   "end": 7.221
+  },
+  {
+   "text": "you",
+   "start": 7.303,
+   "end": 7.407
+  },
+  {
+   "text": "which",
+   "start": 7.512,
+   "end": 7.79
+  },
+  {
+   "text": "batch",
+   "start": 7.86,
+   "end": 8.127
+  },
+  {
+   "text": "it",
+   "start": 8.162,
+   "end": 8.243
+  },
+  {
+   "text": "looks",
+   "start": 8.301,
+   "end": 8.533
+  },
+  {
+   "text": "like",
+   "start": 8.591,
+   "end": 8.824
+  },
+  {
+   "text": "and",
+   "start": 8.882,
+   "end": 9.091
+  },
+  {
+   "text": "how",
+   "start": 9.195,
+   "end": 9.474
+  },
+  {
+   "text": "sure",
+   "start": 9.613,
+   "end": 9.927
+  },
+  {
+   "text": "I",
+   "start": 9.996,
+   "end": 10.043
+  },
+  {
+   "text": "am,",
+   "start": 10.147,
+   "end": 10.461
+  },
+  {
+   "text": "with",
+   "start": 10.565,
+   "end": 10.797
+  },
+  {
+   "text": "the",
+   "start": 10.867,
+   "end": 10.995
+  },
+  {
+   "text": "reasons.",
+   "start": 11.064,
+   "end": 11.831
+  },
+  {
+   "text": "If",
+   "start": 12.132,
+   "end": 12.307
+  },
+  {
+   "text": "it",
+   "start": 12.376,
+   "end": 12.469
+  },
+  {
+   "text": "doesn't",
+   "start": 12.539,
+   "end": 12.864
+  },
+  {
+   "text": "look",
+   "start": 12.91,
+   "end": 13.084
+  },
+  {
+   "text": "like",
+   "start": 13.142,
+   "end": 13.317
+  },
+  {
+   "text": "anything",
+   "start": 13.363,
+   "end": 13.758
+  },
+  {
+   "text": "I've",
+   "start": 13.827,
+   "end": 14.013
+  },
+  {
+   "text": "seen",
+   "start": 14.048,
+   "end": 14.28
+  },
+  {
+   "text": "before,",
+   "start": 14.35,
+   "end": 14.791
+  },
+  {
+   "text": "I'll",
+   "start": 14.849,
+   "end": 15.093
+  },
+  {
+   "text": "say",
+   "start": 15.197,
+   "end": 15.499
+  },
+  {
+   "text": "so.",
+   "start": 15.581,
+   "end": 16.068
+  }
+ ]
+}

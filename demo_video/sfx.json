@@ -1,0 +1,17 @@
+{
+  "note": "Subtle UI sounds, mixed low under the voice. Regenerate with: python3 demo_video/tools/sfx.py [--only id] [--force]",
+  "sounds": [
+    { "id": "drop", "seconds": 0.8, "use": "a tile lands in the drop zone",
+      "prompt": "A small glass card gently landing on a soft desk: a very short airy swish followed by a soft muted tap. Clean, minimal UI sound, close-miked, no reverb tail, no music." },
+    { "id": "done", "seconds": 1.2, "use": "a result or verdict appears",
+      "prompt": "Gentle two-note glass chime rising softly, warm and calm, modern app success notification, very short and quiet, no music." },
+    { "id": "click", "seconds": 0.5, "use": "cursor clicks a tab or switch",
+      "prompt": "A single soft muted trackpad click, crisp but quiet, close-miked, nothing else." },
+    { "id": "whoosh", "seconds": 1.0, "use": "camera flies between screens",
+      "prompt": "Very soft airy whoosh, subtle and smooth, like a light breeze passing, for a gentle screen transition, low volume, no music." },
+    { "id": "stamp", "seconds": 0.6, "use": "the cat stamps the verified card",
+      "prompt": "A soft rubber stamp pressed onto paper on a wooden desk: one gentle muted thump, close-miked, no reverb." },
+    { "id": "mrrp", "seconds": 0.7, "use": "the cat's first entrance, once only",
+      "prompt": "A single short friendly house cat chirp, a soft trilled mrrp, close-miked, clean, no background noise." }
+  ]
+}

@@ -1,0 +1,282 @@
+{
+ "id": "science",
+ "text": "I'm Catalyst, and I check battery material long before it gets near a car. This is an anode under a microscope. Grey is graphite. Orange is silicon: it holds much more lithium, but it swells every charge. Blue is space for the lithium to move. If the mix drifts, so does the battery.",
+ "hash": "b762d354bd41f10f",
+ "voice_id": "awmINsgxT6tx4sTpVomM",
+ "model_id": "eleven_multilingual_v2",
+ "voice_settings": {
+  "stability": 0.45,
+  "similarity_boost": 0.75,
+  "style": 0.3,
+  "use_speaker_boost": true,
+  "speed": 1.08
+ },
+ "duration": 21.084,
+ "words": [
+  {
+   "text": "I'm",
+   "start": 0.0,
+   "end": 0.348
+  },
+  {
+   "text": "Catalyst,",
+   "start": 0.418,
+   "end": 1.115
+  },
+  {
+   "text": "and",
+   "start": 1.149,
+   "end": 1.324
+  },
+  {
+   "text": "I",
+   "start": 1.44,
+   "end": 1.579
+  },
+  {
+   "text": "check",
+   "start": 1.741,
+   "end": 2.009
+  },
+  {
+   "text": "battery",
+   "start": 2.078,
+   "end": 2.438
+  },
+  {
+   "text": "material",
+   "start": 2.496,
+   "end": 2.995
+  },
+  {
+   "text": "long",
+   "start": 3.135,
+   "end": 3.448
+  },
+  {
+   "text": "before",
+   "start": 3.506,
+   "end": 3.785
+  },
+  {
+   "text": "it",
+   "start": 3.82,
+   "end": 3.878
+  },
+  {
+   "text": "gets",
+   "start": 3.924,
+   "end": 4.11
+  },
+  {
+   "text": "near",
+   "start": 4.156,
+   "end": 4.331
+  },
+  {
+   "text": "a",
+   "start": 4.377,
+   "end": 4.4
+  },
+  {
+   "text": "car.",
+   "start": 4.458,
+   "end": 4.923
+  },
+  {
+   "text": "This",
+   "start": 5.224,
+   "end": 5.538
+  },
+  {
+   "text": "is",
+   "start": 5.608,
+   "end": 5.759
+  },
+  {
+   "text": "an",
+   "start": 5.817,
+   "end": 5.898
+  },
+  {
+   "text": "anode",
+   "start": 5.956,
+   "end": 6.374
+  },
+  {
+   "text": "under",
+   "start": 6.42,
+   "end": 6.629
+  },
+  {
+   "text": "a",
+   "start": 6.687,
+   "end": 6.722
+  },
+  {
+   "text": "microscope.",
+   "start": 6.78,
+   "end": 7.488
+  },
+  {
+   "text": "Grey",
+   "start": 7.744,
+   "end": 8.29
+  },
+  {
+   "text": "is",
+   "start": 8.394,
+   "end": 8.58
+  },
+  {
+   "text": "graphite.",
+   "start": 8.649,
+   "end": 9.311
+  },
+  {
+   "text": "Orange",
+   "start": 9.474,
+   "end": 10.077
+  },
+  {
+   "text": "is",
+   "start": 10.147,
+   "end": 10.286
+  },
+  {
+   "text": "silicon:",
+   "start": 10.356,
+   "end": 11.076
+  },
+  {
+   "text": "it",
+   "start": 11.273,
+   "end": 11.436
+  },
+  {
+   "text": "holds",
+   "start": 11.494,
+   "end": 11.854
+  },
+  {
+   "text": "much",
+   "start": 11.97,
+   "end": 12.225
+  },
+  {
+   "text": "more",
+   "start": 12.295,
+   "end": 12.492
+  },
+  {
+   "text": "lithium,",
+   "start": 12.562,
+   "end": 13.096
+  },
+  {
+   "text": "but",
+   "start": 13.119,
+   "end": 13.305
+  },
+  {
+   "text": "it",
+   "start": 13.351,
+   "end": 13.444
+  },
+  {
+   "text": "swells",
+   "start": 13.514,
+   "end": 14.037
+  },
+  {
+   "text": "every",
+   "start": 14.199,
+   "end": 14.675
+  },
+  {
+   "text": "charge.",
+   "start": 14.745,
+   "end": 15.407
+  },
+  {
+   "text": "Blue",
+   "start": 15.569,
+   "end": 16.033
+  },
+  {
+   "text": "is",
+   "start": 16.103,
+   "end": 16.266
+  },
+  {
+   "text": "space",
+   "start": 16.335,
+   "end": 16.742
+  },
+  {
+   "text": "for",
+   "start": 16.788,
+   "end": 16.893
+  },
+  {
+   "text": "the",
+   "start": 16.939,
+   "end": 17.009
+  },
+  {
+   "text": "lithium",
+   "start": 17.078,
+   "end": 17.508
+  },
+  {
+   "text": "to",
+   "start": 17.578,
+   "end": 17.67
+  },
+  {
+   "text": "move.",
+   "start": 17.752,
+   "end": 18.216
+  },
+  {
+   "text": "If",
+   "start": 18.355,
+   "end": 18.564
+  },
+  {
+   "text": "the",
+   "start": 18.634,
+   "end": 18.739
+  },
+  {
+   "text": "mix",
+   "start": 18.808,
+   "end": 19.029
+  },
+  {
+   "text": "drifts,",
+   "start": 19.133,
+   "end": 19.656
+  },
+  {
+   "text": "so",
+   "start": 19.772,
+   "end": 20.016
+  },
+  {
+   "text": "does",
+   "start": 20.085,
+   "end": 20.259
+  },
+  {
+   "text": "the",
+   "start": 20.306,
+   "end": 20.376
+  },
+  {
+   "text": "battery.",
+   "start": 20.422,
+   "end": 21.084
+  }
+ ]
+}

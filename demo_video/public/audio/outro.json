@@ -1,0 +1,112 @@
+{
+ "id": "outro",
+ "text": "Catalyst. Catch the bad batch at the factory, before it makes the news. Made by Team Batch Size 2.",
+ "hash": "c5251cd8a9a7cc42",
+ "voice_id": "awmINsgxT6tx4sTpVomM",
+ "model_id": "eleven_multilingual_v2",
+ "voice_settings": {
+  "stability": 0.45,
+  "similarity_boost": 0.75,
+  "style": 0.3,
+  "use_speaker_boost": true,
+  "speed": 1.08
+ },
+ "duration": 7.616,
+ "words": [
+  {
+   "text": "Catalyst.",
+   "start": 0.0,
+   "end": 0.824
+  },
+  {
+   "text": "Catch",
+   "start": 0.987,
+   "end": 1.358
+  },
+  {
+   "text": "the",
+   "start": 1.428,
+   "end": 1.544
+  },
+  {
+   "text": "bad",
+   "start": 1.649,
+   "end": 1.974
+  },
+  {
+   "text": "batch",
+   "start": 2.043,
+   "end": 2.334
+  },
+  {
+   "text": "at",
+   "start": 2.368,
+   "end": 2.438
+  },
+  {
+   "text": "the",
+   "start": 2.473,
+   "end": 2.543
+  },
+  {
+   "text": "factory,",
+   "start": 2.612,
+   "end": 3.204
+  },
+  {
+   "text": "before",
+   "start": 3.251,
+   "end": 3.68
+  },
+  {
+   "text": "it",
+   "start": 3.738,
+   "end": 3.831
+  },
+  {
+   "text": "makes",
+   "start": 3.889,
+   "end": 4.145
+  },
+  {
+   "text": "the",
+   "start": 4.203,
+   "end": 4.296
+  },
+  {
+   "text": "news.",
+   "start": 4.365,
+   "end": 4.899
+  },
+  {
+   "text": "Made",
+   "start": 5.097,
+   "end": 5.422
+  },
+  {
+   "text": "by",
+   "start": 5.468,
+   "end": 5.677
+  },
+  {
+   "text": "Team",
+   "start": 5.759,
+   "end": 6.06
+  },
+  {
+   "text": "Batch",
+   "start": 6.142,
+   "end": 6.478
+  },
+  {
+   "text": "Size",
+   "start": 6.56,
+   "end": 6.931
+  },
+  {
+   "text": "2.",
+   "start": 6.978,
+   "end": 7.616
+  }
+ ]
+}
