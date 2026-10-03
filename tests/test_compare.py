@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import t as t_dist
 
-from qc.decide import contradictions, evaluate, split_tables, strips_to_settle
+from qc.decide import contradictions, evaluate, split_tables, units_to_settle
 from qc.schema import ControlResult, Controls, load_config
 from tests.synth import QUANTITIES, synth_kpis
 
@@ -67,14 +67,14 @@ def test_self_split_calibration():
         b = baseline[baseline["strip_id"].isin(combo)].assign(batch="split_b")
         r = baseline[~baseline["strip_id"].isin(combo)].assign(batch="split_r")
         evidence = evaluate(split_tables(pd.concat([b, r])), "split_b",
-                            CFG | {"baseline": "split_r"})
+                            CFG | {"baseline": "split_r", "unit": "strip"})  # strip-level calibration; images within a strip are correlated
         n_different += any(d.status == "DIFFERENT" for d in evidence.differences if d.used)
     assert n_different <= 0.2 * 35  # sanity bound against treating images as independent
 
 
 def test_accept_is_reachable():
     layout = {"b": {f"B{i}": 1 for i in range(10)}, "r": {f"R{i}": 1 for i in range(10)}}
-    cfg = CFG | {"margins": {q: 3 * QUANTITIES[q][1] for q in KEY}, "odd_strip_sd": None}
+    cfg = CFG | {"margins": {q: 3 * QUANTITIES[q][1] for q in KEY}, "odd_sd": None}
     evidence = evaluate(split_tables(synth_kpis(layout)), "b", cfg, controls=PASSED)
     assert evidence.verdict == "ACCEPT"
     assert all(d.status == "SIMILAR" for d in evidence.differences if d.used)
@@ -85,35 +85,80 @@ def test_power_limit_investigates():
     tables = split_tables(synth_kpis(layout, batch_shift={"b": {"si_d90_um": 10.0}}))  # non-key
     evidence = evaluate(tables, "b", CFG, controls=PASSED)
     assert evidence.verdict == "INVESTIGATE" and evidence.power.limited
-    assert any("Too few strips" in reason for reason in evidence.reasons)
-    assert "more strips" in evidence.next_action
+    assert any("Too few images" in reason for reason in evidence.reasons)
+    assert "more images" in evidence.next_action
+    strips = evaluate(tables, "b", CFG | {"unit": "strip"}, controls=PASSED)
+    assert any("Too few strips" in reason for reason in strips.reasons)
+    assert "more strips" in strips.next_action
 
 
-def test_odd_strip_flagged_and_toggleable():
+def test_odd_units_flagged_and_toggleable():
     tables = split_tables(pd.read_csv(FAKE))
     evidence = evaluate(tables, "fake_odd", CFG | {"baseline": "fake_baseline"})
+    odd_images = [o for o in evidence.odd_images if o.strip_id == "D1" and o.quantity == "si_graphite_ratio"]
+    assert {o.image_ids[0] for o in odd_images} == {"fake_odd_D1_0", "fake_odd_D1_1"}
+    assert any(reason.startswith("Image fake_odd_D1_") for reason in evidence.reasons)
     assert any(o.strip_id == "D1" and o.quantity == "si_graphite_ratio" for o in evidence.odd_strips)
-    assert any("D1" in reason for reason in evidence.reasons)
-    off = evaluate(tables, "fake_odd", CFG | {"baseline": "fake_baseline", "odd_strip_sd": None})
-    assert off.odd_strips == []
+    assert not any(reason.startswith("Strip ") for reason in evidence.reasons)
+    strips = evaluate(tables, "fake_odd", CFG | {"baseline": "fake_baseline", "unit": "strip"})
+    assert any("Strip D1" in reason for reason in strips.reasons)
+    off = evaluate(tables, "fake_odd", CFG | {"baseline": "fake_baseline", "odd_sd": None})
+    assert off.odd_images == [] and off.odd_strips == []
 
 
-def test_contradictions_modes():
+def test_contradictions():
     driving, other = {"q": "SIMILAR"}, {"q": "UNCLEAR"}
-    assert contradictions(driving, other, "contradiction") == []
-    assert contradictions(driving, other, "any_status") == ["q"]
+    assert contradictions(driving, other) == []
     driving, other = {"q": "DIFFERENT"}, {"q": "SIMILAR"}
-    assert contradictions(driving, other, "contradiction") == ["q"]
-    assert contradictions(driving, other, "any_status") == ["q"]
+    assert contradictions(driving, other) == ["q"]
+    driving, other = {"q": "SIMILAR"}, {"q": "DIFFERENT"}
+    assert contradictions(driving, other) == ["q"]
 
 
-def test_both_shared_strip_variants():
+def test_both_units():
     tables = split_tables(pd.read_csv(FAKE))
-    for setting in ("exclude", "include"):
+    evidences = {}
+    for unit in ("image", "strip"):
         evidence = evaluate(tables, "fake_ok",
-                            CFG | {"baseline": "fake_baseline", "shared_strips": setting})
+                            CFG | {"baseline": "fake_baseline", "unit": unit})
+        evidences[unit] = evidence
+        assert evidence.unit == unit
+        assert evidence.other_unit.unit == ("strip" if unit == "image" else "image")
         used = {d.name for d in evidence.differences if d.used}
-        assert set(evidence.shared_strips.other_status) == used
+        assert set(evidence.other_unit.statuses) == used
+    assert evidences["image"].power.n_segments == (7, 17)
+    assert evidences["image"].other_unit.power.n_segments == (6, 7)
+    assert evidences["strip"].power.n_segments == (6, 7)
+    assert evidences["strip"].other_unit.power.n_segments == (7, 17)
+    assert {d.name: d.margin for d in evidences["image"].differences} == {
+        d.name: d.margin for d in evidences["strip"].differences}
+
+
+def test_unit_contradiction_investigates():
+    cfg = CFG | {"key_descriptors": ["test_q"], "margins": {"test_q": 1.0}, "odd_sd": None}
+    rows = [
+        {"batch": "b", "strip_id": "X", "image_id": f"b_X_{i}", "test_q": 2.0}
+        for i in range(12)
+    ]
+    rows += [
+        {"batch": "b", "strip_id": f"Y{i}", "image_id": f"b_Y{i}", "test_q": 0.05 if i % 2 == 0 else -0.05}
+        for i in range(10)
+    ]
+    rows += [
+        {"batch": "r", "strip_id": f"R{i}", "image_id": f"r_R{i}", "test_q": 0.05 if i % 2 == 0 else -0.05}
+        for i in range(10)
+    ]
+    tables = split_tables(pd.DataFrame(rows))
+    image = evaluate(tables, "b", cfg | {"baseline": "r", "unit": "image"}, controls=PASSED)
+    image_status = next(d.status for d in image.differences if d.name == "test_q")
+    assert image_status == "DIFFERENT"
+    assert image.other_unit.statuses["test_q"] == "SIMILAR"
+    assert image.other_unit.contradictions == ["test_q"]
+    assert image.verdict == "INVESTIGATE"
+    assert any("per image but SIMILAR per strip" in reason for reason in image.reasons)
+    strip = evaluate(tables, "b", cfg | {"baseline": "r", "unit": "strip"}, controls=PASSED)
+    assert strip.verdict == "INVESTIGATE"
+    assert next(d.status for d in strip.differences if d.name == "test_q") == "SIMILAR"
 
 
 def test_failed_controls_cap_the_verdict():
@@ -139,6 +184,6 @@ def test_determinism_and_random_branch():
     assert small.model_dump() == evaluate(tables, "b", CFG | {"n_resamples": 100}).model_dump()
 
 
-def test_strips_to_settle_hand_checked():
-    assert strips_to_settle(0.0, 1.0, 3, 7, 1.0, 0.9) == 3
-    assert strips_to_settle(1.0, 1.0, 3, 7, 1.0, 0.9) is None
+def test_units_to_settle_hand_checked():
+    assert units_to_settle(0.0, 1.0, 3, 7, 1.0, 0.9) == 3
+    assert units_to_settle(1.0, 1.0, 3, 7, 1.0, 0.9) is None

@@ -99,4 +99,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     for evidence in run(args.batch, load_config(args.config), lambda done, total, tile: print(f"[{done}/{total}] {tile}")):
         n1, n2 = evidence.power.n_segments
-        print(f"{evidence.batch}: {evidence.verdict} (segments {n1} vs {n2}) -> {evidence.next_action}")
+        print(f"{evidence.batch}: {evidence.verdict} ({evidence.unit}s {n1} vs {n2}) -> {evidence.next_action}")

@@ -16,8 +16,7 @@ from scipy.stats import t
 from qc.provenance import provenance
 from qc.schema import (
     IMAGING_COLUMNS, KPI_TABLE, KPI_UNITS, PARTICLE_COLUMNS, Controls, Descriptor, Difference, Evidence,
-    Fingerprint, ImagingCheck, OddStrip, Power, Segment, SharedStrips, Status, Tables, evidence_path,
-    load_config,
+    Fingerprint, ImagingCheck, Odd, Power, Segment, Status, Tables, Unit, UnitView, evidence_path, load_config,
 )
 
 NON_QUANTITY = {"batch", "image_id", "strip_id", "px_um", "area_um2"}
@@ -53,22 +52,23 @@ def min_achievable_p(n1: int, n2: int) -> float:
 
 
 def power(n1: int, n2: int, alpha: float) -> Power:
-    """How far a label-shuffle test on n1 vs n2 segments can go (PLAN_v3 §3.5)."""
+    """How far a label-shuffle test on n1 vs n2 units can go (PLAN_v3 §3.5)."""
     min_p = min_achievable_p(n1, n2)
     limited = min_p >= alpha
     extra = 0 if not limited else next(
         (m for m in range(1, 21) if min_achievable_p(n1 + m, n2) < alpha), None)
     return Power(n_segments=(n1, n2), n_arrangements=comb(n1 + n2, n1), min_p=min_p,
-                 limited=limited, extra_strips_needed=extra)
+                 limited=limited, extra_needed=extra)
 
 
-def segments_of(kpis: pd.DataFrame, batch: str, quantities: list[str]) -> list[Segment]:
-    """One Segment per strip_id; per-quantity value = area-weighted mean over the strip's images."""
+def segments_of(kpis: pd.DataFrame, batch: str, quantities: list[str], unit: Unit) -> list[Segment]:
+    """Build the comparison units; strip values are area-weighted means over their images."""
     if kpis.empty:
         return []
     df = kpis.assign(strip_id=kpis["strip_id"].fillna(kpis["image_id"]))
     segments = []
-    for strip_id, group in df.groupby("strip_id"):
+    group_by = "strip_id" if unit == "strip" else "image_id"
+    for _, group in df.groupby(group_by):
         area = group["area_um2"] if "area_um2" in group else pd.Series(np.nan, index=group.index)
         weights = area.where(area.notna() & (area > 0), 1.0)
         values = {}
@@ -76,9 +76,9 @@ def segments_of(kpis: pd.DataFrame, batch: str, quantities: list[str]) -> list[S
             col = group[q] if q in group else pd.Series(np.nan, index=group.index, dtype=float)
             have = col.notna()
             values[q] = float(np.average(col[have], weights=weights[have])) if have.any() else None
-        segments.append(Segment(batch=batch, strip_id=str(strip_id),
+        segments.append(Segment(batch=batch, strip_id=str(group["strip_id"].iloc[0]),
                                 image_ids=[str(i) for i in group["image_id"]],
-                                area_um2=num(area.sum(min_count=1)), shared=False, values=values))
+                                area_um2=num(area.sum(min_count=1)), values=values))
     return segments
 
 
@@ -163,7 +163,7 @@ def permutation_p(units: list[Segment], n1: int, keys: list[str], cfg: dict) -> 
 def analyze(ref_segs: list[Segment], batch_segs: list[Segment], cfg: dict,
             quantities: list[str], margins: dict[str, float | None],
             ) -> tuple[list[Difference], dict[str, Stats], Power]:
-    """Steps A-C on one shared-strip variant: per-quantity t-stats, family-wise p, status."""
+    """Steps A-C at one unit: per-quantity t-stats, family-wise p, status."""
     key = set(cfg.get("key_descriptors", []))
     stats = {q: t_stats(values_of(batch_segs, q), values_of(ref_segs, q), cfg["ci_level"])
              for q in quantities}
@@ -211,20 +211,17 @@ def has_value(seg: Segment, keys: list[str]) -> bool:
     return any(v is not None for v in seg.values.values())
 
 
-def contradictions(driving: dict[str, Status], other: dict[str, Status], mode: str) -> list[str]:
-    """Key quantities where the two shared-strip variants disagree (config shared_disagreement)."""
-    if mode == "any_status":
-        return [q for q in driving if q in other and driving[q] != other[q]]
+def contradictions(driving: dict[str, Status], other: dict[str, Status]) -> list[str]:
+    """Used key quantities that are DIFFERENT at one unit and SIMILAR at the other."""
     return [q for q in driving if q in other and {driving[q], other[q]} == {"DIFFERENT", "SIMILAR"}]
 
 
-def odd_strips(batch_segs: list[Segment], ref_segs: list[Segment], used_keys: list[str],
-               cfg: dict) -> list[OddStrip]:
-    """Batch strips outside reference mean ± odd_strip_sd x SD on a used key quantity."""
-    k = cfg.get("odd_strip_sd")
+def odd_units(batch_segs: list[Segment], ref_segs: list[Segment], used_keys: list[str],
+              cfg: dict) -> list[Odd]:
+    """Batch units outside baseline mean ± odd_sd x SD of baseline values at that unit."""
+    k = cfg.get("odd_sd")
     if k is None:
         return []
-    ref_strips = {s.strip_id for s in ref_segs}
     out = []
     for q in used_keys:
         ref_vals = values_of(ref_segs, q)
@@ -233,16 +230,15 @@ def odd_strips(batch_segs: list[Segment], ref_segs: list[Segment], used_keys: li
         mean, sd = float(np.mean(ref_vals)), float(np.std(ref_vals, ddof=1))
         for seg in batch_segs:
             value = seg.values.get(q)
-            if seg.strip_id not in ref_strips and value is not None \
-                    and not mean - k * sd <= value <= mean + k * sd:
-                out.append(OddStrip(strip_id=seg.strip_id, image_ids=seg.image_ids, quantity=q,
-                                    value=value, range=(mean - k * sd, mean + k * sd)))
+            if value is not None and not mean - k * sd <= value <= mean + k * sd:
+                out.append(Odd(strip_id=seg.strip_id, image_ids=seg.image_ids, quantity=q,
+                               value=value, range=(mean - k * sd, mean + k * sd)))
     return out
 
 
-def strips_to_settle(diff: float, sp: float, n1q: int, n2q: int, margin: float,
-                     ci_level: float) -> int | None:
-    """Extra batch strips for the interval (keeping diff and sp) to lie inside or outside ±margin."""
+def units_to_settle(diff: float, sp: float, n1q: int, n2q: int, margin: float,
+                    ci_level: float) -> int | None:
+    """Extra batch units for the interval (keeping diff and sp) to lie inside or outside ±margin."""
     for m in range(1, 21):
         df = n1q + m + n2q - 2
         half = float(t.ppf((1 + ci_level) / 2, df)) * sp * float(np.sqrt(1 / (n1q + m) + 1 / n2q))
@@ -253,7 +249,7 @@ def strips_to_settle(diff: float, sp: float, n1q: int, n2q: int, margin: float,
 
 
 def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = None) -> Evidence:
-    """Batch vs reference over strip segments (PLAN_v3 §3.5)."""
+    """Compare batch and reference at the configured unit, with the other unit alongside."""
     controls = controls or Controls()
     imaging = ImagingCheck()            # imaging check lands in the next piece
     new_type_share = None               # particle types land in the next piece
@@ -266,24 +262,18 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
               and any(c in f.columns and pd.api.types.is_numeric_dtype(f[c]) for f in (ref_kpis, batch_kpis))]
     quantities = list(dict.fromkeys([*cfg.get("key_descriptors", []), *KPI_UNITS, *others]))
 
-    ref_segments = segments_of(ref_kpis, cfg["baseline"], quantities)
-    batch_segments = segments_of(batch_kpis, batch_name, quantities)
-    shared = sorted({s.strip_id for s in ref_segments} & {s.strip_id for s in batch_segments})
-    for segment in ref_segments + batch_segments:
-        segment.shared = segment.strip_id in shared
-
-    variant = cfg.get("shared_strips", "exclude")
-    dropshared = lambda segs: [s for s in segs if not s.shared]
-    if variant == "exclude":
-        ref_drive, batch_drive = dropshared(ref_segments), dropshared(batch_segments)
-        ref_other, batch_other = ref_segments, batch_segments
-    else:
-        ref_drive, batch_drive = ref_segments, batch_segments
-        ref_other, batch_other = dropshared(ref_segments), dropshared(batch_segments)
+    unit = cfg.get("unit", "image")
+    other = {"image": "strip", "strip": "image"}[unit]
+    ref_image = segments_of(ref_kpis, cfg["baseline"], quantities, "image")
+    batch_image = segments_of(batch_kpis, batch_name, quantities, "image")
+    ref_strip = segments_of(ref_kpis, cfg["baseline"], quantities, "strip")
+    batch_strip = segments_of(batch_kpis, batch_name, quantities, "strip")
+    ref_drive, batch_drive = (ref_image, batch_image) if unit == "image" else (ref_strip, batch_strip)
+    ref_other, batch_other = (ref_strip, batch_strip) if unit == "image" else (ref_image, batch_image)
 
     margins = {}
     for q in quantities:
-        ref_vals = values_of(ref_segments, q)  # margin from the full reference, not the driving variant
+        ref_vals = values_of(ref_image, q)
         margin = (cfg.get("margins") or {}).get(q)
         margins[q] = margin if margin is not None else (
             cfg["similar_margin"] * float(np.std(ref_vals, ddof=1)) if len(ref_vals) >= 2 else None)
@@ -294,19 +284,19 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
         key=lambda d: -abs(d.difference / d.margin))]
 
     driving_status = {d.name: d.status for d in differences if d.used}
-    other_status = {}
-    if shared:
-        other_diffs, _, _ = analyze(ref_other, batch_other, cfg, quantities, margins)
-        other_status = {d.name: d.status for d in other_diffs if d.used}
-    contra = contradictions(driving_status, other_status, cfg.get("shared_disagreement", "contradiction"))
-    odds = odd_strips(batch_segments, ref_segments, [q for q in driving_status], cfg)
+    other_diffs, _, other_power = analyze(ref_other, batch_other, cfg, quantities, margins)
+    other_status = {d.name: d.status for d in other_diffs if d.used}
+    contra = contradictions(driving_status, other_status)
+    odd_images = odd_units(batch_image, ref_image, list(driving_status), cfg)
+    odd_strips = odd_units(batch_strip, ref_strip, list(driving_status), cfg)
+    odds = odd_images if unit == "image" else odd_strips
 
-    verdict, reasons, next_action = verdict_of(differences, drivers, driving_status, other_status,
-                                               contra, odds, pow_, shared, imaging, controls,
-                                               new_type_share, stats, variant, cfg)
+    verdict, reasons, next_action = verdict_of(differences, drivers, other_status, contra,
+                                               odds, pow_, unit, imaging, controls,
+                                               new_type_share, stats, cfg)
 
     def describe(q: str) -> Descriptor:
-        vals = values_of(batch_segments, q)
+        vals = values_of(batch_drive, q)
         interval = None
         if len(vals) >= 2:
             half = float(t.ppf((1 + cfg["ci_level"]) / 2, len(vals) - 1)) \
@@ -314,25 +304,24 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
             interval = (float(np.mean(vals) - half), float(np.mean(vals) + half))
         return Descriptor(name=q, unit=KPI_UNITS.get(q, ""),
                           value=num(np.mean(vals)) if vals else None, interval=interval,
-                          by_strip={s.strip_id: s.values.get(q) for s in batch_segments})
+                          by_strip={s.strip_id: s.values.get(q) for s in batch_strip})
 
     return Evidence(
         batch=batch_name, baseline=cfg["baseline"], verdict=verdict, reasons=reasons,
-        next_action=next_action, differences=differences, drivers=drivers, power=pow_,
-        shared_strips=SharedStrips(setting=variant, strips=shared, other_status=other_status,
-                                   contradictions=contra),
-        odd_strips=odds, new_type_share=new_type_share, imaging=imaging, controls=controls,
-        fingerprint=Fingerprint(segments=batch_segments,
+        next_action=next_action, unit=unit, differences=differences, drivers=drivers, power=pow_,
+        other_unit=UnitView(unit=other, power=other_power, statuses=other_status, contradictions=contra),
+        odd_images=odd_images, odd_strips=odd_strips,
+        new_type_share=new_type_share, imaging=imaging, controls=controls,
+        fingerprint=Fingerprint(segments=batch_strip,
                                 descriptors=[describe(q) for q in quantities]),
         n_images={"batch": len(batch_kpis), "baseline": len(ref_kpis)},
         config_version=cfg["version"])
 
 
-def verdict_of(differences: list[Difference], drivers: list[str], driving: dict[str, Status],
-               other: dict[str, Status], contra: list[str], odds: list[OddStrip], pow_: Power,
-               shared: list[str], imaging: ImagingCheck, controls: Controls,
-               new_type_share: float | None, stats: dict[str, Stats],
-               variant: str, cfg: dict) -> tuple[str, list[str], str]:
+def verdict_of(differences: list[Difference], drivers: list[str], other: dict[str, Status],
+               contra: list[str], odds: list[Odd], pow_: Power, unit: Unit,
+               imaging: ImagingCheck, controls: Controls, new_type_share: float | None,
+               stats: dict[str, Stats], cfg: dict) -> tuple[str, list[str], str]:
     """Verdict, reasons in precedence order, and next action from the first trigger."""
     failed = controls.ran and controls.passed is False
     failed_names = ", ".join(r.name for r in controls.results if not r.passed)
@@ -341,8 +330,8 @@ def verdict_of(differences: list[Difference], drivers: list[str], driving: dict[
     unclear = [d for d in differences if d.used and d.status == "UNCLEAR"]
     no_used = not any(d.used for d in differences)
     ci_pct = f"{cfg['ci_level']:.0%}"
-    include = lambda q: driving[q] if variant == "include" else other[q]
-    exclude = lambda q: driving[q] if variant == "exclude" else other[q]
+    noun = "images" if unit == "image" else "strips"
+    driving = {d.name: d.status for d in differences if d.used}
 
     reasons = []
     if failed:
@@ -351,29 +340,35 @@ def verdict_of(differences: list[Difference], drivers: list[str], driving: dict[
         reason = f"Contains a particle type not seen before: {new_type_share:.3%} of the silicon area."
         reasons.append(reason + (" Imaging changed, so check the imaging first." if imaging.changed else ""))
     for d in different:
-        unit = f" {d.unit}" if d.unit else ""
-        reasons.append(f"{d.name} differs from the reference: {sig(d.batch)} vs {sig(d.reference)}{unit} "
+        quantity_unit = f" {d.unit}" if d.unit else ""
+        reasons.append(f"{d.name} differs from the reference: {sig(d.batch)} vs {sig(d.reference)}{quantity_unit} "
                        f"(difference {sig(d.difference)}, margin ±{sig(d.margin)}, p = {sig(d.p)}).")
     if imaging.changed:
         reasons.append(f"Imaging changed ({', '.join(imaging.changed_metrics)}): "
                        f"{', '.join(cfg['imaging_sensitive'])} reported, not used.")
     for o in odds:
-        reasons.append(f"Strip {o.strip_id} ({len(o.image_ids)} images) is outside the reference range "
-                       f"on {o.quantity}: {sig(o.value)} vs {sig(o.range[0])}–{sig(o.range[1])}.")
+        if unit == "image":
+            reasons.append(f"Image {o.image_ids[0]} (strip {o.strip_id}) is outside the reference range "
+                           f"on {o.quantity}: {sig(o.value)} vs {sig(o.range[0])}–{sig(o.range[1])}.")
+        else:
+            reasons.append(f"Strip {o.strip_id} ({len(o.image_ids)} images) is outside the reference range "
+                           f"on {o.quantity}: {sig(o.value)} vs {sig(o.range[0])}–{sig(o.range[1])}.")
     for q in contra:
-        reasons.append(f"{q} depends on images shared with the reference: {include(q)} with them "
-                       f"included, {exclude(q)} without.")
+        image_status = driving[q] if unit == "image" else other[q]
+        strip_status = other[q] if unit == "image" else driving[q]
+        reasons.append(f"{q} is {image_status} per image but {strip_status} per strip: the result "
+                       f"depends on treating neighbouring images as independent.")
     if pow_.limited:
         n1, n2 = pow_.n_segments
-        reasons.append(f"Too few strips to confirm any difference: {n1} vs {n2} strips, smallest "
+        reasons.append(f"Too few {noun} to confirm any difference: {n1} vs {n2} {noun}, smallest "
                        f"possible p {sig(pow_.min_p)} ≥ alpha {sig(cfg['alpha'])}.")
     for d in unclear:
         if d.interval:
-            unit = f" {d.unit}" if d.unit else ""
+            quantity_unit = f" {d.unit}" if d.unit else ""
             reasons.append(f"{d.name} is unclear: {ci_pct} interval {sig(d.interval[0])} to "
-                           f"{sig(d.interval[1])}{unit} against a margin of ±{sig(d.margin)}.")
+                           f"{sig(d.interval[1])}{quantity_unit} against a margin of ±{sig(d.margin)}.")
         else:
-            reasons.append(f"{d.name} is unclear: not enough segments for an interval.")
+            reasons.append(f"{d.name} is unclear: not enough {noun} for an interval.")
     if not controls.ran:
         reasons.append("Controls not run: ACCEPT needs passed controls.")
     if no_used:
@@ -398,32 +393,35 @@ def verdict_of(differences: list[Difference], drivers: list[str], driving: dict[
     elif different:
         top = next((q for q in drivers if q in {d.name for d in different}), different[0].name)
         d = next(d for d in different if d.name == top)
-        unit = f" {d.unit}" if d.unit else ""
+        quantity_unit = f" {d.unit}" if d.unit else ""
         next_action = (f"Hold the batch. Top driver: {d.name} ({sig(d.batch)} vs {sig(d.reference)}"
-                       f"{unit}). Check it at the supplier.")
+                       f"{quantity_unit}). Check it at the supplier.")
     elif imaging.changed:
         next_action = (f"Check the imaging settings ({', '.join(imaging.changed_metrics)}) against "
                        f"the reference before trusting {', '.join(cfg['imaging_sensitive'])}.")
     elif odds:
-        next_action = f"Check strip {odds[0].strip_id}: part of the batch may be different material."
+        odd = odds[0]
+        next_action = (f"Check image {odd.image_ids[0]}: part of the batch may be different material."
+                       if unit == "image" else
+                       f"Check strip {odd.strip_id}: part of the batch may be different material.")
     elif contra:
-        next_action = (f"Image strips unique to this batch: the result depends on images shared "
-                       f"with the reference ({', '.join(shared)}).")
+        next_action = (f"Image more strips of this batch: {', '.join(contra)} changes status "
+                       f"between the image and the strip view.")
     elif pow_.limited:
         n1, n2 = pow_.n_segments
-        extra = f"at least {pow_.extra_strips_needed} " if pow_.extra_strips_needed is not None else ""
-        next_action = (f"Image {extra}more strips of this batch: with {n1} vs {n2} strips "
+        extra = f"at least {pow_.extra_needed} " if pow_.extra_needed is not None else ""
+        next_action = (f"Collect {extra}more {noun} of this batch: with {n1} vs {n2} {noun} "
                        f"no difference can be confirmed.")
     elif unclear:
         top = max((d for d in unclear if d.margin and stats[d.name].sp is not None),
                   key=lambda d: abs(d.difference / d.margin), default=None)
         if top is None:
-            next_action = "Image more strips to settle the unclear quantities."
+            next_action = f"Collect more {noun} to settle the unclear quantities."
         else:
             st = stats[top.name]
-            m = strips_to_settle(st.diff, st.sp, st.n[0], st.n[1], top.margin, cfg["ci_level"])
-            next_action = (f"Image ~{m} more strips to settle {top.name}." if m is not None else
-                           f"{top.name} sits close to the margin: even 20 more strips may not settle "
+            m = units_to_settle(st.diff, st.sp, st.n[0], st.n[1], top.margin, cfg["ci_level"])
+            next_action = (f"Collect ~{m} more {noun} to settle {top.name}." if m is not None else
+                           f"{top.name} sits close to the margin: even 20 more {noun} may not settle "
                            f"it; ask whether a customer tolerance exists.")
     elif not controls.ran:
         next_action = "Run the controls (Sync 2), then re-run."
@@ -451,5 +449,4 @@ if __name__ == "__main__":
         evidence_path(name).parent.mkdir(parents=True, exist_ok=True)
         evidence_path(name).write_text(evidence.model_dump_json(indent=2))
         n1, n2 = evidence.power.n_segments
-        print(f"{name:20s} {evidence.verdict:12s} segments {n1} vs {n2} · "
-              f"{len(evidence.shared_strips.strips)} shared strip(s)")
+        print(f"{name:20s} {evidence.verdict:12s} {evidence.unit}s {n1} vs {n2}")

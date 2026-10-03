@@ -17,11 +17,6 @@ export default function TileGallery({ evidence }: { evidence: Evidence }) {
             <p className="mb-2 text-xs text-slate-400">
               strip <span className="font-mono text-slate-300">{segment.strip_id}</span>
               <span className="ml-2 text-slate-500">{segment.image_ids.length} image(s)</span>
-              {segment.shared && (
-                <span className="ml-2 rounded bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">
-                  shared
-                </span>
-              )}
             </p>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {segment.image_ids.map((imageId) => (

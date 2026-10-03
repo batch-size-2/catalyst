@@ -44,7 +44,7 @@ cd web && npm install && npm run dev   # UI on :5173, proxies /api to :8000
 flowchart LR
   subgraph IN["Inputs"]
     D["data/{batch}/img_{id}_{detector}.tif<br/>BSE · ETD/SE · InLens, 0.025 µm/px"]
-    CFG["config/decision.yaml<br/>baseline · key_descriptors · margins<br/>alpha · ci_level · shared_strips"]
+    CFG["config/decision.yaml<br/>baseline · key_descriptors · margins · unit<br/>alpha · ci_level"]
   end
 
   subgraph GLUE["Shared glue"]
@@ -59,7 +59,7 @@ flowchart LR
   end
 
   subgraph BE["Backend · qc/decide.py"]
-    J["evaluate(tables, batch, cfg) → compare(ref, batch, cfg) → Evidence<br/>strip segments → differences → verdict"]
+    J["evaluate(tables, batch, cfg) → compare(ref, batch, cfg) → Evidence<br/>image + strip units → differences → verdict"]
   end
 
   subgraph OUT["out/ (gitignored)"]
@@ -145,7 +145,7 @@ One command, `qc.run`, does steps 1–6 for the baseline plus each requested bat
 **Input details (step 2, from PLAN_v1 §2)**
 - **Detectors** are normalised to `BSE` / `ETD` / `InLens`; `SE` is an alias for `ETD`. The `img_` prefix is dropped from IDs.
 - **`px_um`** comes from the TIFF `XResolution` / `ResolutionUnit` tags (0.025 µm/px), or NaN if missing.
-- **`strip_id`** is `"<height>_<round(XResolution)>"`, e.g. `2316_1015998`. It groups images cut from the same continuous strip; the strip segment is the unit of the whole comparison (§3.5), and it finds strips shared between folders automatically.
+- **`strip_id`** is `"<height>_<round(XResolution)>"`, e.g. `2316_1015998`. It groups images cut from one strip; used for the strip-level view and the gallery. The image is the unit of the verdict.
 - **`black_level`** is the 0.5th percentile per channel, read off a 256-bin histogram (cheap on ~12 MP fields). Channels stay raw; subtracting it is `segment()`'s job (§3.2).
 
 **Phase labels (`schema.Phase`)**
@@ -181,35 +181,37 @@ A KPI that isn't computed, or an image whose segmentation crashes, is written as
 
 Pure statistics on KPI tables; it never sees an image. It follows PLAN_v3 §3.5, with the deviations listed below.
 
-**1. Tables and segments.** `split_tables` groups `out/kpis.csv` into one `Tables` per batch (`kpis` now, `particles`/`imaging` once they exist). `compare(ref, batch, cfg)` then works on **strip segments**: the images of one `strip_id` inside one batch folder. A segment's value per quantity is the `area_um2`-weighted mean over its images (equal weights where the area is missing). `evaluate(tables, batch, cfg)` wraps `compare` and will grow the pieces that need every known batch (nearest batch, variance split).
+**1. Tables and units.** `split_tables` groups `out/kpis.csv` into one `Tables` per batch (`kpis` now, `particles`/`imaging` once they exist). `compare(ref, batch, cfg)` builds both image units (one per image) and strip units (one per `strip_id`, with a value area-weighted over its images; equal weights where area is missing). `unit` selects which view drives the verdict; the other is reported alongside it. An image with a missing `strip_id` uses its `image_id` as the strip id.
 
 **2. Quantities.** `key_descriptors` in config order, then `KPI_UNITS`, then any other numeric column. `key` = counts towards the verdict; `used` = key and measured on both sides (`note: "not measured"` otherwise).
 
-**3. Shared strips.** Strips with images in both batch and reference are the same physical sample. `shared_strips` picks the variant that drives the verdict: `exclude` drops the shared strips' segments from both sides, `include` keeps everything. Both variants are computed; `shared_strips.other_status` holds the used key quantities' statuses in the other variant, and `contradictions` the quantities where they disagree (`shared_disagreement`: `contradiction` = DIFFERENT vs SIMILAR, `any_status` = any difference).
+**3. Units.** `unit` is `image` or `strip` (default `image`). `analyze` runs at both units with nothing dropped; `Evidence.other_unit` holds the other unit's power and used-key statuses. A used key quantity that is DIFFERENT at one unit and SIMILAR at the other is a contradiction: INVESTIGATE, not REJECT, because images from one strip are correlated and an image-level p can be too small.
 
-**4. Difference per quantity.** `reference`/`batch` = unweighted means over the driving variant's segment values; `difference` = batch − reference. `interval` = `ci_level` t-interval on the difference with pooled SD `sp` and n1 + n2 − 2 degrees of freedom. `margin` δ = `margins[name]` if set, else `similar_margin` × SD (ddof 1) of the **full** reference's segment values.
+**4. Difference per quantity.** `reference`/`batch` = unweighted means over the driving-unit values; `difference` = batch − reference. `interval` = `ci_level` t-interval on the difference with pooled SD `sp` and n1 + n2 − 2 degrees of freedom. `margin` δ = `margins[name]` if set, else `similar_margin` × SD (ddof 1) of the baseline's image values; the same δ is used at both units.
 
-**5. Family-wise p, status, drivers.** Labels are shuffled over the driving variant's segments (the units are segments with a value for ≥ 1 used key quantity): all C(n1 + n2, n1) arrangements when ≤ `n_resamples`, else `n_resamples` seeded draws; the observed arrangement always counts. `p` = share of arrangements whose **max-|T| over the used key quantities** reaches the observed |T| (single-step Westfall–Young: the same p protects all key quantities at once). Status for a used key quantity: DIFFERENT when `p < alpha` and |difference| > δ; SIMILAR when the interval lies inside ±δ; else UNCLEAR. Non-key or unused-but-measured quantities get a descriptive status from the interval alone — it never affects the verdict. `drivers` ranks the used key quantities by |difference| / δ.
+**5. Family-wise p, status, drivers.** Labels are shuffled over driving-unit values (the units are values for ≥ 1 used key quantity): all C(n1 + n2, n1) arrangements when ≤ `n_resamples`, else `n_resamples` seeded draws; the observed arrangement always counts. `p` = share of arrangements whose **max-|T| over the used key quantities** reaches the observed |T| (single-step Westfall–Young: the same p protects all key quantities at once). Status for a used key quantity: DIFFERENT when `p < alpha` and |difference| > δ; SIMILAR when the interval lies inside ±δ; else UNCLEAR. Non-key or unused-but-measured quantities get a descriptive status from the interval alone — it never affects the verdict. `drivers` ranks the used key quantities by |difference| / δ.
 
-**6. Power.** `power.n_arrangements` = C(n1 + n2, n1) on the permutation's unit counts; `min_p` = 2/N for equal counts else 1/N; `limited` when `min_p ≥ alpha`; `extra_strips_needed` = the extra batch strips that would lift the limit (≤ 20).
+**6. Power.** `power.n_arrangements` = C(n1 + n2, n1) on the driving unit counts; `min_p` = 2/N for equal counts else 1/N; `limited` when `min_p ≥ alpha`; `extra_needed` = the extra batch units that would lift the limit (≤ 20).
 
-**7. Odd strips, verdict, next action.** A batch strip that is not in the reference and sits outside reference mean ± `odd_strip_sd` × SD on a used key quantity is listed in `odd_strips` and named in the reasons. The verdict follows the precedence in the deviations below (controls → new type → DIFFERENT → imaging → odd strips → contradictions → power → UNCLEAR → controls missing → nothing measured), with `reasons` listing every trigger that fired. `next_action` is computed from the first trigger: quarantine/check-supplier on REJECT, more strips on power limit, `strips_to_settle` (the extra strips that push the top UNCLEAR quantity's interval fully inside or outside ±δ) on UNCLEAR, "Release the batch" on ACCEPT.
+**7. Odd units, verdict, next action.** `odd_units` flags batch images or strips outside the baseline mean ± `odd_sd` × SD of baseline values at that unit (at least 3 baseline values); `odd_images` and `odd_strips` are both reported, but only the driving unit's list triggers the verdict. The verdict follows the precedence in the deviations below (controls → new type → DIFFERENT not contradicted by the other unit → imaging → odd units → contradictions → power → UNCLEAR → controls missing → nothing measured), with `reasons` listing every trigger that fired. `next_action` is computed from the first trigger: quarantine/check-supplier on REJECT, more units on power limit, `units_to_settle` (the extra units that push the top UNCLEAR quantity's interval fully inside or outside ±δ) on UNCLEAR, "Release the batch" on ACCEPT.
 
-**8. Fingerprint and provenance.** The evidence carries the batch's `segments` (with `shared` flags and `image_ids`) and per-quantity `descriptors` (batch mean + `by_strip` + a `ci_level` t-interval over segments), with `type_shares`, `image_groups`, `variance_split`, `imaging`, `controls`, `explanations` as empty slots. `qc/provenance.py` fills `provenance` (§3.11): SHA-256 per input TIFF, git commit + dirty flag, a canonical hash of the config plus hashes of `config/particle_types.json`/`config/kpi_dictionary.yaml` when present, the `rules-frozen` tag if it exists, and a timestamp — the only field that differs between identical runs.
+**8. Fingerprint and provenance.** `fingerprint.segments` stays at strip level for the image gallery; each descriptor's value and t-interval use the driving unit, with `by_strip` values from the strip segments. `type_shares`, `imaging`, `controls` and `explanations` remain available. Nearest batch, image groups and variance split were dropped: batch attribution (Pat's `qc/attribute.py`) replaces them. `qc/provenance.py` fills `provenance` (§3.11): SHA-256 per input TIFF, git commit + dirty flag, a canonical hash of the config plus hashes of `config/particle_types.json`/`config/kpi_dictionary.yaml` when present, the `rules-frozen` tag if it exists, and a timestamp — the only field that differs between identical runs.
 
 ### Deviations from PLAN_v3
 
 Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; implemented in `qc/decide.py`.
 
-> **Mentor update (3 Oct), partly supersedes this section.** The batches are synthetic: images were assigned to batches by a morphology pattern, so strips don't matter, and the judged test is sorting held-back images into batches and saying why. The next PR makes the image the unit of the verdict (strips shown alongside), removes the shared-strip logic described here, and adds the image sorter. See [docs/HANDOFF.md](docs/HANDOFF.md).
+> **Mentor update (3 Oct), implemented here.** The image is the unit of the verdict, the strip view is computed alongside, and shared-strip logic is removed. Sorting images into batches is Pat's `qc/attribute.py`; the software side wraps it (see [docs/HANDOFF.md](docs/HANDOFF.md)).
 
-- **SIMILAR uses a t-interval, not the two-level bootstrap (§3.5).** 90% interval on strip-segment values with pooled SD and n1 + n2 − 2 degrees of freedom, as in the FDA tier-1 method the plan cites [R7]. With 3–7 strips a percentile bootstrap gives intervals that are too narrow, so it says SIMILAR too easily (more false ACCEPTs). The margin δ is computed once from the full reference, not per shared-strip variant, and fixed per key quantity in `margins` at Sync 2.
-- **Consequence: INVESTIGATE is the normal answer.** With 3–7 strips SIMILAR is rare; at 3 vs 4 strips it is impossible when δ = 1.5 × the reference strip SD. The next action says how many more strips would settle it. The Sync 1 self-split check passes when at most `alpha` of the splits come out DIFFERENT, and each negative control (§3.7) passes when it is not DIFFERENT: no false REJECT. Neither needs SIMILAR.
-- **Power limit.** A comparison is power-limited when the smallest achievable p ≥ `alpha`: 2/N for equal strip counts (an arrangement and its mirror give the same |T|), else 1/N, where N is the number of arrangements. The plan's "N < 1/alpha" misses e.g. Batch_1 vs Batch_2 without shared strips: 3 vs 3 strips, N = 20, smallest p = 0.10.
-- **Shared-strip disagreement (§3.5).** With `shared_disagreement: contradiction` (default) only a key quantity that is DIFFERENT in one variant and SIMILAR in the other makes the verdict INVESTIGATE. SIMILAR vs UNCLEAR means the exclude variant lost strips, not that shared material biased the result. `any_status` restores the plan's rule.
-- **Odd-strip check (new).** A batch strip outside the reference mean ± `odd_strip_sd` × the SD of reference strip values, on a used key quantity, makes the verdict INVESTIGATE and is named in the reasons: the FDA tier-2 quality range from the same framework [R7]. With `si_graphite_ratio` derived from the stub fractions it flags only strip 2316_1015998 (P2316) in Batch_1, where the batch-mean test says UNCLEAR (p = 0.63); in the pipeline it fires once `si_graphite_ratio` is a measured KPI. `odd_strip_sd: null` turns it off.
-- **Verdict precedence (not specified in the plan).** Controls failed → INVESTIGATE. New particle type → REJECT, or INVESTIGATE if imaging changed (type features are brightness-based). A key quantity DIFFERENT and not contradicted by the other shared-strip variant → REJECT. Any UNCLEAR, power limit, imaging change, odd strip or variant contradiction → INVESTIGATE. Otherwise ACCEPT. `reasons` lists every trigger that fired.
-- **Structure.** `compare(ref, batch, cfg)` stays a two-sample comparison; `evaluate(tables, batch, cfg)` adds what needs every known batch (nearest batch, variance split). Provenance lives in `qc/provenance.py` instead of `qc/run.py`. `kpis.csv` gains `area_um2` (analysed area) so strip values can be area-weighted.
+- **SIMILAR uses a t-interval, not the two-level bootstrap (§3.5).** 90% interval on driving-unit values with pooled SD and n1 + n2 − 2 degrees of freedom, as in the FDA tier-1 method the plan cites [R7]. The margin δ is `similar_margin` × the baseline image SD, used at both units, and can be fixed per key quantity in `margins` at Sync 2.
+- **Consequence: INVESTIGATE is the normal answer for the strip view.** With 3–7 strips SIMILAR is rare. Per image there are 7–17 units. The next action says how many more units would settle it. The Sync 1 self-split check passes when at most `alpha` of the splits come out DIFFERENT, and each negative control (§3.7) passes when it is not DIFFERENT: no false REJECT. Neither needs SIMILAR.
+- **Power limit.** A comparison is power-limited when the smallest achievable p ≥ `alpha`: 2/N for equal unit counts (an arrangement and its mirror give the same |T|), else 1/N, where N is the number of arrangements. The plan's "N < 1/alpha" misses e.g. a 3 vs 3 strip comparison, N = 20, smallest p = 0.10.
+- **The image is the unit of the verdict (§3.5 says strip segment).** Mentors (3 Oct): batches are synthetic morphology groupings, so strips don't matter. The strip view is computed alongside; a DIFFERENT-vs-SIMILAR split between units → INVESTIGATE because images of one strip are correlated and an image-level p can be too small.
+- **Shared-strip variants removed (§3.5, §3.13).**
+- **Nearest batch, image groups and variance split dropped (§3.5):** batch attribution replaces them.
+- **Odd check (new), at both units.** A batch image or strip outside baseline mean ± `odd_sd` × the baseline SD at that unit, on a used key quantity, is listed and triggers INVESTIGATE only at the driving unit: the FDA tier-2 quality range from the same framework [R7]. `odd_sd: null` turns it off.
+- **Verdict precedence (not specified in the plan).** Controls failed → INVESTIGATE. New particle type → REJECT, or INVESTIGATE if imaging changed (type features are brightness-based). A key quantity DIFFERENT and not contradicted by the other unit → REJECT. Any UNCLEAR, power limit, imaging change, odd unit or unit contradiction → INVESTIGATE. Otherwise ACCEPT. `reasons` lists every trigger that fired.
+- **Structure.** `compare(ref, batch, cfg)` stays a two-sample comparison; provenance lives in `qc/provenance.py` instead of `qc/run.py`. `kpis.csv` gains `area_um2` (analysed area) so strip values can be area-weighted.
 
 **Config (`config/decision.yaml`)**
 
@@ -219,37 +221,51 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 | `data_dir` | `data` | Where batch folders live |
 | `baseline` | `Batch_3` | The approved reference batch |
 | `reference_exclude` | `[]` | Baseline `image_id`s to drop from the reference |
+| `unit` | `image` | Unit that drives the verdict: `image` or `strip`; the other is reported in `other_unit` |
 | `key_descriptors` | 5 items | Quantities that count towards the verdict |
 | `key_type_shares` | `true` | Particle-type shares count as key quantities (§3.4) |
 | `imaging_sensitive` | `si_contrast_ratio`, `porosity_apparent` | Reported but unused if imaging changed (§3.3) |
 | `ci_level` | `0.90` | Level of the t-intervals |
 | `alpha` | `0.10` | Family-wise threshold for DIFFERENT |
-| `similar_margin` | `1.5` | δ = this × reference strip SD (FDA tier-1) |
+| `similar_margin` | `1.5` | δ = this × baseline image SD (FDA tier-1) |
 | `margins` | `{}` | Per-quantity δ overrides, fixed at Sync 2 |
 | `new_type_share` | `0.05` | Unassigned Si share that means a new particle type |
 | `n_resamples`, `seed` | `5000`, `0` | Resampling budget and seed |
-| `shared_strips` | `exclude` | Which shared-strip variant drives the verdict (§3.13) |
-| `shared_disagreement` | `contradiction` | When the two variants force INVESTIGATE (`any_status` = the plan's rule) |
-| `odd_strip_sd` | `3.0` | Quality range = reference mean ± this × reference strip SD; `null` turns it off |
+| `odd_sd` | `3.0` | Odd range = baseline mean ± this × baseline SD at each unit; `null` turns it off |
 
-**Not built yet** (next pieces): particle-based quantities (pooled D50, type shares, new-type detection, §3.4), the imaging check (§3.3), nearest batch, image groups, variance split, controls (§3.7) and explanations (§3.8). The verdict logic already reacts to `new_type_share`, `imaging.changed` and `controls` once they are filled.
+**Not built yet** (next pieces): particle-based quantities (pooled D50, type shares, new-type detection, §3.4), the imaging check (§3.3), the batch-attribution views, controls (§3.7) and explanations (§3.8). The verdict logic already reacts to `new_type_share`, `imaging.changed` and `controls` once they are filled.
+
+**Held-out protocol** (for batch attribution):
+1. Put the new images in their own folders under `data/`, never inside the known batch folders.
+2. Freeze the model, then `git tag rules-frozen`.
+3. Predict once.
+4. Commit the output unchanged.
 
 ### Evidence JSON (`schema.Evidence`)
 
 ```json
 {
   "batch": "fake_shift", "baseline": "fake_baseline", "verdict": "REJECT",
-  "reasons": ["si_graphite_ratio differs from the reference: 0.125 vs 0.0886 (difference 0.0362, margin ±0.0117, p = 0.00175).",
-              "Strip S1 (2 images) is outside the reference range on si_graphite_ratio: 0.14 vs 0.0652–0.112."],
-  "next_action": "Hold the batch. Top driver: si_graphite_ratio (0.125 vs 0.0886). Check it at the supplier.",
+  "reasons": ["si_graphite_ratio differs from the reference: 0.129 vs 0.0889 (difference 0.0401, margin ±0.0121, p = 0.000200).",
+              "Image fake_shift_S1_0 (strip S1) is outside the reference range on si_graphite_ratio: 0.142 vs 0.0647–0.113."],
+  "next_action": "Hold the batch. Top driver: si_graphite_ratio (0.129 vs 0.0889). Check it at the supplier.",
+  "unit": "image",
   "differences": [{"name": "si_graphite_ratio", "unit": "", "key": true, "used": true,
-                   "reference": 0.0886, "batch": 0.125, "difference": 0.0362,
-                   "interval": [0.0247, 0.0478], "margin": 0.0117, "p": 0.00175,
-                   "status": "DIFFERENT", "n_segments": [6, 7]}],
-  "drivers": ["si_graphite_ratio", "si_contrast_ratio", "si_d50_um", "..."],
-  "power": {"n_segments": [6, 7], "n_arrangements": 1716, "min_p": 0.000583,
-            "limited": false, "extra_strips_needed": 0},
-  "shared_strips": {"setting": "exclude", "strips": [], "other_status": {}, "contradictions": []},
+                   "reference": 0.0889, "batch": 0.129, "difference": 0.0401,
+                   "interval": [0.0323, 0.0479], "margin": 0.0121, "p": 0.000200,
+                   "status": "DIFFERENT", "n_segments": [8, 17]}],
+  "drivers": ["si_graphite_ratio", "si_contrast_ratio", "porosity_apparent", "..."],
+  "power": {"n_segments": [8, 17], "n_arrangements": 1081575, "min_p": 9.25e-07,
+            "limited": false, "extra_needed": 0},
+  "other_unit": {"unit": "strip", "power": {"n_segments": [6, 7], "n_arrangements": 1716,
+                 "min_p": 0.000583, "limited": false, "extra_needed": 0},
+                 "statuses": {"si_graphite_ratio": "DIFFERENT", "si_d50_um": "SIMILAR",
+                              "si_internal_void_frac": "SIMILAR", "si_contrast_ratio": "UNCLEAR",
+                              "porosity_apparent": "SIMILAR"}, "contradictions": []},
+  "odd_images": [{"strip_id": "S1", "image_ids": ["fake_shift_S1_0"], "quantity": "si_graphite_ratio",
+                  "value": 0.142, "range": [0.0647, 0.113]}, "..."],
+  "odd_strips": [{"strip_id": "S1", "image_ids": ["fake_shift_S1_0", "fake_shift_S1_1"],
+                  "quantity": "si_graphite_ratio", "value": 0.140, "range": [0.0652, 0.112]}, "..."],
   "n_images": {"batch": 8, "baseline": 17},
   "config_version": "v3-draft"
 }
