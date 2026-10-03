@@ -64,6 +64,7 @@ flowchart LR
     D["data/{batch}/img_{id}_{detector}.tif<br/>BSE · ETD/SE · InLens, 0.025 µm/px"]
     CFG["config/decision.yaml<br/>baseline · key_descriptors · margins · unit<br/>alpha · ci_level"]
     DICT["config/kpi_dictionary.yaml<br/>Pat's audience dictionary, when present"]
+    WORD["config/reason_wording.yaml<br/>text-only: reason basis · caveats, when present"]
   end
 
   subgraph GLUE["Shared glue"]
@@ -127,6 +128,7 @@ flowchart LR
   RUN --> EXPLAIN
   J --> EXPLAIN
   DICT --> EXPLAIN
+  WORD -. "basis · caveat · deep-PC text" .-> PRED
   EXPLAIN --> E
   RUN --> P
   RUN --> PROV --> E
@@ -172,6 +174,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `config/particle_types.json` | yes | Fitted particle-type model (GMM centres/covs, names, unassigned threshold). Frozen with `rules-frozen` |
 | `config/kpi_dictionary.yaml` | yes | Plain-language meaning/causes/checks per descriptor (draft; causes need mentor review); read by `explain()` and hashed into provenance |
 | `config/attribution_model.json` | yes, once fitted | Frozen attribution model: feature names, means, SDs, coefficients, `C`, training image ids, its own LOSO accuracy, and the Batch_3 baseline statistics for the unfamiliar flag. Frozen with `rules-frozen`; hashed into provenance when present |
+| `config/reason_wording.yaml` | yes | Text-only reason wording (T4), read by `qc.attribute.predict` when present: `imaging_features` (regex rules that mark a reason `basis: imaging` with a `caveat`; `deep_pc03`/`deep_pc04` get a dark-graphite text from the image's `dark_graphite_share`, computed in `attribute_images`) and `call_caveat` (one sentence on every call). Every other reason is `basis: material`. Never changes a number; **not** covered by `rules-frozen`. Without the file the output is unchanged |
 | `out/kpis.csv` | no | KPI table, one row per image (incl. `area_um2`, the analysed area), all batches measured so far |
 | `out/particles.csv` | no | One row per Si particle: size, contrast, inlens ratio, voids, texture, solidity, type. Read by `compare()` |
 | `out/imaging.csv` | no | One row per image and channel: black level, percentiles, noise, sharpness, saturation, curtaining. Read by `compare()` |
@@ -183,7 +186,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads this, attribution output and masks |
 | `out/features.csv` | no | One row per image: `batch, image_id, strip_id` + `reg_`, `edge_`, `tex_`, `par_`, `kpi_`, `img_` features (`qc/features.py`), plus optional `deep_` columns (`qc/deep.py`). Never strip, size or pixel-size columns |
 | `out/attribution/evaluation.json`, `feature_ranking.csv` | no | Leave-one-strip-out balanced accuracy, confusion, permutation null and shared-strip check per feature family; univariate feature ranking on strip-segment means. Exposed by the API |
-| `out/attribution/<run>.json` | no | Per image, always a batch: `p_Batch_*`, `predicted`, `confidence` (temperature-scaled; `confidence_raw`), `confidence_tier` with `confidence_record`, `stage_baseline`, `stage_variation`, `prediction_set`, `reasons` (with plain-language `text`), `baseline_distance`, `outside_baseline`, `deviations`, `predicted_distance`, `unfamiliar` (outside the batch it was assigned to), optional `assigned` (balanced). `model.calibration` holds the out-of-fold record behind the tiers. Exposed by the API |
+| `out/attribution/<run>.json` | no | Per image, always a batch: `p_Batch_*`, `predicted`, `confidence` (temperature-scaled; `confidence_raw`), `confidence_tier` with `confidence_record`, `stage_baseline`, `stage_variation`, `prediction_set`, `reasons` (with plain-language `text`; with `config/reason_wording.yaml` also `basis` and `caveat`), `baseline_distance`, `outside_baseline`, `deviations`, `predicted_distance`, `unfamiliar` (outside the batch it was assigned to), optional `assigned` (balanced), `caveat` (with `config/reason_wording.yaml`). `model.calibration` holds the out-of-fold record behind the tiers. Exposed by the API |
 | `tests/fixtures/kpis_fake.csv` | yes | Synthetic KPI table (`tests/synth.py`), so the backend and UI can be built with no images |
 | `tests/fixtures/evidence_example.json` | yes | Hand-made, fully populated Evidence. To view it in the UI: `cp tests/fixtures/evidence_example.json out/evidence/example.json` and select `example` |
 | `tests/fixtures/attribution_example.json`, `attribution_evaluation_example.json` | yes | Fixtures mirroring Pat's output format |
@@ -431,6 +434,26 @@ The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution
 5. Run `uv run python -m qc.attribute --images data/<drop>` once, then copy `out/attribution/<drop>.json` to `results/` and commit it unchanged (`out/` is gitignored). Add `--balanced k` only if the split per batch is confirmed.
 
 The model was frozen on 3 Oct at 22:10 (tag `rules-frozen`, staged `material > deep`). The first unseen folder (`Hackathon-Polaron-test`, 3 samples) was scored once with it; the output is [results/Hackathon-Polaron-test.json](results/Hackathon-Polaron-test.json), committed unchanged. Disclosure: the same three samples had been uploaded through the app about 20 minutes before the tag, with the same model file; nothing was refitted or tuned in between and the calls are identical (PLAN_v4 §12.3). More images come shortly before judging: same command, same frozen model.
+
+[results/Hackathon-Polaron-test.reworded.json](results/Hackathon-Polaron-test.reworded.json) is the same command rerun with `config/reason_wording.yaml` (T4): the same frozen model and identical numbers (every `p_*`, call, confidence, tier, set and distance; checked by `tests/test_attribute.py::test_reworded_results_match_the_committed_numbers`), with `basis` and `caveat` on the reasons and a `caveat` on each call.
+
+## Limits and assumptions
+
+The three judgements of [docs/MODEL_LITERATURE_REVIEW.md](docs/MODEL_LITERATURE_REVIEW.md) §8.2, with our confidence. The mentors were asked; no answer came, so these are assumptions.
+
+| Assumption | Confidence |
+|---|---|
+| The electrodes are pristine (not cycled), except strip 2316 | ~85% |
+| The black InLens graphite zones are an electrical imaging contrast, not a composition difference | ~75% |
+| The top of each image is the coating surface and the bottom the current-collector foil | ~95% |
+
+What the post-freeze experiments found (none of them changed the frozen model):
+
+- **T1** ([docs/experiments/T1.md](docs/experiments/T1.md)): Gaussian noise σ = 5 flips "Batch_3 or not" for 12 of 17 Batch_3 images, so the 2-pixel (0.05 µm) texture features follow detector noise; adding InLens dark-graphite zones moves all 7 Batch_1 images to Batch_3 through the InLens-dependent features.
+- **T2** ([docs/experiments/T2.md](docs/experiments/T2.md)): the deep lean survives removing the dark-graphite share, but `deep_pc03` and `deep_pc04` correlate |r| ≈ 0.6 with it; their reasons now say so.
+- **T3** ([docs/experiments/T3.md](docs/experiments/T3.md)): no Batch_1/Batch_2 difference is visible inside a strip; the positive control fails too, so the test is blunt and the "no" is weak.
+- **T9** ([docs/experiments/T9.md](docs/experiments/T9.md)): once the measured imaging is erased, every attribution signal (Batch_3 or not, and three-way) falls to chance, and a shuffled-covariate control shows this is imaging-specific. Imaging sessions follow strips and folders were built from strips, so with 31 images the folder and the acquisition cannot be separated. Every call carries this caveat.
+- **T10** ([docs/experiments/T10.md](docs/experiments/T10.md)): texture measured at the material scale is less noise-sensitive but still collapses under the imaging erasure; it is not acquisition-robust either.
 
 ## Who owns what
 
