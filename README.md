@@ -190,6 +190,10 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `assets/` | yes | Brand assets: Catalyst the cat (`cat/Cat.tsx`, SVGs, `preview.html`) and the logo (the c is a cat head, the y has a tail). See `assets/README.md` |
 | `design/` | yes | Design system for the app redesign: `tokens.css` (colours, type, glass), the new logo and cat moods in `logo/`, and the screen designs in `canvas/`. See `design/README.md` |
 | `demo_video/` | yes | The 2-minute demo video. `PROMPT.md` is the one-shot brief for building it with Remotion + ElevenLabs |
+| `docs/TICKETS.md` | yes | Post-freeze experiment and implementation tickets (T1–T15). None of them changes the frozen model |
+| `scripts/experiments/<ticket>_<slug>.py` | yes | One script per experiment ticket. Diagnostics and v2 candidates only; never in the frozen path |
+| `docs/experiments/<ticket>.md` | yes | Pre-registered hypothesis and reading rules, then the results of each experiment ticket |
+| `out/experiments/<ticket>/` | no | Raw outputs of the experiment scripts (tables, caches such as T1's `perturbed_features.parquet`) |
 
 **HTTP API** (`qc/api.py`, called from `web/src/api.ts`)
 
