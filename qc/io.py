@@ -39,14 +39,22 @@ def field_paths(batch_dir: Path) -> dict[str, dict[str, Path]]:
     return dict(fields)
 
 
+def black_level(image: np.ndarray) -> float:
+    """0.5th percentile of a uint8 image, from its 256-bin histogram (cheap on ~12 MP fields)."""
+    cdf = np.cumsum(np.bincount(image.ravel(), minlength=256))
+    return float(np.searchsorted(cdf, image.size * 0.005))
+
+
 def load_field(batch: str, image_id: str, paths: dict[str, Path]) -> Field:
     """strip_id = "<height>_<xres>" groups tiles cut from one strip (PLAN_v1 §2). Provenance only, never a feature."""
-    channels, px_um, xres = {}, np.nan, np.nan
+    channels, black, px_um, xres = {}, {}, np.nan, np.nan
     for detector, path in paths.items():
         channels[detector], px_um, xres = load_image(path)
+        black[detector] = black_level(channels[detector])
     height = next(iter(channels.values())).shape[0]
     strip_id = f"{height}_{round(xres)}" if np.isfinite(xres) else str(height)
-    return Field(batch=batch, image_id=image_id, strip_id=strip_id, channels=channels, px_um=px_um)
+    return Field(batch=batch, image_id=image_id, strip_id=strip_id, channels=channels, px_um=px_um,
+                 black_level=black)
 
 
 def iter_fields(batch_dir: Path) -> Iterator[Field]:

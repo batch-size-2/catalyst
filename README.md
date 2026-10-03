@@ -44,12 +44,13 @@ cd web && npm install && npm run dev   # UI on :5173, proxies /api to :8000
 flowchart LR
   subgraph IN["Inputs"]
     D["data/{batch}/img_{id}_{detector}.tif<br/>BSE · ETD/SE · InLens, 0.025 µm/px"]
-    CFG["config/decision.yaml<br/>baseline · reference_exclude · band_coverage<br/>ci_level · reject_lower_bound"]
+    CFG["config/decision.yaml<br/>baseline · key_descriptors · margins<br/>alpha · ci_level · shared_strips"]
   end
 
   subgraph GLUE["Shared glue"]
-    IO["qc/io.py<br/>load_field → Field<br/>alias detectors · crop edges · px_um · strip_id"]
-    RUN["qc/run.py · run()<br/>measure baseline + batch → judge → write outputs"]
+    IO["qc/io.py<br/>load_field → Field<br/>alias detectors · crop edges · px_um · strip_id · black_level"]
+    RUN["qc/run.py · run()<br/>measure baseline + batch → evaluate → write outputs"]
+    PROV["qc/provenance.py<br/>input + config hashes · git state · rules-frozen tag"]
   end
 
   subgraph ML["ML · qc/measure.py"]
@@ -58,17 +59,17 @@ flowchart LR
   end
 
   subgraph BE["Backend · qc/decide.py"]
-    J["judge(baseline_df, batch_df, cfg) → Evidence<br/>tile vs tolerance band → binomial on non-conforming"]
+    J["evaluate(tables, batch, cfg) → compare(ref, batch, cfg) → Evidence<br/>strip segments → differences → verdict"]
   end
 
   subgraph OUT["out/ (gitignored)"]
-    T["kpis.csv<br/>one row per tile"]
+    T["kpis.csv<br/>one row per image, incl. area_um2"]
     E["evidence/{batch}.json"]
     P["masks/{batch}/{id}.png"]
   end
 
   API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · masks<br/>POST upload · run (NDJSON progress)"]
-  WEB["web/ · Vite + React :5173<br/>ingest · verdict · KPI bands · tile gallery"]
+  WEB["web/ · Vite + React :5173<br/>ingest · verdict · differences · strip gallery · provenance"]
   CLI["python -m qc.run / qc.measure"]
 
   D --> IO --> RUN
@@ -76,6 +77,7 @@ flowchart LR
   RUN --> T --> J
   CFG --> J
   RUN --> P
+  RUN --> PROV --> E
   J --> E
   E --> API
   P --> API
@@ -85,7 +87,7 @@ flowchart LR
   CLI --> RUN
 ```
 
-`qc/schema.py` is the contract every Python box imports: `Field`, the `Phase` labels, `KPI_UNITS`, `KPI_TABLE_COLUMNS`, the `Evidence` model and the `out/` paths. `web/src/types.ts` mirrors `Evidence` for the UI.
+`qc/schema.py` is the contract every Python box imports: `Field`, the `Phase` labels, `KPI_UNITS`, `KPI_TABLE_COLUMNS` / `PARTICLE_COLUMNS` / `IMAGING_COLUMNS`, the `Tables`/`Segment`/`Evidence` models and the `out/` paths. `web/src/types.ts` mirrors `Evidence` for the UI.
 
 ## Infrastructure
 
@@ -93,7 +95,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 
 | Process | Command | Port | Role |
 |---|---|---|---|
-| Pipeline (CLI) | `uv run python -m qc.run --batch …` | – | Measure → judge → write `out/`. This is what we freeze and run on the unseen batch |
+| Pipeline (CLI) | `uv run python -m qc.run --batch …` | – | Measure → compare → write `out/`. This is what we freeze and run on the unseen batch |
 | API | `uv run uvicorn qc.api:app --reload` | 8000 | Thin FastAPI wrapper: reads `out/`, saves uploads to `data/`, calls `run()`. No QC logic |
 | Web UI | `cd web && npm run dev` | 5173 | Vite + React + TypeScript + Tailwind. Talks only to `/api` (proxied to :8000 by `web/vite.config.ts`) |
 
@@ -104,10 +106,12 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `data/<batch>/` | no | Input TIFFs (or symlinks to them). One folder per batch; the folder name is the batch name |
 | `EXAMPLE BATCHES FOR LOCAL REFERENCE/` | no | The 1.6 GB of Polaron images. Don't upload anywhere without Polaron's OK (PLAN_v1 §1, rule 5) |
 | `config/decision.yaml` | yes | Decision settings. Frozen with `git tag rules-frozen` before the unseen batch |
-| `out/kpis.csv` | no | KPI table, one row per tile, all batches measured so far |
+| `out/kpis.csv` | no | KPI table, one row per image (incl. `area_um2`, the analysed area), all batches measured so far |
+| `out/particles.csv`, `out/imaging.csv` | no | Planned (§3.1): one row per Si particle, and per image and channel |
 | `out/masks/<batch>/<image_id>.png` | no | BSE with phase overlay (4× downsampled), for eyeballing and the UI |
 | `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads only this and the masks |
-| `tests/fixtures/kpis_fake.csv` | yes | Hand-made KPI table, so the backend and UI can be built with no images |
+| `tests/fixtures/kpis_fake.csv` | yes | Synthetic KPI table (`tests/synth.py`), so the backend and UI can be built with no images |
+| `tests/fixtures/evidence_example.json` | yes | Hand-made, fully populated Evidence. To view it in the UI: `cp tests/fixtures/evidence_example.json out/evidence/example.json` and select `example` |
 
 **HTTP API** (`qc/api.py`, called from `web/src/api.ts`)
 
@@ -132,16 +136,17 @@ One command, `qc.run`, does steps 1–6 for the baseline plus each requested bat
 | # | Step | Code | Output |
 |---|---|---|---|
 | 1 | **Find fields.** Group `img_<image_id>_<detector>.tif` by ID | `io.field_paths` | `{image_id: {detector: path}}` |
-| 2 | **Load.** Take one channel of the RGB TIFF, crop 8 px off left and right (stitch borders), read pixel size and strip ID | `io.load_field` | `Field(batch, image_id, strip_id, channels, px_um)` |
+| 2 | **Load.** Take one channel of the RGB TIFF, crop 8 px off left and right (stitch borders), read pixel size, strip ID and the per-channel black level | `io.load_field` | `Field(batch, image_id, strip_id, channels, px_um, black_level)` |
 | 3 | **Segment** | `measure.segment(channels, px_um)` | `uint8` mask with `Phase` codes |
 | 4 | **Measure KPIs** | `measure.kpis(mask, px_um, channels)` | `{kpi: value}` |
-| 5 | **Write.** One row per tile into the KPI table, plus a mask overlay | `run.measure_field`, `run.save_overlay` | `out/kpis.csv`, `out/masks/` |
-| 6 | **Judge** each batch against the baseline | `decide.judge` | `out/evidence/<batch>.json` |
+| 5 | **Write.** One row per image into the KPI table (incl. `area_um2`, the analysed area), plus a mask overlay | `run.measure_field`, `run.save_overlay` | `out/kpis.csv`, `out/masks/` |
+| 6 | **Compare** each batch against the baseline and record provenance | `decide.split_tables`, `decide.evaluate`, `provenance.provenance` | `out/evidence/<batch>.json` |
 
 **Input details (step 2, from PLAN_v1 §2)**
 - **Detectors** are normalised to `BSE` / `ETD` / `InLens`; `SE` is an alias for `ETD`. The `img_` prefix is dropped from IDs.
 - **`px_um`** comes from the TIFF `XResolution` / `ResolutionUnit` tags (0.025 µm/px), or NaN if missing.
-- **`strip_id`** is `"<height>_<round(XResolution)>"`, e.g. `2316_1015998`. It groups tiles cut from the same continuous strip. It is **provenance only, never a feature**, because 5 strips cross batch folders.
+- **`strip_id`** is `"<height>_<round(XResolution)>"`, e.g. `2316_1015998`. It groups images cut from the same continuous strip; the strip segment is the unit of the whole comparison (§3.5), and it finds strips shared between folders automatically.
+- **`black_level`** is the 0.5th percentile per channel, read off a 256-bin histogram (cheap on ~12 MP fields). Channels stay raw; subtracting it is `segment()`'s job (§3.2).
 
 **Phase labels (`schema.Phase`)**
 
@@ -170,112 +175,89 @@ One command, `qc.run`, does steps 1–6 for the baseline plus each requested bat
 | `si_fragments_per_1e4um2` | count | planned: Si objects < 1 µm per 10⁴ µm² |
 | `si_dispersion_cv` | ratio | planned: CV of local Si fraction over 20 µm windows |
 
-A KPI that isn't computed, or a tile whose segmentation crashes, is written as **NaN**: the run never stops on one bad tile. Columns of `out/kpis.csv` are `batch, image_id, strip_id, px_um, <8 KPIs>`.
+A KPI that isn't computed, or an image whose segmentation crashes, is written as **NaN**: the run never stops on one bad image. Columns of `out/kpis.csv` are `batch, image_id, strip_id, px_um, area_um2, <KPIs>`.
 
 ## Decision algorithm (`qc/decide.py`)
 
-Pure statistics on KPI tables; it never sees an image. It follows PLAN_v1 §3.5.
+Pure statistics on KPI tables; it never sees an image. It follows PLAN_v3 §3.5, with the deviations listed below.
 
-**1. Reference set.** Baseline = every tile in the `baseline` folder, minus `reference_exclude`. A KPI is used only if at least 2 baseline tiles have a value for it.
+**1. Tables and segments.** `split_tables` groups `out/kpis.csv` into one `Tables` per batch (`kpis` now, `particles`/`imaging` once they exist). `compare(ref, batch, cfg)` then works on **strip segments**: the images of one `strip_id` inside one batch folder. A segment's value per quantity is the `area_um2`-weighted mean over its images (equal weights where the area is missing). `evaluate(tables, batch, cfg)` wraps `compare` and will grow the pieces that need every known batch (nearest batch, variance split).
 
-**2. Tolerance band per KPI.** A prediction interval for one new tile drawn from the baseline:
+**2. Quantities.** `key_descriptors` in config order, then `KPI_UNITS`, then any other numeric column. `key` = counts towards the verdict; `used` = key and measured on both sides (`note: "not measured"` otherwise).
 
-```
-band = mean ± t(1 − α/2, n − 1) · sd · √(1 + 1/n),   α = (1 − band_coverage) / K
-```
+**3. Shared strips.** Strips with images in both batch and reference are the same physical sample. `shared_strips` picks the variant that drives the verdict: `exclude` drops the shared strips' segments from both sides, `include` keeps everything. `shared_strips.strips` lists them; `other_status`/`contradictions` compare the variants once statuses exist.
 
-Here `n` is the number of baseline tiles and `K` the number of KPIs in use. `K` spreads the false-alarm budget over all KPIs (Bonferroni), so a clean tile is flagged at most ~5% of the time across all KPIs together. With `n = 7`, the band is ±2.6 sd for `K = 1`, ±3.2 sd for `K = 2` (the current stub) and ±4.4 sd for all 8.
+**4. Difference per quantity.** `reference`/`batch` = unweighted means over the driving variant's segment values; `difference` = batch − reference. `margin` = `margins[name]` if set, else `similar_margin` × SD (ddof 1) of the **full** reference's segment values. `interval`, `p` and `status` are not computed yet — see the deviations.
 
-**3. Tile status**
+**5. Power.** `power.n_arrangements` = C(n1 + n2, n1) on the driving variant's segment counts; `min_p` = 2/N for equal counts else 1/N; `limited` when `min_p ≥ alpha`; `extra_strips_needed` = the extra batch strips that would lift the limit (≤ 20).
 
-| Status | Rule now | Planned (PLAN_v1 §3.5) |
-|---|---|---|
-| `NON_CONFORMING` | any KPI outside its band | …and the imaging check passed, with the KPI's own uncertainty entirely outside the band |
-| `SUSPECT` | any KPI is NaN | …or a KPI's uncertainty straddles the band edge, the anomaly map fires alone, or the imaging check fails |
-| `CONFORMING` | otherwise | |
+**6. Verdict (walking skeleton).** Every comparison is `INVESTIGATE` with the reason "Comparison statistics not implemented yet". Statuses, intervals, p-values, the odd-strip check and the verdict rules land in the next commit; the precedence they will follow is in the deviations below.
 
-**4. Batch verdict.**
-- `x` = non-conforming tiles, `n` = tiles in the batch.
-- Exact Clopper–Pearson interval at `ci_level` (90%, i.e. 95% one-sided at each end):
+**7. Fingerprint and provenance.** The evidence carries the batch's `segments` (with `shared` flags and `image_ids`) and per-quantity `descriptors` (batch mean + `by_strip`), with `type_shares`, `image_groups`, `variance_split`, `odd_strips`, `imaging`, `controls`, `explanations` as empty slots. `qc/provenance.py` fills `provenance` (§3.11): SHA-256 per input TIFF, git commit + dirty flag, a canonical hash of the config plus hashes of `config/particle_types.json`/`config/kpi_dictionary.yaml` when present, the `rules-frozen` tag if it exists, and a timestamp — the only field that differs between identical runs.
 
-| Verdict | Rule |
-|---|---|
-| **REJECT** | lower bound > `reject_lower_bound` (5%) |
-| **ACCEPT** | `x = 0` and no `SUSPECT` tiles. Always printed with the rate it cannot rule out |
-| **INVESTIGATE** | everything else |
+### Deviations from PLAN_v3
 
-What that means at our sample sizes:
+Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout. The statistics land in the next commit of this PR; this commit builds the contract.
 
-| Observed | Interval | Verdict |
-|---|---|---|
-| 0 / 7 | 0 – 34.8% | ACCEPT, "7 clean tiles cannot rule out a non-conforming rate up to 35%" |
-| 1 / 7 | 0.7 – 52.1% | INVESTIGATE |
-| 2 / 7 | 5.3 – 65.9% | REJECT |
-| 0 / 17 | 0 – 16.2% | ACCEPT |
-| 2 / 17 | 2.1 – 32.6% | INVESTIGATE |
-
-**Superseded by the plan:** after the mentor feedback, PLAN_v1 §3.5 replaces this per-image rule with a batch-against-reference comparison, with Batch_3 as the reference. The code below is what runs today.
-
-**5. Next action**, computed rather than templated:
-- **REJECT:** "Quarantine the lot…".
-- **ACCEPT:** "Release…" with the bound.
-- **INVESTIGATE:**
-  - "Image ~N more fields…", where N is the smallest number of extra fields at the observed rate that would push the lower bound past the reject threshold;
-  - or "Review N SUSPECT tile(s)" when nothing is non-conforming.
+- **SIMILAR uses a t-interval, not the two-level bootstrap (§3.5).** 90% interval on strip-segment values with pooled SD and n1 + n2 − 2 degrees of freedom, as in the FDA tier-1 method the plan cites [R7]. With 3–7 strips a percentile bootstrap gives intervals that are too narrow, so it says SIMILAR too easily (more false ACCEPTs). The margin δ is computed once from the full reference, not per shared-strip variant, and fixed per key quantity in `margins` at Sync 2.
+- **Consequence: INVESTIGATE is the normal answer.** With 3–7 strips SIMILAR is rare; at 3 vs 4 strips it is impossible when δ = 1.5 × the reference strip SD. The next action says how many more strips would settle it. The Sync 1 self-split check passes when at most `alpha` of the splits come out DIFFERENT, and each negative control (§3.7) passes when it is not DIFFERENT: no false REJECT. Neither needs SIMILAR.
+- **Power limit.** A comparison is power-limited when the smallest achievable p ≥ `alpha`: 2/N for equal strip counts (an arrangement and its mirror give the same |T|), else 1/N, where N is the number of arrangements. The plan's "N < 1/alpha" misses e.g. Batch_1 vs Batch_2 without shared strips: 3 vs 3 strips, N = 20, smallest p = 0.10.
+- **Shared-strip disagreement (§3.5).** With `shared_disagreement: contradiction` (default) only a key quantity that is DIFFERENT in one variant and SIMILAR in the other makes the verdict INVESTIGATE. SIMILAR vs UNCLEAR means the exclude variant lost strips, not that shared material biased the result. `any_status` restores the plan's rule.
+- **Odd-strip check (new).** A batch strip outside the reference mean ± `odd_strip_sd` × the SD of reference strip values, on a used key quantity, makes the verdict INVESTIGATE and is named in the reasons: the FDA tier-2 quality range from the same framework [R7]. On the stub data it flags only strip 2316_1015998 (P2316) in Batch_1, which the batch-mean test calls UNCLEAR. `odd_strip_sd: null` turns it off.
+- **Verdict precedence (not specified in the plan).** Controls failed → INVESTIGATE. New particle type → REJECT, or INVESTIGATE if imaging changed (type features are brightness-based). A key quantity DIFFERENT and not contradicted by the other shared-strip variant → REJECT. Any UNCLEAR, power limit, imaging change, odd strip or variant contradiction → INVESTIGATE. Otherwise ACCEPT. `reasons` lists every trigger that fired.
+- **Structure.** `compare(ref, batch, cfg)` stays a two-sample comparison; `evaluate(tables, batch, cfg)` adds what needs every known batch (nearest batch, variance split). Provenance lives in `qc/provenance.py` instead of `qc/run.py`. `kpis.csv` gains `area_um2` (analysed area) so strip values can be area-weighted.
 
 **Config (`config/decision.yaml`)**
 
 | Key | Default | Meaning |
 |---|---|---|
-| `version` | `v1-draft` | Written into every evidence file |
+| `version` | `v3-draft` | Written into every evidence file |
 | `data_dir` | `data` | Where batch folders live |
-| `baseline` | `Batch_1` | Baseline folder. **Unconfirmed**: ask the mentors (PLAN_v1 §9) |
-| `reference_exclude` | `[]` | Baseline `image_id`s to drop from the reference (e.g. the P2316 strip if it isn't "approved") |
-| `band_coverage` | `0.95` | Coverage of the tolerance band, across all KPIs together |
-| `ci_level` | `0.90` | Confidence level of the interval on the non-conforming rate |
-| `reject_lower_bound` | `0.05` | REJECT when the interval's lower bound exceeds this |
+| `baseline` | `Batch_3` | The approved reference batch |
+| `reference_exclude` | `[]` | Baseline `image_id`s to drop from the reference |
+| `key_descriptors` | 5 items | Quantities that count towards the verdict |
+| `key_type_shares` | `true` | Particle-type shares count as key quantities (§3.4) |
+| `imaging_sensitive` | `si_contrast_ratio`, `porosity_apparent` | Reported but unused if imaging changed (§3.3) |
+| `ci_level` | `0.90` | Level of the t-intervals |
+| `alpha` | `0.10` | Family-wise threshold for DIFFERENT |
+| `similar_margin` | `1.5` | δ = this × reference strip SD (FDA tier-1) |
+| `margins` | `{}` | Per-quantity δ overrides, fixed at Sync 2 |
+| `new_type_share` | `0.05` | Unassigned Si share that means a new particle type |
+| `n_resamples`, `seed` | `5000`, `0` | Resampling budget and seed |
+| `shared_strips` | `exclude` | Which shared-strip variant drives the verdict (§3.13) |
+| `shared_disagreement` | `contradiction` | When the two variants force INVESTIGATE (`any_status` = the plan's rule) |
+| `odd_strip_sd` | `3.0` | Quality range = reference mean ± this × reference strip SD; `null` turns it off |
 
-**Not built yet** (all additive to `Evidence`):
-- imaging check (§3.3)
-- anomaly map (§3.4)
-- per-KPI uncertainty by source (§3.6)
-- strip instead of tile as the counting unit
-- baseline audit, i.e. leave-one-strip-out on the baseline
-- controls (§3.7)
-
-**First run on the real data** (stub segmentation, baseline `Batch_1`):
-
-| Batch | Verdict | Non-conforming | Flagged tiles |
-|---|---|---|---|
-| Batch_1 | ACCEPT | 0/7 | – |
-| Batch_2 | ACCEPT | 0/7 | – |
-| Batch_3 | INVESTIGATE | 2/17 | `0grcilhi`, `hzumfsms`: apparent porosity 0.145 and 0.154, above the band (0.038–0.136) |
-
-**Caveat: the Si band is useless with this baseline.** The `si_area_frac` band comes out as −0.10 to 0.30, because Batch_1's two P2316 tiles have Si fractions around 0.19–0.20 while the rest sit near 0.06. That is the bimodal-baseline problem in PLAN_v1 §2. If the mentors confirm P2316 isn't "approved", list its tiles (`4ih2ggld`, `5n1q8atc`) in `reference_exclude`.
+**Not built yet** (the next commit): t-intervals and SIMILAR/DIFFERENT/UNCLEAR statuses per quantity, the max-|T| permutation p and drivers by it, the odd-strip check, imaging check (§3.3), particle types and their shares (§3.4), nearest batch, image groups, variance split, controls (§3.7) and explanations (§3.8).
 
 ### Evidence JSON (`schema.Evidence`)
 
 ```json
 {
-  "batch": "Batch_3", "baseline": "Batch_1", "verdict": "INVESTIGATE",
-  "next_action": "Image ~22 more fields to resolve 2/17 non-conforming tiles.",
-  "nonconforming": {"x": 2, "n": 17, "ci": [0.021, 0.326], "unit": "tile"},
-  "kpis": [{"name": "porosity_apparent", "unit": "fraction", "band": [0.0378, 0.1358],
-            "baseline_mean": 0.0868, "batch_mean": 0.1071, "n_outside": 2}],
-  "tiles": [{"image_id": "0grcilhi", "strip_id": "1904_1015978", "status": "NON_CONFORMING",
-             "kpis": {"si_area_frac": 0.0675, "porosity_apparent": 0.1447},
-             "reasons": ["porosity_apparent = 0.145 outside [0.0378, 0.136]"]}],
-  "n_images": {"baseline": 7, "batch": 17},
-  "config_version": "v1-draft"
+  "batch": "Batch_2", "baseline": "Batch_3", "verdict": "INVESTIGATE",
+  "reasons": ["Comparison statistics not implemented yet (walking skeleton)."],
+  "next_action": "No action yet: the comparison statistics land in the next commit.",
+  "differences": [{"name": "si_area_frac", "unit": "fraction", "key": false, "used": false,
+                   "reference": 0.061, "batch": 0.063, "difference": 0.002,
+                   "margin": 0.012, "status": "UNCLEAR", "n_segments": [3, 4]}],
+  "power": {"n_segments": [3, 4], "n_arrangements": 35, "min_p": 0.0286,
+            "limited": false, "extra_strips_needed": 0},
+  "shared_strips": {"setting": "exclude",
+                    "strips": ["2068_1016032", "2080_1015991", "2272_1015992"]},
+  "n_images": {"batch": 7, "baseline": 17},
+  "provenance": {"inputs": [{"path": "Batch_3/img_….tif", "sha256": "…"}], "git_commit": "…"},
+  "config_version": "v3-draft"
 }
 ```
+
+`tests/fixtures/evidence_example.json` is a fully populated example (stats, controls, fingerprint, provenance) for the UI and for reading the contract.
 
 ## Who owns what
 
 | File | Owner |
 |---|---|
-| `qc/schema.py`, `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv` | **Both.** The contract: changes need both of us |
+| `qc/schema.py`, `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv`, `tests/fixtures/evidence_example.json` | **Both.** The contract: changes need both of us |
 | `qc/measure.py` (`segment`, `kpis`) | ML (Pat) |
-| `qc/decide.py` (`judge`), `config/decision.yaml` | Software (Patrik) |
+| `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
 | `qc/api.py`, `web/` | Software (Patrik) |
 | `qc/io.py`, `qc/run.py` | Shared glue |

@@ -1,7 +1,17 @@
-version: v1-draft
+version: v3-draft
 data_dir: data
-baseline: Batch_1
+baseline: Batch_3
 reference_exclude: []
-band_coverage: 0.95
+key_descriptors: [si_graphite_ratio, si_d50_um, si_internal_void_frac, si_contrast_ratio, porosity_apparent]
+key_type_shares: true
+imaging_sensitive: [si_contrast_ratio, porosity_apparent]
 ci_level: 0.90
-reject_lower_bound: 0.05
+alpha: 0.10
+similar_margin: 1.5
+margins: {}
+new_type_share: 0.05
+n_resamples: 5000
+seed: 0
+shared_strips: exclude
+shared_disagreement: contradiction
+odd_strip_sd: 3.0

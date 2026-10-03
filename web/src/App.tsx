@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getConfig, getEvidence, listBatches, runBatch, uploadBatch } from "./api";
-import KpiBands from "./components/KpiBands";
+import Differences from "./components/Differences";
+import ProvenancePanel from "./components/ProvenancePanel";
 import RunProgress, { type RunState } from "./components/RunProgress";
 import Sidebar from "./components/Sidebar";
 import TileGallery from "./components/TileGallery";
@@ -64,9 +65,10 @@ export default function App() {
         {run && <RunProgress run={run} />}
         {evidence ? (
           <div key={evidence.batch} className="space-y-6">
-            <VerdictCard evidence={evidence} ciLevel={config?.ci_level ?? 0.9} />
-            <KpiBands evidence={evidence} />
+            <VerdictCard evidence={evidence} />
+            <Differences evidence={evidence} />
             <TileGallery evidence={evidence} />
+            <ProvenancePanel evidence={evidence} />
           </div>
         ) : (
           !run && (
