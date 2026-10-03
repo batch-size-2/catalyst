@@ -1,0 +1,28 @@
+{
+  "name": "catalyst-demo-video",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "animatic": "remotion render Animatic out/animatic.mp4 --codec=h264 --crf=18 --audio-codec=aac && node scripts/captions.ts",
+    "sheet": "remotion still ContactSheet review/contact_sheet.png",
+    "stills": "node scripts/stills.mjs",
+    "captions": "node scripts/captions.ts",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "@remotion/fonts": "4.0.529",
+    "@remotion/transitions": "4.0.529",
+    "geist": "1.7.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "note": "Phase 1 only. Maps the shot names in script.json to the nearest screenshot in public/standins/ (copied from docs/screenshots/), with hand-measured highlight boxes in that image's CSS px. Phase 2 replaces this with public/screens/manifest.json from capture.",
+  "width": 1440,
+  "shots": {
+    "compare_verdict": "compare",
+    "compare_moved": "compare",
+    "compare_explain": "compare",
+    "compare_separates": "compare",
+    "identify_empty": "identify_empty",
+    "identify_analyzing": "identify_analyzing",
+    "identify_result": "identify_result",
+    "library_tile": "viewer",
+    "audit": "audit"
+  },
+  "images": {
+    "compare": {
+      "file": "standins/compare.png", "h": 5395,
+      "highlights": {
+        "verdict_head": { "x": 288, "y": 96, "w": 1100, "h": 700 },
+        "verdict": { "x": 312, "y": 334, "w": 1052, "h": 426 },
+        "verdict_pill": { "x": 346, "y": 360, "w": 562, "h": 40 },
+        "next_steps": { "x": 938, "y": 360, "w": 394, "h": 320 },
+        "moved": { "x": 290, "y": 980, "w": 1098, "h": 700 },
+        "moved_row": { "x": 290, "y": 980, "w": 1098, "h": 156 },
+        "explain": { "x": 290, "y": 4262, "w": 1098, "h": 610 }
+      }
+    },
+    "identify_empty": {
+      "file": "standins/identify-empty.png", "h": 1019,
+      "highlights": { "dropzone": { "x": 290, "y": 328, "w": 1098, "h": 310 } }
+    },
+    "identify_analyzing": {
+      "file": "standins/identify-analyzing.png", "h": 1000,
+      "highlights": { "pipeline": { "x": 290, "y": 602, "w": 726, "h": 294 } }
+    },
+    "identify_result": {
+      "file": "standins/identify-result.png", "h": 1610,
+      "highlights": {
+        "verdict": { "x": 312, "y": 356, "w": 1052, "h": 298 },
+        "bars": { "x": 928, "y": 430, "w": 415, "h": 105 },
+        "unfamiliar": { "x": 345, "y": 553, "w": 306, "h": 32 },
+        "accuracy": { "x": 345, "y": 593, "w": 286, "h": 32 },
+        "why": { "x": 290, "y": 684, "w": 726, "h": 310 }
+      }
+    },
+    "viewer": {
+      "file": "standins/viewer.png", "h": 1061,
+      "highlights": {
+        "micrograph": { "x": 277, "y": 161, "w": 837, "h": 278 },
+        "switch": { "x": 1338, "y": 232, "w": 40, "h": 24 },
+        "si_detail": { "x": 392, "y": 189, "w": 120, "h": 80 }
+      },
+      "states": { "off": { "grey": ["micrograph", "switch"] } }
+    },
+    "audit": {
+      "file": "standins/audit.png", "h": 1175,
+      "highlights": {
+        "banner": { "x": 288, "y": 262, "w": 1100, "h": 90 },
+        "log_row": { "x": 313, "y": 460, "w": 585, "h": 64 },
+        "hashes": { "x": 950, "y": 760, "w": 430, "h": 300 },
+        "verified": { "x": 1002, "y": 285, "w": 361, "h": 44 },
+        "passport": { "x": 939, "y": 380, "w": 449, "h": 755 }
+      }
+    }
+  }
+}

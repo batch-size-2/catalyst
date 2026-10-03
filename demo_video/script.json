@@ -1,0 +1,96 @@
+{
+  "note": "Beats per scene, keyed by the scene ids in narration.json. A beat fires at the first occurrence of its `at` word(s) at or after the previous beat (case and punctuation ignored); `offset` shifts it in seconds. Scene length = lead + audio duration + voice.gap_seconds + hold.",
+  "music": { "file": "music/bed_v2_soft.mp3", "volume": 0.5, "fadeIn": 1.5, "fadeOut": 2.5 },
+  "sfxMix": { "click": 0.12, "done": 0.1, "drop": 0.28, "whoosh": 0.035, "stamp": 0.55, "mrrp": 0.14 },
+  "scenes": {
+    "news": {
+      "lead": 0.6,
+      "hold": 0.4,
+      "cards": [
+        { "kicker": "Recall · 2021", "fact": "Every Chevy Bolt recalled", "detail": "faulty battery cells", "figure": { "prefix": "$", "value": 1.9, "decimals": 1, "suffix": " billion", "label": "cost of the fix" }, "source": "NBC News / CNBC, Aug–Oct 2021" },
+        { "kicker": "Recall · 2021", "fact": "82,000 Hyundai EVs get new batteries", "detail": "fire risk · ≈ £640m", "source": "BBC News, 24 Feb 2021" },
+        { "kicker": "2016–17", "fact": "Samsung Galaxy Note 7", "detail": "battery faults · ≈ $17bn in lost sales", "source": "BBC News / NBC News, 2016–17" }
+      ],
+      "beats": [
+        { "bg": "news", "fx": "cars", "offset": 0.2 },
+        { "at": "GM", "fx": "card1", "offset": -0.15 },
+        { "at": "billion", "fx": "count", "dur": 1.1 },
+        { "at": "Hyundai", "fx": "card2", "offset": -0.1 },
+        { "at": "cars", "fx": "card3", "offset": 0.3 }
+      ]
+    },
+    "science": {
+      "beats": [
+        { "at": "I'm", "fx": "cards-out", "cat": { "anchor": "left-low", "pose": "wave", "expression": "happy", "item": "none" }, "sfx": "mrrp" },
+        { "at": "Catalyst", "fx": "mark" },
+        { "at": "check", "fx": "car" },
+        { "at": "long", "fx": "dive", "dur": 3.1, "cat": { "pose": "float", "expression": "curious" } },
+        { "at": "anode", "offset": 0.25, "bg": "hero-grey" },
+        { "at": "microscope", "cat": { "pose": "hold", "item": "magnifier" } },
+        { "at": "Grey", "bg": "graphite", "fx": "label-graphite" },
+        { "at": "Orange", "bg": "silicon", "fx": "label-silicon" },
+        { "at": "swells", "fx": "swell", "cat": { "expression": "surprised" } },
+        { "at": "Blue", "bg": "pore", "fx": "label-pore", "cat": { "expression": "curious" } },
+        { "at": "drifts", "bg": "color", "fx": "labels-out", "cat": { "expression": "happy", "pose": "float", "item": "none" } },
+        { "at": "battery", "offset": 0.3, "bg": "app", "fx": "mark-out" }
+      ]
+    },
+    "compare": {
+      "hold": 0.8,
+      "beats": [
+        { "at": "When", "cat": { "anchor": "left-low", "expression": "thinking", "pose": "float" } },
+        { "at": "delivery", "window": "in", "shot": "compare_verdict", "url": "#/compare/batch_1", "sfx": "whoosh" },
+        { "at": "supplier", "highlight": "verdict_head", "zoom": 1.15 },
+        { "at": "changed", "shot": "compare_moved", "highlight": "moved_row", "zoom": 1.2, "cat": { "anchor": "left", "pose": "point", "item": "pointer", "lookAt": "moved_row", "expression": "curious" }, "callout": "what moved" },
+        { "at": "confident", "callout": "how sure" },
+        { "at": "accept", "shot": "compare_verdict", "highlight": "verdict", "zoom": 1.1, "cat": { "lookAt": "verdict_pill" }, "sfx": "done" },
+        { "at": "investigate", "cat": { "pose": "shrug", "expression": "shrug", "item": "none" }, "callout": "investigate" },
+        { "at": "reject", "highlight": "next_steps", "zoom": 1.15, "cat": { "pose": "point", "item": "pointer", "lookAt": "next_steps", "expression": "proud" } },
+        { "at": "explain", "shot": "compare_explain", "highlight": "explain", "zoom": 1.05, "cat": { "lookAt": "explain", "expression": "happy" } },
+        { "at": "operator", "callout": "operator", "calloutFor": 0.6 },
+        { "at": "engineer", "callout": "engineer", "calloutFor": 0.55 },
+        { "at": "scientist", "callout": "scientist", "calloutFor": 0.7 },
+        { "at": "manager", "callout": "manager", "calloutFor": 1.2 }
+      ]
+    },
+    "identify": {
+      "beats": [
+        { "at": "You", "cat": { "anchor": "left-low", "pose": "point", "item": "tile", "expression": "curious", "lookAt": null } },
+        { "at": "drop", "shot": "identify_empty", "url": "#/identify", "highlight": "dropzone", "sfx": "whoosh" },
+        { "at": "image", "fx": "drop", "offset": -0.3, "dur": 0.65, "cat": { "pose": "float", "item": "none", "expression": "happy" } },
+        { "at": "image", "offset": 0.35, "sfx": "drop" },
+        { "at": "measure", "shot": "identify_analyzing", "highlight": "pipeline", "zoom": 1.15, "cat": { "expression": "focused" } },
+        { "at": "which", "shot": "identify_result", "highlight": "verdict", "zoom": 1.15, "sfx": "done", "cat": { "anchor": "right", "pose": "point", "item": "pointer", "lookAt": "bars", "expression": "proud" }, "callout": "closest: Batch 1" },
+        { "at": "reasons", "highlight": "why", "zoom": 1.2, "cat": { "lookAt": "why", "expression": "curious" }, "callout": "the reasons" },
+        { "at": "seen", "highlight": "unfamiliar", "zoom": 1.6, "cat": { "lookAt": "unfamiliar", "expression": "surprised" }, "callout": "never seen this" }
+      ]
+    },
+    "inspect": {
+      "beats": [
+        { "at": "Don't", "cat": { "anchor": "right-mid", "pose": "hold", "item": "magnifier", "expression": "focused", "goggles": "down", "lookAt": null } },
+        { "at": "Open", "shot": "library_tile", "state": "off", "url": "#/library/batch_1/4ih2ggld", "highlight": "micrograph", "zoom": 1.1, "sfx": "whoosh" },
+        { "at": "pixels", "state": "on", "fx": "seg-on", "sfx": "click" },
+        { "at": "silicon", "highlight": "si_detail", "zoom": 3.2, "callout": "silicon", "cat": { "expression": "proud" } }
+      ]
+    },
+    "audit": {
+      "hash": "sha256 17b8f934 · 8b1083c0 · 94eab635 …",
+      "beats": [
+        { "at": "Every", "shot": "audit", "url": "#/audit", "highlight": null, "sfx": "whoosh", "cat": { "anchor": "right-mid", "pose": "float", "item": "none", "expression": "curious", "goggles": "up" } },
+        { "at": "logged", "highlight": "log_row", "zoom": 1.5, "fx": "hash", "dur": 1.6 },
+        { "at": "check", "highlight": "verified", "zoom": 1.2, "fx": "verify", "cat": { "pose": "stamp", "item": "stamp", "expression": "proud" }, "callout": "nothing moved" },
+        { "at": "later", "offset": 0.1, "sfx": "stamp" }
+      ]
+    },
+    "outro": {
+      "hold": 2.2,
+      "subtitle": "Batch QC for battery materials",
+      "team": "Team Batch Size 2",
+      "beats": [
+        { "at": "Catalyst", "window": "out", "bg": "outro", "fx": "logo", "cat": { "anchor": "outro", "pose": "float", "expression": "happy", "item": "none", "lookAt": null } },
+        { "at": "makes", "fx": "flicker", "dur": 1.6 },
+        { "at": "Made", "fx": "team" }
+      ]
+    }
+  }
+}

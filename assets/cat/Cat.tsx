@@ -22,6 +22,7 @@ export type CatProps = {
   size?: number;                 // width in px; height follows the 320 x 340 viewBox
   lookAt?: [number, number];     // pupil direction, each in -1..1
   idle?: boolean;                // false freezes float, blink, tail and ears
+  outfit?: "none" | "labcoat";   // "labcoat": open lab coat, sleeves, pocket pens, ID badge, graphite goggle strap
   style?: CSSProperties;
 };
 
@@ -41,8 +42,9 @@ const C = CAT_COLORS;
 const INK = { stroke: C.ink, strokeWidth: 5, strokeLinejoin: "round" as const, strokeLinecap: "round" as const };
 
 export function Cat({
-  t = 0, expression = "happy", pose = "float", size = 260, lookAt = [0, 0], idle = true, style,
+  t = 0, expression = "happy", pose = "float", size = 260, lookAt = [0, 0], idle = true, style, outfit = "none",
 }: CatProps) {
+  const coat = outfit === "labcoat";
   const id = useId().replace(/:/g, "");
   const float = idle ? Math.sin((t * 2 * Math.PI) / 3) * 8 : 0;
   const tail = idle ? Math.sin(t * 1.7) * 9 : 0;
@@ -85,6 +87,7 @@ export function Cat({
         </g>
         <ellipse cx="160" cy="258" rx="48" ry="42" fill={C.cream} />
         <ellipse cx="160" cy="240" rx="82" ry="70" fill="none" {...INK} />
+        {coat && <LabCoat />}
 
         {/* feet */}
         <ellipse cx="126" cy="304" rx="22" ry="13" fill={C.cream} {...INK} />
@@ -108,7 +111,7 @@ export function Cat({
             <line x1="262" y1="146" x2="240" y2="146" />
             <line x1="160" y1="56" x2="160" y2="70" />
           </g>
-          <path d="M58,116 Q160,60 262,116" fill="none" stroke={C.strap} strokeWidth="9" />
+          <path d="M58,116 Q160,60 262,116" fill="none" stroke={coat ? COAT.strap : C.strap} strokeWidth="9" />
         </g>
         <ellipse cx="160" cy="135" rx="100" ry="84" fill="none" {...INK} />
 
@@ -139,7 +142,7 @@ export function Cat({
           <line x1="198" y1="178" x2="240" y2="180" />
         </g>
 
-        <Paws pose={pose} t={t} idle={idle} />
+        <Paws pose={pose} t={t} idle={idle} sleeve={coat ? COAT.cloth : C.fur} />
       </g>
     </svg>
   );
@@ -221,17 +224,17 @@ function Paw({ x, y, rot = 0 }: { x: number; y: number; rot?: number }) {
   );
 }
 
-function Arm({ from, to }: { from: [number, number]; to: [number, number] }) {
+function Arm({ from, to, sleeve = C.fur }: { from: [number, number]; to: [number, number]; sleeve?: string }) {
   const d = `M${from[0]},${from[1]} L${to[0]},${to[1]}`;
   return (
     <g strokeLinecap="round" fill="none">
       <path d={d} stroke={C.ink} strokeWidth="27" />
-      <path d={d} stroke={C.fur} strokeWidth="18" />
+      <path d={d} stroke={sleeve} strokeWidth="18" />
     </g>
   );
 }
 
-function Paws({ pose, t, idle }: { pose: CatPose; t: number; idle: boolean }) {
+function Paws({ pose, t, idle, sleeve }: { pose: CatPose; t: number; idle: boolean; sleeve: string }) {
   const rest = <><Paw x={130} y={236} /><Paw x={190} y={236} /></>;
   switch (pose) {
     case "hold":
@@ -240,7 +243,7 @@ function Paws({ pose, t, idle }: { pose: CatPose; t: number; idle: boolean }) {
       return (
         <>
           <Paw x={130} y={236} />
-          <Arm from={[214, 226]} to={[278, 200]} />
+          <Arm sleeve={sleeve} from={[214, 226]} to={[278, 200]} />
           <Paw x={284} y={198} rot={-70} />
         </>
       );
@@ -250,7 +253,7 @@ function Paws({ pose, t, idle }: { pose: CatPose; t: number; idle: boolean }) {
       return (
         <>
           <Paw x={130} y={236} />
-          <Arm from={[216, 222]} to={end} />
+          <Arm sleeve={sleeve} from={[216, 222]} to={end} />
           <Paw x={end[0]} y={end[1] - 4} rot={(a * 180) / Math.PI + 90} />
         </>
       );
@@ -258,9 +261,9 @@ function Paws({ pose, t, idle }: { pose: CatPose; t: number; idle: boolean }) {
     case "shrug":
       return (
         <>
-          <Arm from={[100, 222]} to={[56, 188]} />
+          <Arm sleeve={sleeve} from={[100, 222]} to={[56, 188]} />
           <Paw x={50} y={182} rot={30} />
-          <Arm from={[220, 222]} to={[264, 188]} />
+          <Arm sleeve={sleeve} from={[220, 222]} to={[264, 188]} />
           <Paw x={270} y={182} rot={-30} />
         </>
       );
@@ -269,7 +272,7 @@ function Paws({ pose, t, idle }: { pose: CatPose; t: number; idle: boolean }) {
       return (
         <>
           <Paw x={130} y={236} />
-          <Arm from={[212, 236]} to={[240, 282 + press]} />
+          <Arm sleeve={sleeve} from={[212, 236]} to={[240, 282 + press]} />
           <Paw x={242} y={292 + press} rot={180} />
         </>
       );
@@ -277,4 +280,28 @@ function Paws({ pose, t, idle }: { pose: CatPose; t: number; idle: boolean }) {
     default:
       return rest;
   }
+}
+
+const COAT = { cloth: "#F2F0EA", fold: "#D3CFC6", lapel: "#E4E1D9", pocket: "#E7E4DC", strap: "#3A3D46" };
+
+/** Open lab coat drawn over the body: the belly shows through the front, pens in the pocket, a badge with the mark. */
+function LabCoat() {
+  return (
+    <g>
+      <ellipse cx="160" cy="243" rx="86" ry="71" fill={COAT.cloth} {...INK} />
+      <path d="M226,196 Q252,244 224,302" stroke={COAT.fold} strokeWidth="12" fill="none" strokeLinecap="round" opacity="0.8" />
+      <path d="M94,196 Q70,244 96,302" stroke={COAT.lapel} strokeWidth="8" fill="none" strokeLinecap="round" opacity="0.8" />
+      <path d="M141,172 L179,172 L171,312 Q160,316 149,312 Z" fill={C.cream} />
+      <path d="M141,172 L149,312 M179,172 L171,312" stroke={C.ink} strokeWidth="4" strokeLinecap="round" />
+      <path d="M141,172 L117,182 L139,228 Z M179,172 L203,182 L181,228 Z" fill={COAT.lapel} stroke={C.ink}
+            strokeWidth="3.5" strokeLinejoin="round" />
+      <line x1="104" y1="256" x2="104" y2="238" stroke="#FF7A2F" strokeWidth="5" strokeLinecap="round" />
+      <line x1="113" y1="256" x2="115" y2="241" stroke="#6EA8FF" strokeWidth="5" strokeLinecap="round" />
+      <rect x="96" y="254" width="32" height="26" rx="5" fill={COAT.pocket} stroke={C.ink} strokeWidth="3.5" />
+      <rect x="196" y="258" width="28" height="36" rx="5" fill="#1B1C21" stroke={C.ink} strokeWidth="3" />
+      <path transform="translate(197.6 260) scale(0.39)" d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z"
+            fill="#FF7A2F" stroke="#FF7A2F" strokeWidth="4" strokeLinejoin="round" />
+      <rect x="201" y="285" width="18" height="3" rx="1.5" fill="#8A8C92" />
+    </g>
+  );
 }
