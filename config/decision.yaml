@@ -1,4 +1,6 @@
-version: v0
-baseline: baseline
+version: v1-draft
+data_dir: data
+baseline: Batch_1
+band_coverage: 0.95
 ci_level: 0.90
-margin_k_sd: 1.5
+reject_lower_bound: 0.05
