@@ -91,25 +91,17 @@ def test_segment_values_are_area_weighted():
 
 def test_power_arithmetic():
     p = power(3, 3, 0.1)
-    assert (p.n_arrangements, p.min_p, p.limited, p.extra_strips_needed) == (20, 0.1, True, 1)
+    assert (p.n_arrangements, p.min_p, p.limited, p.extra_needed) == (20, 0.1, True, 1)
     p = power(3, 4, 0.1)
-    assert (p.n_arrangements, round(p.min_p, 4), p.limited, p.extra_strips_needed) == (35, 0.0286, False, 0)
+    assert (p.n_arrangements, round(p.min_p, 4), p.limited, p.extra_needed) == (35, 0.0286, False, 0)
     p = power(2, 2, 0.1)
-    assert (p.n_arrangements, round(p.min_p, 4), p.limited, p.extra_strips_needed) == (6, 0.3333, True, 2)
+    assert (p.n_arrangements, round(p.min_p, 4), p.limited, p.extra_needed) == (6, 0.3333, True, 2)
     power(0, 0, 0.1)  # must not crash
 
 
-def test_shared_strip_variants():
-    tables = split_tables(pd.read_csv(FAKE))
-    excluded = evaluate(tables, "fake_ok", FAKE_CFG)  # config shared_strips: exclude
-    assert excluded.power.n_segments == (3, 4)
-    assert excluded.shared_strips.strips == ["R4", "R5", "R7"]
-    included = evaluate(tables, "fake_ok", FAKE_CFG | {"shared_strips": "include"})
-    assert included.power.n_segments == (6, 7)
-
-
 def test_evidence_example_validates():
-    Evidence.model_validate_json((FIXTURES / "evidence_example.json").read_text())
+    raw = json.loads((FIXTURES / "evidence_example.json").read_text())
+    assert Evidence.model_validate(raw).model_dump(mode="json") == raw
 
 
 def test_end_to_end_run(tmp_path, monkeypatch):

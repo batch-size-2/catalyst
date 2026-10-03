@@ -27,8 +27,15 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 - **Batch_3 is the baseline**: what the supplier "promised". Batch_1 and Batch_2 show the kinds of variation to detect; they aren't better or worse. A manufacturer is wary of anything too far outside the baseline's SD, in either direction.
 - **Judging:** can we say what is different about the batches and sort held-back images into the right batch? Then an unknown batch N can be called in or out of distribution.
 - **Data still to come:**
-  - **9 held-back images** (27 files: BSE, ETD/SE, InLens, same format as now) from the 3 known batches. The split is unknown. They are our only honest test: keep them unseen until the sorter is frozen.
-  - **Tomorrow, at the presentation: 2 images, "which batch do they belong to, and WHY".** The image sorter and its explanation are the centrepiece.
+  - **9 held-back images** (27 files: BSE, ETD/SE, InLens, same format as now) from the 3 known batches. The split is unknown. They are our only honest test: keep them unseen until attribution is frozen.
+  - **Tomorrow, at the presentation: 2 images, "which batch do they belong to, and WHY".** Batch attribution and its explanation are the centrepiece.
+
+## Done (step 1, branch `PtrkH/image-unit`)
+
+- The image unit drives the verdict; the strip view is reported in `other_unit`, with DIFFERENT-vs-SIMILAR as the contradiction rule.
+- Shared-strip machinery was removed.
+- `nearest_batch`, `image_groups` and `variance_split` were removed; `extra_needed`, `odd_sd`, `Odd` and `odd_images` were added.
+- The UI, evidence fixture (strict round-trip test) and README were updated.
 
 ## Done (PR #4)
 
@@ -45,74 +52,20 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 
 ### 1. Simplify and make the image the unit
 
-- **Remove the shared-strip machinery** (strips don't matter):
-  - config `shared_strips` and `shared_disagreement`;
-  - schema `SharedStrips`, `Variant`, `Evidence.shared_strips`, `Segment.shared`;
-  - the include/exclude paths in `compare`, and the shared-strip contradiction reason and next action;
-  - the UI bits: the VerdictCard "Shared strips" stat, the TileGallery "shared" badge, and the variant wording in the Differences header;
-  - their tests, the README text and the example JSON.
-- **Remove the slots the sorter replaces**: `ImageGroup` / `Fingerprint.image_groups`, `VarianceShare` / `Fingerprint.variance_split`, `Evidence.nearest_batch`. Rename `Power.extra_strips_needed` → `extra_needed`.
-- **Run both units; the image drives the verdict.**
-  - Config: `unit: image` (image | strip).
-  - `compare` runs `analyze` at both units: image segments are one per image; strip segments are every strip, nothing dropped.
-  - New fields: `Evidence.unit`, and `Evidence.other_unit = UnitView(unit, power, statuses, contradictions)`.
-  - A key quantity DIFFERENT at one unit and SIMILAR at the other → INVESTIGATE: "q is X per image but Y per strip: the result depends on treating neighbouring images as independent".
-  - `contradictions()` keeps only the DIFFERENT-vs-SIMILAR rule.
-- **Margin:** δ = `margins[q]`, else `similar_margin` × SD of the baseline's *image* values. The same δ for both units.
-- **Odd check at both units:**
-  - new `odd_images`: an image outside the baseline mean ± `odd_sd` × the baseline image SD;
-  - `odd_strips` as now;
-  - rename `odd_strip_sd` → `odd_sd`;
-  - only the driving unit's list triggers.
-- **Wording** follows the unit ("images"/"strips"); rename `strips_to_settle` → `units_to_settle`. `fingerprint.segments` stays at strip level (the UI groups images by strip).
+Done, see Done.
 
-### 2. Image sorter: `qc/classify.py` (the judged feature)
+### 2. Wrap Pat's batch attribution (decided 3 Oct: Pat owns it)
 
-**Config:** `known_batches: [Batch_1, Batch_2, Batch_3]`, `sorter_features: auto` (or an explicit list), `sorter_max_features: 4`, `sorter_unlike_quantile: 0.99`.
-
-**Schema** (additive, mirrored in `types.ts`):
-
-| Model | Fields |
-|---|---|
-| `FeatureRank` | name, unit, `eta2` (share of image-level variance between known batches), `p` (Kruskal–Wallis), `z_vs_baseline` {batch: (batch mean − baseline mean) / baseline SD} |
-| `FeatureCall` | name, unit, value, `z` {batch: (value − batch mean) / pooled within-batch SD}, `baseline_z` |
-| `ImageCall` | image_id, strip_id, folder, predicted, probabilities, distance2, features (most decisive first), outside_baseline, unlike_any_batch, `why: list[str]` |
-| `Evaluation` | scheme ("leave-one-image-out" \| "leave-one-strip-out" \| "held-out"), n, accuracy, balanced_accuracy, confusion {true: {predicted: count}} |
-| `BatchModel` | batches, baseline, features, means, pooled_sd, baseline_mean, baseline_sd, unlike_quantile, trained_on. Frozen in `config/batch_model.json`; add it to `CONFIG_FILES` in `qc/provenance.py` |
-| `Sorting` | model, ranking, evaluations, clustering_ari, calls, provenance. Written to `out/sorting/<name>.json` |
-
-`Evidence` also gains `image_calls: list[ImageCall]`.
-
-**Method** (numpy/scipy only, deterministic):
-- **Candidates:** every numeric descriptor column with ≥ 2 values in every known batch and a pooled SD > 0, so Pat's new columns are picked up automatically.
-- **Fit:** rank by eta2. With `auto`, pick k ≤ `sorter_max_features` by inner leave-one-image-out *balanced* accuracy (ties → smaller k).
-- **Model:** the batch means, plus the pooled within-batch SD per feature (n − K degrees of freedom).
-- **Predict:**
-  - distance² to each batch mean in pooled-SD units, summed over the image's non-NaN features;
-  - probabilities = softmax(−d²/2) with **equal priors** (17/7/7 must not favour Batch_3);
-  - features ordered by z_runner-up² − z_predicted²;
-  - `outside_baseline` = |baseline_z| > `odd_sd`;
-  - `unlike_any_batch` = min d² > χ²(`unlike_quantile`, df = number of features used).
-- **`why` sentences** (templates, no language model):
-  - "Closest to P (x%); next is R (y%)."
-  - Up to 3 lines of the form "name = v unit: zP SD from P's mean, zR SD from R's (baseline zB SD)."
-  - The outside-baseline and unlike-any-batch sentences when they apply.
-  - Use the friendly names from `config/kpi_dictionary.yaml` when present.
-- **Evaluation:**
-  - **Nested** (every fold refits, including the feature choice): leave-one-image-out, and leave-one-strip-out (hold out every image of a strip, in whichever batch it sits).
-  - Unsupervised check: Ward clustering of the z-scored features into K clusters, adjusted Rand index against the labels.
-- **CLI:**
-  - `python -m qc.classify fit`: reads the `known_batches` rows of `out/kpis.csv` (never anything else), writes `config/batch_model.json` and `out/sorting/known.json`.
-  - `python -m qc.classify predict DIR [DIR ...] [--truth BATCH ...]`: measures the folders, applies the frozen model; with `--truth` it adds a "held-out" Evaluation.
-- **Batch pipeline:** `evaluate(..., model=None)` fills `image_calls`; `run()` loads the model file if it exists.
+Pat builds the attribution model in `qc/attribute.py`, on features from `qc/features.py` (`out/features.csv`); see `docs/AGENT_HANDOVER.md` on branch `pat/ml-v3`. The software side builds no classifier. It:
+- proposes the output contract in `qc/schema.py`: `Attribution`, written to `out/attribution/<run>.json`, mirrored in `web/src/types.ts`, with `tests/fixtures/attribution_example.json`. Pat confirms or changes it;
+- adds the API: `GET /api/attribution`, `GET /api/attribution/{run}`, `POST /api/attribution/{run}` (NDJSON progress; calls Pat's `predict` when `qc.attribute` exists, else 501);
+- builds the views in step 5 against the fixture.
 
 **Held-out protocol** (put it in the README):
 1. Put the new images in their own folders under `data/`, never inside the known batch folders.
-2. `fit`, then `git tag rules-frozen-sorter`.
-3. Run `predict ... --truth ...` once.
+2. Freeze the model, then `git tag rules-frozen`.
+3. Predict once.
 4. Commit the output unchanged.
-
-After scoring, add the 9 to training, refit and re-freeze before the 2 judged images.
 
 ### 3. Plumbing for Pat's outputs (no edits to her files)
 
@@ -143,20 +96,16 @@ After scoring, add the 9 to training, refit and re-freeze before the 2 judged im
 
 ### 5. UI and API
 
-- **API:** `POST /api/sort/{name}` (NDJSON progress, like runs), `GET /api/sorting/{name}`, `GET /api/sorting/known`. `qc/api.py` stays thin.
-- **"Sort images" view (demo centrepiece):** upload 1–N images, then per image show:
-  - the predicted batch with probability bars;
-  - the `why` sentences;
-  - the decisive features against each batch's mean ± SD band;
-  - the outside-baseline and unlike badges;
-  - the mask overlay.
-- **"What's different" view:** the FeatureRank table (eta2, z vs baseline per batch), confusion matrices (leave-one-image-out, leave-one-strip-out, held-out) and the clustering ARI.
-- **Batch view:** the four audience tabs, image calls on the gallery cards, `other_unit` next to the differences, odd images.
-- **Fixtures:** build against `tests/fixtures/evidence_example.json` plus a new `tests/fixtures/sorting_example.json`.
+**The screens, the visual language, the extra backend data and the build order are specified in [`docs/APP.md`](APP.md). Follow its build order (core first).** The bullets below are the minimum.
+
+- **"Sort images" view (demo centrepiece):** upload 1–N images, then use the per-image `Attribution` fields to show the predicted batch with probability bars, `why` sentences, decisive features against each batch's mean ± SD band, outside-baseline and unlike badges, and the mask overlay.
+- **"What's different" view:** use the `Attribution` feature ranking (z vs baseline per batch), confusion matrices (leave-one-image-out, leave-one-strip-out, held-out) and clustering ARI.
+- **Batch view:** the four audience tabs, attribution calls for the batch folder on the gallery cards, `other_unit` next to the differences, odd images.
+- **Fixtures:** build against `tests/fixtures/evidence_example.json` plus a new `tests/fixtures/attribution_example.json`.
 
 ### 6. When Pat's features land (with the user)
 
-1. Run `uv run python -m qc.measure`, then `python -m qc.classify fit`.
+1. Run `uv run python -m qc.measure`, then Pat's attribution fit.
 2. Read the ranking and the nested evaluations; set `margins` per key quantity.
 3. Freeze, then score the held-out images as in step 2's protocol.
 4. Before the presentation, rehearse `predict` on 2 images.
@@ -167,5 +116,6 @@ Listed in PR #4, section "For Pat":
 - **Black level:** `Field.black_level` is filled, but `segment()` and `imaging()` don't receive the `Field`. Either she computes it inside, or `run.py` passes it in.
 - **Column names:** confirm the proposed `PARTICLE_COLUMNS` / `IMAGING_COLUMNS`.
 - **KPI_UNITS:** add `si_graphite_ratio` and the other descriptors, then regenerate the fixture with `uv run python -m tests.synth`.
+- **Attribution contract:** confirm the proposed `Attribution` schema (step 2).
 - **Her other pieces:** the dictionary content, image pre-processing, particle types, controls.
-- **Plan change:** rule 2 is replaced by the explainable image sorter (the user agreed; Pat's OK is pending).
+- **Plan change:** rule 2 is replaced by Pat-owned batch attribution; the software side wraps her output.

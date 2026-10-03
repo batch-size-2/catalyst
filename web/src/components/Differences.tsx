@@ -8,13 +8,13 @@ export default function Differences({ evidence }: { evidence: Evidence }) {
     <section className="animate-rise rounded-2xl border border-white/5 bg-slate-900/60 p-6">
       <h2 className="font-medium">Differences from the reference</h2>
       <p className="mt-1 text-xs text-slate-400">
-        Means over strip segments in the {evidence.shared_strips.setting} variant, key quantities first. δ is the
-        similarity margin.
+        Means over {evidence.unit}s, key quantities first. δ is the similarity margin.
       </p>
       <table className="mt-4 w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-slate-500">
-            {["quantity", "unit", "reference", "batch", "difference", "interval", "δ", "p", "status"].map((h) => (
+            {["quantity", "unit", "reference", "batch", "difference", "interval", "δ", "p", "status",
+              `per ${evidence.other_unit.unit}`].map((h) => (
               <th key={h} className="py-1 pr-4 font-normal">
                 {h}
               </th>
@@ -41,6 +41,13 @@ export default function Differences({ evidence }: { evidence: Evidence }) {
                 <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[d.status].chip}`}>
                   {d.status}
                 </span>
+              </td>
+              <td>
+                {evidence.other_unit.statuses[d.name] ? (
+                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[evidence.other_unit.statuses[d.name]].chip}`}>
+                    {evidence.other_unit.statuses[d.name]}
+                  </span>
+                ) : "—"}
               </td>
             </tr>
           ))}

@@ -4,10 +4,11 @@ import type { Evidence } from "../types";
 export default function VerdictCard({ evidence }: { evidence: Evidence }) {
   const style = VERDICT_STYLE[evidence.verdict];
   const [nBatch, nRef] = evidence.power.n_segments;
+  const [nOtherBatch, nOtherRef] = evidence.other_unit.power.n_segments;
   const stats = [
-    ["Strip segments", `${nBatch} vs ${nRef} reference`],
+    ["Compared per", `${evidence.unit}: ${nBatch} vs ${nRef}`],
+    ["Also per", `${evidence.other_unit.unit}: ${nOtherBatch} vs ${nOtherRef}`],
     ["Smallest possible p", evidence.power.min_p.toPrecision(2)],
-    ["Shared strips", `${evidence.shared_strips.strips.length} · ${evidence.shared_strips.setting}`],
     ["Baseline", `${evidence.baseline} · ${evidence.n_images.baseline} images`],
     ["Config", evidence.config_version],
   ];

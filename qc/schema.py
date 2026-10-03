@@ -72,18 +72,17 @@ class Tables(NamedTuple):
 
 Verdict = Literal["ACCEPT", "INVESTIGATE", "REJECT"]
 Status = Literal["SIMILAR", "DIFFERENT", "UNCLEAR"]
-Variant = Literal["include", "exclude"]
+Unit = Literal["image", "strip"]
 Range = tuple[float, float]
 
 
 class Segment(BaseModel):
-    """The images of one strip inside one batch folder: the unit for all statistics (PLAN_v3 §3.5)."""
+    """The images of one strip, or one image, inside one batch folder: the unit of the statistics."""
 
     batch: str
     strip_id: str
     image_ids: list[str]
     area_um2: float | None
-    shared: bool                         # the strip also has images in the other batch of the comparison
     values: dict[str, float | None]      # area-weighted mean over its images, per quantity
 
 
@@ -104,26 +103,28 @@ class Difference(BaseModel):
 
 
 class Power(BaseModel):
-    n_segments: tuple[int, int]          # (batch, reference) in the driving shared-strip variant
+    n_segments: tuple[int, int]          # (batch, reference) at the driving unit
     n_arrangements: int                  # C(n1 + n2, n1)
     min_p: float                         # smallest achievable p: 2/N if n1 == n2 else 1/N
     limited: bool                        # min_p >= alpha: no quantity can be DIFFERENT
-    extra_strips_needed: int | None      # 0 if not limited; else extra batch strips that lift it (None if > 20)
+    extra_needed: int | None             # 0 if not limited; else extra batch units that lift it (None if > 20)
 
 
-class SharedStrips(BaseModel):
-    setting: Variant                     # config shared_strips: the variant that drives the verdict
-    strips: list[str]                    # strip_ids with images in both batch and reference, sorted
-    other_status: dict[str, Status] = {} # used key quantity -> status in the other variant
-    contradictions: list[str] = []       # key quantities where the variants disagree (config shared_disagreement)
+class UnitView(BaseModel):
+    """The comparison at the unit that does not drive the verdict (config `unit`)."""
+
+    unit: Unit
+    power: Power
+    statuses: dict[str, Status]          # used key quantity -> status at this unit
+    contradictions: list[str] = []       # used key quantities DIFFERENT at one unit and SIMILAR at the other
 
 
-class OddStrip(BaseModel):
+class Odd(BaseModel):
     strip_id: str
     image_ids: list[str]
     quantity: str
     value: float
-    range: Range                         # reference mean +/- odd_strip_sd x SD of reference segment values
+    range: Range                         # baseline mean +/- odd_sd x SD of baseline values at that unit
 
 
 class ImagingCheck(BaseModel):
@@ -151,31 +152,15 @@ class Controls(BaseModel):
 class Descriptor(BaseModel):
     name: str
     unit: str
-    value: float | None                  # mean of the batch's segment values
-    interval: Range | None = None        # ci_level t-interval over segments
-    by_strip: dict[str, float | None]    # strip_id -> segment value
-
-
-class VarianceShare(BaseModel):
-    name: str
-    within_strip: float | None
-    between_strips: float | None
-    between_batches: float | None
-
-
-class ImageGroup(BaseModel):
-    image_ids: list[str]
-    strips: list[str]
-    one_strip: bool
-    separating: list[str]
+    value: float | None                  # mean of the batch's values at the driving unit
+    interval: Range | None = None        # ci_level t-interval over them
+    by_strip: dict[str, float | None]    # strip_id -> strip segment value
 
 
 class Fingerprint(BaseModel):
     segments: list[Segment]
     descriptors: list[Descriptor]
     type_shares: list[Descriptor] = []
-    image_groups: list[ImageGroup] = []
-    variance_split: list[VarianceShare] = []
 
 
 class Explanations(BaseModel):
@@ -206,15 +191,16 @@ class Evidence(BaseModel):
     verdict: Verdict
     reasons: list[str]                   # every verdict trigger that fired, in precedence order
     next_action: str
-    differences: list[Difference]        # driving shared-strip variant; used key quantities first
+    unit: Unit
+    differences: list[Difference]        # driving unit; used key quantities first
     drivers: list[str] = []              # used key quantities ranked by |difference| / margin
     power: Power
-    shared_strips: SharedStrips
-    odd_strips: list[OddStrip] = []
+    other_unit: UnitView
+    odd_images: list[Odd] = []
+    odd_strips: list[Odd] = []
     new_type_share: float | None = None
     imaging: ImagingCheck = ImagingCheck()
     controls: Controls = Controls()
-    nearest_batch: str | None = None
     fingerprint: Fingerprint
     n_images: dict[str, int]             # {"batch": n, "baseline": n}
     explanations: Explanations = Explanations()
