@@ -107,7 +107,9 @@ def imaging_check(ref_imaging: pd.DataFrame, batch_imaging: pd.DataFrame, cfg: d
     changed = set()
     metric_pad = cfg["imaging_min_pad"]
     for channel, rows in baseline.groupby("channel"):
-        batch_rows = batch_imaging[batch_imaging["channel"] == channel]
+        # the baseline's own outliers are already reported; they are not a change (baseline vs itself)
+        batch_rows = batch_imaging[(batch_imaging["channel"] == channel)
+                                   & ~batch_imaging["image_id"].astype(str).isin(outliers)]
         for metric in IMAGING_COLUMNS[4:]:
             if metric not in rows or metric not in batch_rows:
                 continue

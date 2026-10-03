@@ -133,16 +133,46 @@ export interface Evidence {
   config_version: string;
 }
 
+export interface ReasonClause {
+  feature: string;
+  label: string;
+  baseline_z: number;
+  direction: string;
+  closest_batch: string | null;
+  text: string;
+  r?: number;
+}
+
 export interface AttributionReason {
   feature: string;
-  z: number | null;
-  contribution: number | null;
+  z: number | null;             // against the training mean
+  contribution: number | null;  // coefficient × z, toward the call of its stage
+  stage?: "all" | "baseline" | "variation";
+  label?: string;
+  text?: string;                // plain-language sentence
+  baseline_z?: number;          // named features only: SD against the baseline
+  closest_batch?: string | null;
+  related?: ReasonClause[];     // deep components only: the named features they move with
 }
 
 export interface Deviation {
   feature: string;
+  label?: string;
   z: number | null;
   direction: string;
+}
+
+export type ConfidenceTier = "high" | "medium" | "low";
+
+export interface TierRecord {
+  right: number;
+  n: number;
+}
+
+export interface StageCall {
+  call: string;
+  confidence: number;
+  p_baseline?: number;
 }
 
 export interface AttributedImage {
@@ -150,14 +180,32 @@ export interface AttributedImage {
   strip_id: string | null;
   predicted: string;
   confidence: number | null;
+  confidence_raw?: number | null;
+  confidence_tier?: ConfidenceTier;
+  confidence_record?: TierRecord | null;  // held-out calls in this tier: right / n
+  stage_baseline?: StageCall | null;      // "different from the baseline?"
+  stage_variation?: StageCall | null;     // "in what way?", given it is not the baseline
+  prediction_set?: string[];
   assigned?: string | null;
   reasons: AttributionReason[];
   baseline_distance: number | null;
   baseline_threshold: number | null;
-  unfamiliar: boolean | null;
+  outside_baseline?: boolean | null;
+  predicted_distance?: number | null;     // distance to the batch it was assigned to
+  predicted_threshold?: number | null;
+  unfamiliar: boolean | null;             // outside the range of the batch it was assigned to
   n_deviating?: number | null;
   deviations: Deviation[];
   [key: `p_${string}`]: number | null;
+}
+
+export interface Calibration {
+  temperature: number;
+  n: number;
+  accuracy?: number;
+  tiers: ({ tier: ConfidenceTier; min_confidence: number } & TierRecord)[];
+  conformal: { alpha: number; qhat: number; n: number } | null;
+  stages: { baseline?: TierRecord; variation?: TierRecord };
 }
 
 export interface AttributionModelInfo {
@@ -165,6 +213,18 @@ export interface AttributionModelInfo {
   classes: string[];
   baseline: string;
   loso_balanced_accuracy: number | null;
+  kind?: "flat" | "staged";
+  families?: string[] | null;
+  staged?: string[][] | null;
+  calibration?: Calibration | null;
+}
+
+/** GET /api/attribution-model: the model the next run will use. */
+export interface ModelStatus extends AttributionModelInfo {
+  n_trained_on: Record<string, number>;
+  sha256: string;
+  rules_frozen_commit: string | null;
+  matches_frozen: boolean | null;  // the file is the one under the rules-frozen tag
 }
 
 export interface Attribution {

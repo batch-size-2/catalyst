@@ -642,7 +642,7 @@ def _reasons(model: dict, role: str, part: dict, z: np.ndarray, contrib: np.ndar
         if name.startswith(f"{DEEP_FAMILY}_pc"):
             related = [c for t in translations.get(name, []) if (c := _clause(model, t["feature"], row.get(t["feature"]), t["r"]))]
             label = f"DINOv2 image pattern {name.rsplit('pc', 1)[-1]}"
-            text = f"{label}, which moves with " + "; ".join(f"{c['text']} (r = {c['r']:+.2f})" for c in related) if related else f"{label}: no named feature moves with it"
+            text = f"{label}, which moves with " + "; ".join(f"{c['text']} (r = {c['r']:+.2f})" for c in related) if related else f"{label}: an overall look of the InLens image that no single named measurement captures"
             reason |= {"label": label, "text": text, "related": related}
         elif (clause := _clause(model, name, row.get(name))) is not None:
             reason |= {"label": clause["label"], "text": clause["text"], "baseline_z": clause["baseline_z"], "closest_batch": clause["closest_batch"]}

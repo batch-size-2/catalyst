@@ -357,7 +357,7 @@ Everything runs locally and offline. Three processes:
 | API | `uv run uvicorn qc.api:app --reload` | 8000 | Thin FastAPI wrapper: reads `out/`, saves uploads to `data/`, calls `run()` and Pat's attribution. No QC logic |
 | Web UI | `cd web && npm install && npm run dev` | 5173 | Vite + React + TypeScript + Tailwind. Talks only to `/api` |
 
-Attribution: `uv run python -m qc.features`, `uv run --extra deep python -m qc.deep`, then `uv run python -m qc.attribute` with `--evaluate`, `--dry-run [--repeats 30]`, `--fit` or `--images data/<drop>`. Deep features need `uv sync --extra deep`; after that every command runs as `uv run --extra deep …`, because a plain `uv run` removes torch again. Setup: `brew install uv node@22`. Tests: `uv run pytest`.
+Attribution: `uv run python -m qc.features`, `uv run --extra deep python -m qc.deep`, then `uv run python -m qc.attribute` with `--evaluate`, `--dry-run [--repeats 30]`, `--fit` or `--images data/<drop>`. Torch and transformers are regular dependencies since the freeze, so a plain `uv run …` works (`--extra deep` is still accepted). Setup: `brew install uv node@22`. Tests: `uv run pytest`.
 
 ### 3.10 Optional review (after the output) — not built, first to cut
 
@@ -797,7 +797,23 @@ Staging does not help accuracy: Batch_1 against Batch_2 is the bottleneck in eve
 
 Reading: nothing tried closes the Batch_1 / Batch_2 gap. The honest product is a confident "Batch_3 or not" (24–26 of 31 out-of-fold) and a weak, labelled lean between Batch_1 and Batch_2.
 
-**Model fitted for the app** (`config/attribution_model.json`, not frozen): flat `deep`, `C` = 0.3, LOSO 0.64; temperature 0.45; out-of-fold right per tier 7/9, 6/12, 8/10; stage record 24/31 (baseline or not) and 8/11 (which variation). It fits its training images much better than new ones (0.87 against 0.64), so expect fewer "high" calls on unseen images.
+**Frozen model** (`config/attribution_model.json`, tag `rules-frozen`, 3 Oct 22:10): staged `material > deep`, fitted on all 31 samples; LOSO 0.66; temperature 1.42; out-of-fold right per tier 9/9, 5/9, 8/13; stage record 26/31 (baseline or not) and 8/12 (which variation). Chosen over flat `deep` because its confidence tiers separate right from wrong calls (rehearsals: 32/35, 25/40, 42/105 against 24/36, 28/42, 61/102) and its first stage reads in named features; the accuracy gap (0.55 against 0.63 in rehearsals, 0.66 against 0.64 LOSO) is inside the rehearsal spread. The pre-freeze list of §4 step 2 was not run.
+
+**Earlier draft, superseded:** flat `deep`, `C` = 0.3, LOSO 0.64; temperature 0.45; out-of-fold right per tier 7/9, 6/12, 8/10; stage record 24/31 (baseline or not) and 8/11 (which variation). It fits its training images much better than new ones (0.87 against 0.64), so expect fewer "high" calls on unseen images.
+
+### 12.3 The freeze and the first unseen samples (3 Oct, 22:10–22:40)
+
+- **Frozen:** tag `rules-frozen` on the commit that holds the staged `material > deep` model (§12.2, "Frozen model"). §4 steps 1, 3, 4 and 5 are done; step 2 was skipped.
+- **Scored once after the tag:** `uv run python -m qc.attribute --images data/Hackathon-Polaron-test`, 42 s for the three samples (about 14 s each). Output committed unchanged as `results/Hackathon-Polaron-test.json`.
+
+| Sample | Bet | Confidence, tier (held-out record) | Batch_3 or not | Which variation | Prediction set | Unfamiliar |
+|---|---|---|---|---|---|---|
+| `3e122cbj` | Batch_1 | 0.50, low (8 of 13) | not Batch_3, 0.97 | Batch_1, 0.51 | Batch_1 or Batch_2 | no |
+| `fn0mhxef` | Batch_2 | 0.47, low (8 of 13) | not Batch_3, 0.93 | Batch_2, 0.51 | Batch_2 or Batch_1 | yes |
+| `xrv9xvzb` | Batch_3 | 0.99, high (9 of 9) | Batch_3, 0.99 | – | Batch_3 | no |
+
+- **Disclosure:** the three samples were uploaded through the app's Identify screen at 21:51–21:53, before the tag, with the same model file (fitted 21:27, sha256 `c2baba7d…`). The model was not refitted or tuned afterwards, and the three probabilities per sample are identical in both runs. The pre-freeze list of §4 step 2 was dropped for this reason: any further model work would have been done after seeing test outputs.
+- **Reading:** two samples are clearly not the baseline and one clearly is. Between Batch_1 and Batch_2 the model has no real preference (0.51 each), as §12.2 predicts.
 
 ## 13. Evidence for each decision
 

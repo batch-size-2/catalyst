@@ -107,6 +107,16 @@ export function baselineBand(tiles: Tile[], baseline: string, kpi: string) {
 }
 
 /** Position of a z-like value in [-span, span] as a 0..100 percentage. */
+/** "9 of 9" for a held-out record. */
+export const record = (r: { right: number; n: number } | null | undefined) => (r ? `${r.right} of ${r.n}` : "—");
+
+/** "Staged: named measurements, then DINOv2" from the model's kind and families. */
+export function modelName(m: { kind?: string; families?: string[] | null; staged?: string[][] | null }): string {
+  const side = (fams: string[]) => (fams.length === 1 && fams[0] === "deep" ? "DINOv2 image features" : "named measurements");
+  if (m.kind === "staged" && m.staged?.length === 2) return `Staged: ${side(m.staged[0])}, then ${side(m.staged[1])}`;
+  return m.families ? `Single model: ${side(m.families)}` : "Single model";
+}
+
 export const sigmaPos = (z: number, span = 3) =>
   (Math.max(-span, Math.min(span, z)) + span) / (2 * span) * 100;
 

@@ -70,6 +70,9 @@ dependencies = [
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "tifffile", version = "2026.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "tifffile", version = "2026.9.20", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "torch", version = "2.14.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+    { name = "transformers" },
     { name = "uvicorn" },
 ]
 
@@ -99,8 +102,11 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.9.1" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "tifffile", specifier = ">=2026.3.3" },
+    { name = "torch", marker = "sys_platform != 'darwin'", specifier = ">=2.8", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", marker = "sys_platform == 'darwin'", specifier = ">=2.8" },
     { name = "torch", marker = "sys_platform == 'darwin' and extra == 'deep'", specifier = ">=2.8" },
     { name = "torch", marker = "sys_platform != 'darwin' and extra == 'deep'", specifier = ">=2.8", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "transformers", specifier = ">=4.56,<5" },
     { name = "transformers", marker = "extra == 'deep'", specifier = ">=4.56,<5" },
     { name = "uvicorn", specifier = ">=0.54.0" },
 ]

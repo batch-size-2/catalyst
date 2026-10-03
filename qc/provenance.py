@@ -6,7 +6,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from qc.schema import InputFile, Provenance, load_config
+from qc.schema import ATTRIBUTION_MODEL_PATH, InputFile, Provenance, load_config
 
 CONFIG_FILES = ("particle_types.json", "kpi_dictionary.yaml", "attribution_model.json")
 
@@ -66,3 +66,22 @@ def verify(prov: Provenance, data_dir: Path) -> dict:
               for name, digest in prov.config_sha256.items()]
     config_ok = all(checks)
     return {"ok": config_ok and all(f["ok"] for f in files), "files": files, "config_ok": config_ok}
+
+
+def model_status(path: Path = ATTRIBUTION_MODEL_PATH) -> dict | None:
+    """The attribution model the next run will use, and whether it is the file under `rules-frozen`."""
+    if not path.exists():
+        return None
+    model = json.loads(path.read_text())
+    frozen = git("rev-parse", "rules-frozen^{commit}")
+    tagged, current = git("rev-parse", f"rules-frozen:{path.as_posix()}"), git("hash-object", str(path))
+    return {
+        "kind": model.get("kind", "flat"), "families": model.get("families"), "staged": model.get("staged"),
+        "fitted_at": model.get("fitted_at"), "classes": model.get("classes"), "baseline": model.get("baseline"),
+        "n_trained_on": {batch: len(ids) for batch, ids in (model.get("trained_on") or {}).items()},
+        "loso_balanced_accuracy": (model.get("loso") or {}).get("balanced_accuracy"),
+        "calibration": model.get("calibration"),
+        "sha256": sha256(path),
+        "rules_frozen_commit": frozen,
+        "matches_frozen": None if tagged is None or current is None else tagged == current,
+    }

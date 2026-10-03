@@ -18,7 +18,7 @@ from pydantic import BaseModel, ValidationError
 
 from qc.explain import load_dictionary
 from qc.io import DETECTOR_ALIASES, PREVIEW_SIZES, field_paths, preview_png
-from qc.provenance import verify
+from qc.provenance import model_status, verify
 from qc.run import Progress, attribute, attribution_module, read_json, run
 from qc.schema import (
     ATTRIBUTION_DIR, EVIDENCE_DIR, KPI_TABLE, KPI_UNITS, OUT_DIR, Evidence, Verdict,
@@ -90,6 +90,15 @@ def attribution_evaluation() -> dict:
     if not path.exists():
         raise HTTPException(404, "no attribution evaluation")
     return read_json(path)
+
+
+@app.get("/api/attribution-model")
+def attribution_model() -> dict:
+    """Which model POST /api/attribution will use, and whether it is the frozen one."""
+    status = model_status()
+    if status is None:
+        raise HTTPException(404, "no attribution model: run `uv run python -m qc.attribute --fit`")
+    return status
 
 
 @app.get("/api/attribution/{name}")
