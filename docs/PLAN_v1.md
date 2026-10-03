@@ -4,6 +4,24 @@ Team Batch Size 2. ML: Pat. Software: Patrik.
 
 Unfamiliar word or abbreviation? See the [glossary](#11-glossary) at the end.
 
+## In short
+
+We are building a quality-control tool that tells a battery manufacturer whether a new delivery of electrode material still matches the approved one, and shows why.
+
+- **Input:** a folder of microscope images for the incoming batch (three detector images per spot) and the same kind of images for the approved baseline batch.
+- **Output:** a verdict of accept, investigate or reject, plus the evidence behind it:
+  - which images look off;
+  - which measured property changed and by how much (for example silicon particle fraction or size);
+  - how sure we are;
+  - what to do next.
+- **Model:** we are not training any model.
+  - **Measurements** come from classic image processing: brightness thresholds split each image into pore, graphite and silicon, and we compute numbers from that.
+  - **The verdict** comes from plain statistics comparing those numbers with the baseline.
+  - **One pretrained vision model** (DINOv2, used as-is) flags regions that look unlike the baseline, as a safety net.
+  - **A pretrained language model** (Claude, used as-is) writes the explanation and drafts the supplier query. It never measures or decides.
+
+The one possible exception is a small classifier trained on a few hand-drawn labels to find cracks. That is a fallback, only if the thresholds miss them.
+
 ---
 
 ## 1. What we are building
