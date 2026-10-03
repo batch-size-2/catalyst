@@ -2,6 +2,8 @@
 
 Team Batch Size 2. ML: Pat. Software: Patrik.
 
+Unfamiliar word or abbreviation? See the [glossary](#11-glossary) at the end.
+
 ---
 
 ## 1. What we are building
@@ -341,3 +343,137 @@ One agent per directory: Antigravity on the UI, Devin on its branch, the core pi
 - [Testing for outliers with conformal p-values](https://arxiv.org/abs/2104.08279)
 - [ImageRep: phase-fraction confidence from a single image](https://github.com/tldr-group/ImageRep)
 - [ZEISS: segmentation techniques for battery SEM images](https://pages.zeiss.com/rs/896-XMS-794/images/EN_WhitePaper_ZEN_core_Segmentation_Techniques_Battery.pdf)
+
+---
+
+## 11. Glossary
+
+### Material and microscope
+
+| Term | Meaning |
+|---|---|
+| Electrode | The coated layer inside a battery that stores charge. Our images are slices through one |
+| Anode | The negative electrode. Ours is mostly graphite |
+| Graphite | The main anode material. Large, flaky, dark-grey particles in our BSE images |
+| Si, silicon additive | Silicon-based particles mixed into the graphite to store more charge. The bright particles in BSE |
+| SiOx, Si–C | Two common kinds of silicon additive: silicon oxide, and silicon embedded in carbon. We do not yet know which we have |
+| Pore | Empty space between particles. Black in BSE |
+| Porosity | Share of the electrode that is pore |
+| Apparent porosity | Porosity as measured from a 2D image. Biased here, because you can see the back wall of open pores |
+| Binder | The glue holding particles together. Thin films at particle edges |
+| Phase | One kind of material in the image (pore, graphite, Si). Every pixel belongs to one |
+| Microstructure | How the particles and pores are arranged at the micrometre scale |
+| Cross-section | A cut through the electrode, imaged side-on |
+| Batch, lot | One delivery of material from a supplier |
+| Baseline | The approved reference batch that incoming batches are compared against |
+| SEM | Scanning electron microscope. Scans a beam of electrons over the sample to form an image |
+| Detector | The sensor that collects electrons. Each one shows something different |
+| BSE | Backscattered-electron image. Brightness follows composition: heavier elements look brighter. Our main channel |
+| ETD, SE | Everhart–Thornley detector, the standard secondary-electron detector. Shows surface shape. `SE` in some filenames means the same thing |
+| InLens | A secondary-electron detector inside the microscope column. Very sensitive to the surface and to thin films |
+| Field of view, field, tile | One image region. Here 175 µm wide, with three detector images each |
+| Strip | Our word for one long continuous image that was cut into several tiles |
+| µm, nm, px | Micrometre (a millionth of a metre), nanometre (a thousandth of a µm), pixel. One pixel here is 25 nm |
+| TIFF, `.tif` | The image file format. Its tags store the pixel size |
+| Grey level | A pixel's brightness, 0 (black) to 255 (white) |
+| Black level, detector offset | The grey level the detector gives to "nothing". A setting, not a property of the material |
+| Contrast | How far apart the grey levels of different materials are. Also a detector setting |
+| Calibrated | Grey levels mean the same thing in every image. Ours are not |
+| Saturated | Pixels stuck at 255, so detail is lost |
+| Curtaining | Vertical streaks left by the ion beam that cut the cross-section |
+
+### Image analysis and KPIs
+
+| Term | Meaning |
+|---|---|
+| QC | Quality control |
+| KPI | Key performance indicator. Here: one measured number per image, such as silicon fraction |
+| Segmentation | Labelling every pixel with its phase |
+| Mask | The result of segmentation: an image of labels |
+| Overlay | The mask drawn in colour on top of the original image, for checking by eye |
+| Threshold | A grey level used as a cut-off: darker pixels are one phase, brighter another |
+| Otsu, multi-Otsu | A standard method that picks thresholds automatically from the image's histogram |
+| Histogram | Count of pixels at each grey level |
+| Mode | The most common grey level of a phase: the peak of its histogram |
+| Downsample | Shrink the image (2× means half the width and height) to work faster |
+| Opening | A clean-up step that removes specks smaller than a chosen size |
+| `IGNORE` | Label for pixels we exclude, such as the top and bottom margins |
+| Area fraction | Share of the image covered by a phase |
+| Equivalent diameter | Diameter of a circle with the same area as the particle |
+| D50, D90 | Size below which 50% or 90% of the particle area falls. D50 is the median size |
+| Area-weighted | Big particles count more, in proportion to their area |
+| Internal void fraction | Share of a particle's interior that is dark: holes or cracks |
+| Fragments | Very small bright objects, under 1 µm |
+| Dispersion, CV | How evenly silicon is spread. CV is the coefficient of variation: standard deviation divided by mean |
+| Window | A 1000 px wide slice of one image, used to see how much a KPI varies inside the image |
+| Variant | The same image re-measured with slightly different segmentation settings |
+
+### Statistics and decision
+
+| Term | Meaning |
+|---|---|
+| Conforming, non-conforming, suspect | An image is within tolerance, clearly outside it, or too close to call |
+| Tolerance, tolerance band | The range of a KPI we accept as normal |
+| Prediction interval | The range where one new baseline-like image should fall, estimated from the baseline images |
+| SD | Standard deviation: the typical spread around the average |
+| Uncertainty | How much a measured number could be off |
+| Sampling uncertainty | Doubt from seeing only a small piece of the material |
+| Binomial interval | The plausible range for a true share, given x of n observed. "0 of 7" still allows up to 28% |
+| Lower bound, upper bound | The ends of that plausible range |
+| p-value | How surprising a result would be if nothing had changed. Small means surprising |
+| Distribution-free | A test that assumes nothing about the shape of the data |
+| Normality assumption | Assuming values follow a bell curve |
+| Leave-one-strip-out | Test on one strip while using only the other strips as reference, so nothing leaks |
+| Leak, shortcut | A model scoring well by picking up something irrelevant, such as which strip an image came from |
+| Controls | Test images with a known answer, run alongside the real ones |
+| Negative control | Known-good: imaging changed, material untouched. Must pass |
+| Positive control | Known-bad: a change we injected. Must be flagged |
+| Power curve | How often we catch a change, plotted against how big it is and how many images we have |
+| Counterfactual | "What would have to be different for this image to pass" |
+| Verdict | Accept, investigate or reject |
+| Baseline audit | Checking the baseline against itself before trusting it as a reference |
+
+### Machine learning
+
+| Term | Meaning |
+|---|---|
+| Classifier | A model that sorts inputs into categories |
+| Feature | A number, or list of numbers, describing an image or a patch |
+| Patch | A small square of an image |
+| DINOv2, DINOv3 | Pretrained vision models from Meta that turn image patches into features. We use them as-is, with no training |
+| Gated model | A model you must request access to before downloading |
+| PCA | Principal component analysis: finds the main directions in which baseline features vary |
+| Reconstruction error | How badly a patch is described by those main directions. High means "unlike the baseline" |
+| Anomaly map, heat map | An image showing where a field looks unlike the baseline |
+| Logistic regression | A simple classifier, used only for the strip-leak chart |
+| Random forest | A classifier built from many decision trees. A fallback for finding cracks |
+| Scribble labels | A few hand-drawn strokes marking examples of each phase, used to train a small classifier |
+| Augmentation, perturbation | Deliberately altering an image (brightness, noise, pasted particles) |
+| LLM | Large language model, such as Claude |
+| VLM | Vision-language model: an LLM that also takes images |
+| Closed vocabulary | A fixed list of allowed answers, so the model cannot invent terms |
+| Hit rate | How often the model's tag was right on test pairs where we know the answer |
+| Agent | An LLM that carries out a multi-step task by calling tools |
+| Audit log | The step-by-step record of what the agent did and found |
+
+### Project and tools
+
+| Term | Meaning |
+|---|---|
+| Contract | The agreed function signatures and file formats between the ML and software sides |
+| Schema | The exact list of columns, names and units |
+| `evidence.json` | The file holding everything behind a verdict. The dashboard and the agent read only this |
+| Dashboard | The web page that shows the verdict and evidence |
+| Config | `config/decision.yaml`: the settings for the decision rule |
+| Freeze, `git tag` | Locking the settings before the unseen batch arrives, with a timestamped marker in git as proof |
+| Dry run | A full rehearsal on data we already have |
+| Golden test | An automated test with a known correct answer |
+| Unseen batch, the drop | The new batch the organisers release partway through day one |
+| Supplier query | The message a QC engineer sends a supplier when a batch looks different |
+| `uv` | The tool that installs Python packages and runs our code |
+| Hugging Face | Website hosting pretrained models |
+| Modal | Cloud service for running many jobs in parallel |
+| Devin | An autonomous coding agent, working on its own branch |
+| Antigravity | Google's coding tool with an agent that can drive a browser |
+| AMASS | A search service over scientific papers and patents |
+| ImageRep | A published method for estimating how representative one image is of the whole material |
