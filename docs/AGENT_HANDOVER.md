@@ -226,3 +226,59 @@ Real-data run (31 images, all 93 TIFFs present locally): numbers in PLAN_v4 §12
 Next: find the B1/B2 signal (tile-level or deep features; normalise imaging before texture).
 
 Deep features (`qc/deep.py`, optional `deep` extra): pretrained DINOv2-small on InLens tiles, local CPU, pinned weights, no fine-tuning. `uv sync --extra deep && uv run --extra deep python -m qc.deep` merges 1,536 `deep_inlens_s2_*` columns into `out/features.csv`; `qc/attribute.py` reduces them to 10 PCs per training fold (`Reducer`). Use `--families deep` for evaluate/fit/dry-run. Numbers in PLAN_v4 §12. Caveats: the per-set nulls in `evaluation.json` don't correct for picking the best of 10 family sets; probabilities from the deep model are close to uniform (C picked at 0.01), so treat its confidence as weak; Batch_1 is still the weak class.
+
+---
+
+## 8. Update 2026-10-03 (evening): merged with main; revised next steps
+
+This section replaces the order of §5 and the "Next" line of §7. Steps not listed here (degradation outlook, measurement quality, particle-type refit) come after it.
+
+### 8.1 What the task designer said (Steve Kench, 3 Oct, 16:46 and 17:34)
+
+- Every image is **always assigned to a batch**, "ideally with confidence and explanation, as these are the factors you will be judged on". The system "can say it's very unconfident but should still take a bet".
+- The aim is "different from the baseline, and in what way". Whether we get the "in what way" right is measured by whether we assign the image to the right batch.
+
+Consequences for PLAN_v4 (draft; still to be changed there with Patrik):
+
+| PLAN_v4 today | Change |
+|---|---|
+| §3.17: "If no family beats its null, we … fall back to A only" | Remove. There is no non-answer; a weak call is reported as a weak call |
+| §3.16: an unknown image "must not be forced"; third row reads as "out of distribution" instead of a batch | *Unfamiliar* lowers confidence and is shown beside the call. It never replaces it |
+| `confidence` = raw softmax (about 0.34 everywhere for deep; 0.99 on Batch_3 for material) | Calibrated confidence with a tier (step 4) |
+| Reasons = z against the training mean; `deep_pcNN` for the deep model | Reasons in material terms, relative to Batch_3 (step 5) |
+| Deep features are item 3 on the cut list | Never cut: `deep` is the only family above its null (0.64 against 0.54; §12.1) |
+| Balanced assignment as the headline for the nine | Unconstrained is the primary answer (dry run: 6/9 against 3/9 balanced). Balanced stays a side column: the split is unknown and it cannot apply to the two live images |
+| Rule 2: named, unit-bearing features only | Needs an amendment to allow the frozen DINOv2 + PCA + logistic model, on condition that step 5 ships |
+
+The accept/investigate/reject verdict is not what is scored. It stays as the product story; remaining ML time goes to assignment, confidence and explanation.
+
+### 8.2 What merging main changed
+
+`pat/ml-v3` is merged with main (`c487d86`, Patrik's Sort view, What's different view, `qc/explain.py`, attribution API). `run()` passes all three tables to `compare()`; the fixture is regenerated with 15 KPIs; `config/kpi_dictionary.yaml` had 31 unquoted values with a colon and did not parse, now quoted (content unchanged). 59 tests pass.
+
+Patrik's UI reads `out/attribution/<run>.json` and `evaluation.json` exactly as `qc/attribute.py` writes them (`web/src/types.ts`, `tests/fixtures/attribution_example.json`). So:
+
+- **No model is committed.** Without `config/attribution_model.json` the Sort view and the live upload return "run --fit first".
+- **`unfamiliar` is shown as "Unlike any known batch"**, but it measures distance to Batch_3 only. A correct Batch_1 call (the P2316 images) gets that label.
+- **Output changes must be additive.** `predicted`, `confidence`, `reasons`, `deviations`, `p_<batch>`, `assigned`, `unfamiliar`, `baseline_distance`, `baseline_threshold` are read by name. New fields are fine; renames break his types and fixtures.
+- **Reasons are printed verbatim** as `feature · z`. Whatever is in `reasons` is the on-screen explanation. There is no heatmap or nearest-image slot in the UI.
+- **A deep model needs the `deep` extra where the API runs** (`uv sync --extra deep`), or the live upload fails at import.
+- Main records the mentors saying strips "don't matter" and makes the image the verdict unit. That is about the verdict. Attribution accuracy is still estimated with whole strips held out (Rule 10 stands).
+
+### 8.3 Next steps, in order
+
+1. **Fit and commit a model.** `uv run python -m qc.attribute --fit --families deep` → `config/attribution_model.json`. Check the Sort view end to end on one folder, with the `deep` extra installed on the demo machine.
+2. **Remove the non-answer paths.** Drop the "fall back to A only" rule (PLAN_v4 §3.17). Make `unfamiliar` either the distance to the *assigned* batch, or keep it against Batch_3 and have the wording say "outside the baseline's range" (Patrik: one string in `AttributedImageCard.tsx`). Add a test that `predicted` is never empty.
+3. **Stage-wise call, as new fields.** Stage 1: Batch_3 or not ("different from the baseline"), on texture/material features (0.85–0.88 against a null of about 0.70). Stage 2: Batch_1 or Batch_2 ("in what way"), on deep features. Report a confidence per stage, so "confidently not Batch_3, weak lean to Batch_2" is a legitimate answer. `predicted` and `confidence` keep their meaning.
+4. **Calibrate confidence.** Fit a temperature on the out-of-fold strip-held-out probabilities; add `confidence_tier` (high / medium / low) and "calls at this confidence were right x of n times" from the same folds.
+5. **Reasons in material terms.** For each deciding deep component, name the dictionary features it correlates with, and state the image's value against Batch_3 in units and SD ("smoother InLens texture than Batch_3, +2.1 SD, as in Batch_2"). These go into `reasons`, since that is what the card prints.
+6. **Close the Batch_1 vs Batch_2 gap** (0.57 against a null p95 of 0.71). DINOv2 on BSE and ETD (only InLens is used now); train on tiles instead of whole images (more rows, a per-image vote).
+7. **Repeated dry runs.** One nine-image draw is too noisy to choose between models. Report mean and spread over many strip-held-out draws; unconstrained first, balanced beside it.
+8. **Freeze and score.** `git tag rules-frozen`, score the nine once, commit the output unchanged. Rehearse the two-image upload: batch, tier and reasons in seconds.
+
+Needs Patrik: steps 3–5 add fields, so `web/src/types.ts`, the card and both attribution fixtures follow. Tile heatmaps and nearest images would need new UI as well; drop them unless step 5 is too weak on its own.
+
+### 8.4 Open
+
+- **Deep model as the scored model, with Rule 2 amended?** Proposed yes, on condition of step 5. The alternative is a fully named model that is at chance three-way.
+- **Acquisition confound.** Batch_3 has a different InLens black level (7.0 against 0–0.7), and PLAN_v4 §8 Q15 (material or acquisition?) is unanswered. Imaging features stay out of the model and are reported apart until it is.
