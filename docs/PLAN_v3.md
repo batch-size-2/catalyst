@@ -1,6 +1,6 @@
-# Track 4 · Batch QC for electrode microstructure: Plan v3
+# Track 4 · Batch QC for electrode microstructure: Plan
 
-Team Batch Size 2. ML: Pat. Software: Patrik. Supersedes [PLAN_v2](PLAN_v2.md) and [PLAN_v1](PLAN_v1.md); the glossary in PLAN_v1 §10 still applies, with the additions in §11 here. v3 is PLAN_v2 plus the changes listed in §0.1.
+Team Batch Size 2. ML: Pat. Software: Patrik. Glossary in §11, evidence for each decision in §12, references in §13.
 
 ## In short
 
@@ -15,44 +15,6 @@ A tool that answers one question for a battery manufacturer: **is this incoming 
   - Explanation: templates filled from the numbers. No language model measures, decides or writes the report.
   - Optional review: after the output is written, Claude Opus may read the finished evidence and list observations worth a second look, shown apart from the report (§3.10).
 
-## 0. What changed from v1, and why
-
-| # | Change | Why |
-|---|---|---|
-| 1 | Half-split noise floor replaced by a **strip-level permutation test** plus a **variance split** (image / strip / batch) | It is literally the designer's question: "is the variance within a batch bigger than across batches?" Half-splits compare groups of half the size, so their spread does not match the comparison we make; with ~6 strips there are only ~10 distinct half-splits |
-| 2 | **One family-wise test across the key descriptors and type shares** (max-statistic permutation) | v1 REJECTs if *any* of ~10 checks is DIFFERENT, which inflates false rejects |
-| 3 | The SIMILAR margin is **calibrated on the controls before the freeze** | Gives the margin a stated reason instead of a guess |
-| 4 | Strips that cross batch folders are a named case | 5 of 13 strips span folders. A batch difference measured on a shared strip is partly the same material |
-| 5 | Controls are compared against the reference **with their source strips removed** | Otherwise a control is compared with itself and comes out SIMILAR too easily |
-| 6 | The particle-type model is **persisted and frozen**; the dry run refits it without the dry-run batch | Otherwise the dry run sees its own particles when the types are fitted, and the result looks better than it is |
-| 7 | FIB **curtaining** check in `imaging()`; direction-sensitive descriptors are only reported | The images are FIB-SEM cross-sections; curtaining streaks bias run lengths and anisotropy |
-| 8 | Claude API removed from the tool list | Polaron checked that an LLM can't group batches in a way that holds up. Keeping it anywhere near the result weakens the pitch |
-| 9 | Explicit cut list (§9) | Two people, one weekend |
-| 10 | Default margin anchored at **1.5 × reference spread**, then checked with the controls | FDA's tier-1 equivalence test for "highly similar" uses exactly this [R7] |
-| 11 | **Integral range from the two-point correlation** of each image: expected sampling spread and the image area needed | Classical RVE statistics [R10]; the same idea as ImageRep [R11]. Answers "how many images" from a single image |
-| 12 | **Si agglomerate descriptor** and an **InLens/BSE brightness ratio** per particle | Si agglomerates are a known processing defect [R16, R17]; combining detectors separates active materials [R22] |
-| 13 | Safety net: **two-point correlation first**, DINOv2 patch nearest-neighbour second | The two-point correlation is explainable as a length scale [R12]; if DINOv2 is used, the training-free patch method is the stronger few-shot choice [R14] |
-| 14 | Threshold variants moved **before the freeze** | Segmentation uncertainty can exceed sampling uncertainty [R11] |
-
-Evidence for every decision is in §12, references in §13.
-
-## 0.1 What changed from v2, and why
-
-| # | Change | Why | Where |
-|---|---|---|---|
-| 15 | **Data audit of all 93 files** | Turns assumptions about the files into checked facts, and it found three things that change the design (#19–#21) | §1.1 |
-| 16 | **Where the variation lives**, measured: strips differ more than folders on the current descriptors | It is the answer, so far, to the designer's question. The demo shows the measured split instead of assuming one | §1.2, §8 |
-| 17 | **`si_graphite_ratio` is the silicon key quantity**; `si_area_frac` is reported | The designer named the Si:graphite ratio. It follows the recipe and does not move with porosity (calendering); the area fraction does. A swap, not an addition, so the key set stays as small as v2 asks | §3.2 |
-| 18 | **`pore_connectivity`** reported | The designer named the pore network; v2 measures pore amount and size, not connection | §3.2 |
-| 19 | **Black level per channel, computed once at load** | Segmentation and the imaging check use the same number. The P2060 offset is in all three detectors, not only BSE | §3.1, §3.2, §3.3 |
-| 20 | **`inlens_ratio` uses the surrounding graphite as its reference and skips saturated pixels** | 26 of 31 fields have more than 1% of InLens pixels at 255, and InLens is about 1.2× brighter at the top of an image than at the bottom (up to 1.9×). A ratio inside the particle alone would partly encode where the particle sits | §3.2 |
-| 21 | **Imaging envelope built without reference strips that are imaging outliers themselves** | P2060, inside the reference, has a black level of 22–23 where every other image has 0. With it, the envelope spans 0–23 and would hide an imaging change in a new batch | §3.3 |
-| 22 | **Shared strips: main comparison without them, sensitivity with them** (to confirm) | Batch_2 shares 3 of its 6 strips with Batch_3 (3 of its 7 images); Batch_1 shares 1. Including them pulls the result towards SIMILAR because part of the "batch" is the reference material | §3.5 |
-| 23 | **Indicative consequences for the cell** in the KPI dictionary, as ranges | Engineers have to explain a difference to their manager in battery terms. Textbook relations only; never in the verdict | §3.8 |
-| 24 | **Provenance**: input hashes, git commit and config hash in every evidence file | Makes the liability-chain argument provable: anyone can reproduce a result and see it was not tuned afterwards | Rule 9, §3.11 |
-| 25 | **Optional Claude Opus review after the output** | A second pair of eyes on the finished evidence. Runs after the frozen output is written, never feeds back into it, and stays out of the 2-minute demo, so the "why not an LLM" pitch point still holds | Rule 3, §3.10, §7 |
-| 26 | Questions on thickness direction, 3D stacks and binder; a mentor contact | Each answer changes a descriptor or a consequence estimate | §10 |
-
 ## 1. Ground truth from the task designer
 
 | Fact | Consequence for us |
@@ -64,7 +26,7 @@ Evidence for every decision is in §12, references in §13.
 | FIB-SEM: Ga-ion beam cross-section; expect artefacts such as curtaining | `imaging()` checks for curtaining (§3.3) |
 | The batch is the unit; images within a batch will differ | Per-image verdicts are gone; image groups are only descriptive |
 | Core question: within-batch vs across-batch variance; would you reject batch B and can you say why | §3.5 |
-| Baseline is "batch three", said with some hesitation (PLAN_v1 mentor note agrees) | `baseline: Batch_3`. Confirm once more (§10 Q1) |
+| Baseline is "batch three", said with some hesitation | `baseline: Batch_3`. Confirm once more (§10 Q1) |
 | Explainability above almost everything; engineers must explain it to their boss | Every verdict names its drivers in units, with example crops |
 | An LLM gave good image descriptions but could not group batches or carry explanations over | No LLM classifies, decides or explains. The optional review (§3.10) only comments on a finished result |
 
@@ -107,7 +69,7 @@ These numbers are from a stub segmentation; the variance split (§3.5) recompute
 6. `config/decision.yaml` and `config/particle_types.json` are not edited after the `rules-frozen` tag.
 7. "Different" is not "bad". We report differences; a customer tolerance decides what matters. Report wording says "differs from the reference", never "defective".
 8. Particles and images are never treated as independent samples. The resampling unit is the strip segment (§3.5).
-9. Every evidence file records the SHA-256 of each input image, the git commit and a hash of the config (§3.11). The same inputs give a byte-identical evidence file.
+9. Every evidence file records the SHA-256 of each input image, the git commit and a hash of the config (§3.11). The same inputs give the same evidence file, apart from its timestamp.
 
 ## 3. Pipeline
 
@@ -143,7 +105,7 @@ Interface decisions (settled here so nobody waits):
 | `out/imaging.csv` | One per image and channel |
 | `out/masks/<batch>/<image_id>.png` | Overlay |
 | `out/crops/<type>/<n>.png` | Example particle crops per type (for the gallery) |
-| `out/evidence/<batch>.json` | The comparison and everything behind it, including provenance. Deterministic |
+| `out/evidence/<batch>.json` | The comparison and everything behind it, including provenance. Deterministic apart from its timestamp |
 | `out/review/<batch>.json` | Observations from the optional review. A separate file, so the evidence never depends on a language model |
 
 A descriptor that cannot be computed, or an image whose segmentation crashes, is NaN. The run never stops on one bad image.
@@ -231,7 +193,7 @@ Resolution limit we state: at 25 nm/px and a 0.25 µm² minimum, Si below about 
 | Status | DIFFERENT: p < `alpha` and \|difference\| > δ. SIMILAR: the interval lies within ±δ. UNCLEAR: otherwise |
 | Drivers | Key quantities ranked by \|difference\| / δ |
 | Nearest batch | Known batch with the smallest mean \|T\| over the key quantities |
-| Shared strips | Segments whose strip also appears in the other batch are the same physical sample. **Main comparison without them; the comparison with them is reported as a sensitivity check**, and if the status differs the report says so (`shared_strips: exclude`, to confirm; `include` restores v2's order). Batch_2 against Batch_3 then compares 3 segments with 4: 35 arrangements, smallest possible p ≈ 0.03, still below `alpha` |
+| Shared strips | Segments whose strip also appears in the other batch are the same physical sample. **Main comparison without them; the comparison with them is reported as a sensitivity check**, and if the status differs the report says so (`shared_strips: exclude`; `include` makes the comparison with them the main one). Batch_2 against Batch_3 then compares 3 segments with 4: 35 arrangements, smallest possible p ≈ 0.03, still below `alpha` |
 | Power limit | Number of distinct arrangements < 1/`alpha` → no quantity can be DIFFERENT; the next action says how many more strips would allow it |
 
 **Verdict**
@@ -262,12 +224,12 @@ Next action is computed: REJECT names the top driver and the supplier check from
 
 ### 3.7 Controls
 
-Built from reference images and compared against the **reference minus the source strips**. Each control batch uses images from at least 2 reference strips.
+Built from reference images and compared against the **reference minus the source strips**, so a control is never compared with itself. Each control batch uses images from at least 2 reference strips.
 
 | Kind | Change | Must come out |
 |---|---|---|
 | Negative | Brightness ±20%, contrast ±20%, black level +20, Gaussian noise σ = 5, synthetic curtaining stripes | SIMILAR |
-| Positive | Si particles copied in from other reference images (+50%, +100% Si fraction) | DIFFERENT, driver `si_area_frac` |
+| Positive | Si particles copied in from other reference images (+50%, +100% Si fraction) | DIFFERENT, driver `si_graphite_ratio` |
 | Positive | Voids punched into 30% of Si particles | DIFFERENT, driver `si_internal_void_frac` or porous share |
 | Positive | Si particles scaled up 1.5× | DIFFERENT, driver `si_d50_um` |
 
@@ -275,7 +237,14 @@ Built from reference images and compared against the **reference minus the sourc
 
 ### 3.8 Explanation
 
-Four templates in `qc/explain.py`, filled from the evidence and `config/kpi_dictionary.yaml`. Unchanged from PLAN_v1 §3.8, with two rules: every number in a text comes from `evidence.json`, and causes are always worded "possible causes to check".
+One result, four texts, all filled from the evidence and `config/kpi_dictionary.yaml` by templates in `qc/explain.py`. Two rules: every number in a text comes from `evidence.json`, and causes are always worded "possible causes to check".
+
+| Audience | Gets | Example |
+|---|---|---|
+| Factory operator | Traffic light, one sentence, one action | "Batch differs from the reference. Hold it and call the process engineer." |
+| Process engineer | The drivers in units against the reference, possible causes to check, pictures | "Silicon to graphite is 0.27 against 0.09 in the reference, and the median silicon particle size is 4.1 µm against 3.2 µm. Check the formulation ratio and the silicon powder lot." |
+| Materials scientist | Distributions, particle-type gallery with definitions, image groups, variance split, intervals, method and limits | Size distribution overlay; type shares with intervals |
+| Manager | Same or different, how sure, what it costs to be surer, what it means for the cell | "Different from the reference, driven by the silicon additive: more capacity, but more swelling. No further imaging needed to confirm." |
 
 `config/kpi_dictionary.yaml`, per descriptor and per particle type: plain name, unit, meaning, why it matters for the cell (capacity, swelling, rate, cycle life), possible causes when higher or lower, what to check at the supplier. Pat writes it; a mentor reviews the causes.
 
@@ -293,13 +262,21 @@ Pictures go with the words: for each driver, the most typical reference image ne
 
 ### 3.9 Infrastructure
 
-Unchanged from PLAN_v1 §3.10: pipeline CLI, FastAPI on :8000 (thin), Vite/React on :5173. Everything local and offline. The optional review (§3.10) is the only step that uses a network, and it runs after the output is written.
+Everything runs locally and offline. Three processes:
+
+| Process | Command | Port | Role |
+|---|---|---|---|
+| Pipeline | `uv run python -m qc.run --batch data/<batch>` | – | Measure → compare → write `out/`. This is what we freeze and run on the unseen batch |
+| API | `uv run uvicorn qc.api:app --reload` | 8000 | Thin FastAPI wrapper: reads `out/`, saves uploads to `data/`, calls `run()`. No QC logic |
+| Web UI | `cd web && npm install && npm run dev` | 5173 | Vite + React + TypeScript + Tailwind. Talks only to `/api` |
+
+Other commands: `uv run python -m qc.measure` (ML only), `uv run pytest`. Setup: `brew install uv node@22`. The optional review (§3.10) is the only step that uses a network, and it runs after the output is written.
 
 ### 3.10 Optional review (after the output)
 
 A second pair of eyes on the finished result, placed at the output end of the pipeline, never near measurement or comparison.
 
-- **When:** after `out/evidence/<batch>.json` and the four texts exist. A separate command (`uv run python -m qc.review --batch <name>`) or a button in the UI. Never inside `qc.run`, never before the freeze tag is checked.
+- **When:** after `out/evidence/<batch>.json` and the four texts exist. A separate command (`uv run python -m qc.review --batch <name>`) or a button in the UI. Never inside `qc.run`.
 - **Input:** the finished evidence, the KPI dictionary and, only if rule 5 allows images to leave our machines, the overlay crops of the drivers.
 - **Model:** Claude Opus (`claude-opus-5-5`).
 - **Output:** up to five observations worth a second look, each citing the evidence field it is about, written to `out/review/<batch>.json`. Every number in an observation is checked against the evidence; observations that do not match are dropped.
@@ -309,7 +286,11 @@ A second pair of eyes on the finished result, placed at the output end of the pi
 
 ### 3.11 Provenance
 
-Every evidence file records: the SHA-256 of each input image, the git commit, a hash of `config/decision.yaml` and `config/particle_types.json`, the `rules-frozen` tag if present, and a timestamp. Same inputs, code and config → byte-identical evidence. In a dispute along the supply chain (§8), this record shows exactly what was measured, with which rules, and that nothing was tuned afterwards.
+Every evidence file records: the SHA-256 of each input image, the git commit, a hash of `config/decision.yaml` and `config/particle_types.json`, the `rules-frozen` tag if present, and a timestamp. Same inputs, code and config → identical evidence apart from the timestamp. In a dispute along the supply chain (§8), this record shows exactly what was measured, with which rules, and that nothing was tuned afterwards.
+
+### 3.12 Training policy
+
+Nothing is trained on batch labels. If time allows after the freeze, one trained piece (for example a small classifier for voids or a segmenter from hand-drawn strokes) is kept only if it makes the positive controls easier to detect on strips it never saw.
 
 ## 4. Sync points
 
@@ -318,7 +299,7 @@ Every evidence file records: the SHA-256 of each input image, the git commit, a 
 | Now | Both read §3.1 interface decisions; object within the hour or they stand |
 | Sync 1 | Real `out/kpis.csv` and `out/particles.csv` for all three batches go through `compare`. Reference against itself split by strips → SIMILAR. Variance split computed |
 | Sync 2 | Types fitted and frozen to `config/particle_types.json`. Controls pass. `similar_margin` fixed |
-| Dry run, 1 h before the drop | Batch_2 as if unseen: refit types without Batch_2, then one command. Restore the full fit afterwards |
+| Dry run, 1 h before the drop | Batch_2 as if unseen: refit types without Batch_2 (so the dry run never sees its own particles), then one command. Restore the full fit afterwards |
 | Freeze, 30 min before the drop | `git tag rules-frozen`, push |
 | Drop | One run. Commit the output unchanged |
 | Sunday 14:45 | Submission: 2-minute video, repo, description |
@@ -362,7 +343,7 @@ Every evidence file records: the SHA-256 of each input image, the git commit, a 
 3. `qc/io.py`: `black_level` per channel on `Field`. `qc/run.py`: call `particles`, `assign_types`, `imaging`, `make_controls`; write the outputs in §3.1; fill `provenance` (§3.11).
 4. `qc/decide.py`: `compare()` per §3.5 (bootstrap, permutation with max-statistic, margin, status, drivers, nearest batch, shared strips out of the main comparison and in the sensitivity check, power limit, verdict, next action, controls check). Imaging range without reference outlier strips (§3.3).
 5. `qc/explain.py`: four templates, with the indicative consequences (§3.8) under each driver.
-6. Tests: reference split by strips → ACCEPT; one key quantity shifted by 3 δ → REJECT with that driver first; 2 strips per batch → INVESTIGATE with power limit; negative controls SIMILAR, positive controls DIFFERENT with the right driver; segments of shared strips left out of the main comparison; the same inputs give a byte-identical evidence file.
+6. Tests: reference split by strips → ACCEPT; one key quantity shifted by 3 δ → REJECT with that driver first; 2 strips per batch → INVESTIGATE with power limit; negative controls SIMILAR, positive controls DIFFERENT with the right driver; segments of shared strips left out of the main comparison; the same inputs give the same evidence apart from the timestamp.
 7. **Sync 1, Sync 2.**
 8. UI: verdict card with four audience tabs; driver chart (difference against ±δ); distribution overlays; particle-type gallery with shares; variance-split bar; typical reference image next to the most different batch image per driver; image groups; per-image browser with overlay; "shared strip" badge; provenance panel.
 9. **Dry run, freeze.**
@@ -444,12 +425,64 @@ Never cut: segmentation with overlays, key descriptors, strip-level comparison, 
 
 Contact: Martin, a battery scientist (previously battery R&D at JLR), on Discord or Slack. The mentors want questions.
 
-## 11. Glossary additions
+## 11. Glossary
 
 | Term | Meaning |
 |---|---|
+| Anode | The negative battery electrode. Ours is mostly graphite |
+| Graphite | Main anode material. Large dark-grey flakes in BSE |
+| Si, silicon particle | Silicon-based additive. The bright particles in BSE |
+| SiOx | Silicon suboxide, a common commercial silicon additive. Darker than Si in BSE |
+| Pore | Empty space between particles. Black in BSE |
+| Apparent porosity | Pore share measured from a 2D image. Biased, because the back of open pores is visible |
+| Phase | One kind of material in the image (pore, graphite, Si) |
+| Microstructure | How particles and pores are sized, shaped and arranged at the micrometre scale |
+| Batch | One delivery of material |
+| Baseline, reference | The batch others are compared against. Batch_3 |
+| SEM | Scanning electron microscope |
 | FIB-SEM | Focused ion beam cuts a cross-section, then the SEM images it |
 | Curtaining | Vertical streaks left by uneven FIB milling. An artefact, not material |
+| BSE | Backscattered-electron image. Brightness follows composition |
+| ETD, SE | Standard secondary-electron detector. Shows surface shape |
+| InLens | Secondary-electron detector inside the column. Sensitive to thin surface films |
+| Field, image | One imaged region with its three detector images |
+| Strip | One long continuous image that was cut into several fields |
+| µm, nm, px | Micrometre, nanometre, pixel. One pixel is 25 nm |
+| Grey level | Pixel brightness, 0 to 255 |
+| Black level | The grey level of "nothing". A detector setting |
+| Descriptor, KPI | One measured number describing the microstructure |
+| Key descriptor, key quantity | A descriptor or type share that counts towards the verdict |
+| Segmentation, mask | Labelling every pixel with its phase; the resulting label image |
+| Overlay | The mask drawn on the image for checking by eye |
+| Threshold, multi-Otsu | A grey-level cut-off; a standard way to pick cut-offs automatically |
+| Opening | Clean-up that removes specks |
+| Watershed | Standard method to split touching particles |
+| Equivalent diameter | Diameter of a circle with the particle's area |
+| D50, D90 | Size below which 50% or 90% of particle area falls |
+| Size distribution | How much of the particle area falls in each size range |
+| Run length, chord | Length of an unbroken run of one phase along a line. Its average is a size measure |
+| Anisotropy | Horizontal run length divided by vertical: how flat and aligned the flakes lie |
+| Solidity | Particle area divided by the area of its outline stretched tight. Low means ragged or broken |
+| Texture | Brightness variation inside a particle. High means speckled or porous |
+| CV | Standard deviation divided by mean |
+| Fingerprint | Everything we measure about one batch: descriptors, distributions, particle types, image groups, variance split |
+| Clustering | Grouping similar items automatically, without labels |
+| Particle type | A group of similar silicon particles found by clustering |
+| Image group | A group of similar images inside one batch |
+| Unassigned | A particle that fits none of the known types |
+| Interval | The plausible range of a value given how few images we have |
+| Resampling, bootstrap | Recomputing a value many times on random re-draws of the strip segments to get its interval |
+| Driver | A key quantity that explains most of the difference between two batches |
+| Similar, different, unclear | Interval within ±δ; significant and beyond δ; anything else |
+| Negative / positive control | Test images with a known answer: must come out similar / different |
+| Tolerance | The difference a customer accepts |
+| KPI dictionary | Our file of plain-language meanings, causes, checks and consequences for each descriptor |
+| Template | Fixed sentence with slots filled from the numbers |
+| DINOv2 | Pretrained vision model, used only as an optional safety net |
+| Contract, schema | Agreed function signatures, column names and units |
+| `evidence.json` | Everything behind one comparison. The UI reads only this |
+| Freeze, tag | Locking the settings before the unseen batch, with a timestamped git marker |
+| Dry run | Full rehearsal on data we already have |
 | Strip segment | The images of one strip inside one batch folder. Our unit for statistics |
 | Permutation test | Shuffle strip segments between two batches many times; if the real difference is rarely matched, the batches differ |
 | Max-statistic | Using the largest shuffled difference across all quantities, so testing many at once does not inflate false alarms |
@@ -510,7 +543,7 @@ Strength: **strong** = direct evidence on our kind of problem; **analogous** = e
 | InLens/BSE ratio as a type feature (§3.2) | [R22] | partial | Combining InLens and ETD separated three active materials in a FIB-SEM blend electrode (cathode, conference abstract) |
 | "Larger, dimmer" type may be SiOx (§3.4) | [R19] | partial | Commercial anodes use graphite–SiOx. Hypothesis only until EDS or a mentor confirms |
 | Threshold segmentation (§3.2) | [R23] | strong | Deterministic global thresholding was stable on FIB-SEM of a Si/C–graphite anode |
-| … but trained segmenters can do better | [R30] | **against** | On FIB-SEM cathodes a 3D U-Net beat thresholds and watershed. We keep thresholds (no labels, rule 2, deterministic) and check overlays by eye; a trained segmenter is a post-freeze option (PLAN_v1 §3.9) |
+| … but trained segmenters can do better | [R30] | **against** | On FIB-SEM cathodes a 3D U-Net beat thresholds and watershed. We keep thresholds (no labels, rule 2, deterministic) and check overlays by eye; a trained segmenter is a post-freeze option (§3.12) |
 | "Apparent" porosity; imaging-sensitive (§3.2, §3.3) | [R24] | strong | FIB-SEM shine-through makes pore segmentation biased. The bias is roughly constant if prep and imaging are the same, so differences still mean something; it isn't constant if imaging changed |
 | Curtaining check (§3.3) | [R23], [R32] | strong | Vertical curtaining streaks are common in FIB-SEM and need detecting or filtering (Fourier filter) before quantification |
 | Two-point correlation as fingerprint and safety net (§3.4) | [R12] | strong | 2-point statistics are the standard rigorous basis for comparing microstructure ensembles |
@@ -531,7 +564,7 @@ Strength: **strong** = direct evidence on our kind of problem; **analogous** = e
 | Tortuosity: not added | [R31] | — | Tortuosity matters for pore transport, but it is a 3D quantity and TauFactor comes from Polaron's founder. Revisit only with mentor approval |
 | Optional review after the output (§3.10) | [R2], [R3], [R33]; the designer's own test | partial | The same sources that keep LLMs out of measuring and deciding. So the review only comments on a finished result, its numbers are checked, and its hit rate on the controls is measured and shown |
 
-### Added in v3 from our own data
+### Decisions from our own data analysis
 
 | Decision (section) | Support | Strength | What it says / caveat |
 |---|---|---|---|
