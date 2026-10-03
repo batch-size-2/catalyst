@@ -1,20 +1,25 @@
 import json
+import sys
 from pathlib import Path
+from types import ModuleType
 
 import numpy as np
 import pandas as pd
+import pytest
 import tifffile
 import yaml
 from fastapi.testclient import TestClient
 from scipy.ndimage import gaussian_filter
 
+import qc.run as run_module
 from qc.api import app
 from qc.decide import evaluate, power, split_tables
 from qc.io import field_paths, iter_fields
 from qc.measure import kpis, segment
-from qc.run import run
+from qc.run import attribute, attribution_predict, run
 from qc.schema import (
-    DETECTORS, KPI_TABLE_COLUMNS, KPI_UNITS, Evidence, Phase, evidence_path, load_config, mask_path,
+    DETECTORS, KPI_TABLE_COLUMNS, KPI_UNITS, Attribution, Evidence, Phase, evidence_path, load_config,
+    mask_path,
 )
 from tests.synth import fixture_frame
 
@@ -102,6 +107,89 @@ def test_power_arithmetic():
 def test_evidence_example_validates():
     raw = json.loads((FIXTURES / "evidence_example.json").read_text())
     assert Evidence.model_validate(raw).model_dump(mode="json") == raw
+
+
+def test_attribution_example_validates():
+    raw = json.loads((FIXTURES / "attribution_example.json").read_text())
+    assert Attribution.model_validate(raw).model_dump(mode="json") == raw
+
+
+def test_api_attribution_list_read_and_missing(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    client = TestClient(app)
+
+    assert client.get("/api/attribution").json() == []
+    path = Path("out/attribution/example_drop.json")
+    path.parent.mkdir(parents=True)
+    raw = json.loads((FIXTURES / "attribution_example.json").read_text())
+    path.write_text(json.dumps(raw))
+    assert client.get("/api/attribution").json() == ["example_drop"]
+    attribution = Attribution.model_validate(client.get("/api/attribution/example_drop").json())
+    assert attribution == Attribution.model_validate(raw)
+    assert client.get("/api/attribution/missing").status_code == 404
+
+
+def test_api_attribution_without_module_returns_501(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    monkeypatch.delitem(sys.modules, "qc.attribute", raising=False)
+    response = TestClient(app).post("/api/attribution/drop")
+    assert response.status_code == 501
+    assert response.json()["detail"] == "batch attribution is not available yet (qc/attribute.py)"
+
+
+def test_api_attribution_with_module_streams_and_writes(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake_batch(Path("upload_src"), 2)
+    files = [("files", (p.name, p.read_bytes(), "image/tiff")) for p in sorted(Path("upload_src").iterdir())]
+    client = TestClient(app)
+    assert client.post("/api/batches/drop/files", files=files).json() == {"saved": 6}
+
+    template = Attribution.model_validate_json((FIXTURES / "attribution_example.json").read_text())
+    fake = ModuleType("qc.attribute")
+
+    def predict(dirs, progress):
+        progress(1, 1, "x")
+        return template.model_copy(update={"run": dirs[0].name})
+
+    fake.predict = predict
+    monkeypatch.setitem(sys.modules, "qc.attribute", fake)
+    events = [json.loads(line) for line in client.post("/api/attribution/drop").text.splitlines()]
+    assert events[0] == {"type": "progress", "done": 1, "total": 1, "tile": "x"}
+    assert events[-1]["type"] == "done" and events[-1]["attribution"]["run"] == "drop"
+    written = Attribution.model_validate_json(Path("out/attribution/drop.json").read_text())
+    assert written == template.model_copy(update={"run": "drop"})
+
+
+def test_attribute_accepts_dict_result(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    raw = json.loads((FIXTURES / "attribution_example.json").read_text())
+    fake = ModuleType("qc.attribute")
+    fake.predict = lambda dirs, progress: raw | {"run": dirs[0].name}
+    monkeypatch.setitem(sys.modules, "qc.attribute", fake)
+    result = attribute([Path("drop")])
+    assert result.run == "drop"
+    assert Attribution.model_validate_json(Path("out/attribution/drop.json").read_text()) == result
+
+
+def test_attribution_predict_detects_optional_module(monkeypatch):
+    monkeypatch.delitem(sys.modules, "qc.attribute", raising=False)
+    assert attribution_predict() is None
+    fake = ModuleType("qc.attribute")
+    monkeypatch.setitem(sys.modules, "qc.attribute", fake)
+    assert attribution_predict() is None
+
+    def fail_import(_):
+        raise ModuleNotFoundError("missing model dependency", name="missing_model_dependency")
+
+    monkeypatch.setattr(run_module.importlib, "import_module", fail_import)
+    with pytest.raises(ModuleNotFoundError, match="missing model dependency"):
+        attribution_predict()
 
 
 def test_end_to_end_run(tmp_path, monkeypatch):
