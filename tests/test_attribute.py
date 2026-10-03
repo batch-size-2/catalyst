@@ -2,6 +2,7 @@
 differences (Si loading, Si particle size) and no strip, size or pixel-size leakage."""
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -310,3 +311,100 @@ def test_residualize_all_scope_with_reduced_covariates(deep_table):
     r = resid[:, ok]
     assert ok.sum() > 10 and np.allclose((r - r.mean(0)).T @ (c - c.mean(0)), 0, atol=1e-6)  # no training covariance left
     assert A.loso_cv(df, features=feats, residualize=spec)["n_images"] == len(df)
+
+
+# ---------------------------------------------------------------- reason wording (T4): text only
+
+WORDING = A.REASON_WORDING_PATH  # the committed config/reason_wording.yaml (tests run from the repo root)
+TEXT_KEYS = {"text", "basis", "caveat"}
+
+
+def _numbers_only(pred: pd.DataFrame) -> list[dict]:
+    """Every field of predict()'s rows except the wording layer's: reasons[].text/basis/caveat and row caveat."""
+    rows = []
+    for r in pred.drop(columns=["caveat"], errors="ignore").to_dict(orient="records"):
+        r["reasons"] = [{k: v for k, v in x.items() if k not in TEXT_KEYS} for x in r["reasons"]]
+        rows.append(r)
+    return json.loads(json.dumps(rows, default=A._json_default))
+
+
+@pytest.mark.parametrize("which", ["material", "staged"])
+def test_wording_changes_text_only(table, deep_table, which, tmp_path):
+    df = table if which == "material" else deep_table.assign(dark_graphite_share=np.linspace(0, 0.3, len(deep_table)))
+    model = A.fit_model(df, "Batch_3") if which == "material" else A.fit_model(df, "Batch_3", staged=(F.MATERIAL_FAMILIES, ("deep",)))
+    plain, worded = A.predict(model, df, wording_path=tmp_path / "absent.yaml"), A.predict(model, df, wording_path=WORDING)
+    assert _numbers_only(plain) == _numbers_only(worded)          # probabilities, calls, tiers, sets, distances, reason order, z, contributions
+    cfg = A.load_wording(WORDING)
+    assert (worded["caveat"] == cfg["call_caveat"]).all()
+    assert all(r["basis"] in ("imaging", "material") for rs in worded["reasons"] for r in rs)
+
+
+def test_without_wording_file_there_are_no_new_keys(table, tmp_path):
+    pred = A.predict(A.fit_model(table, "Batch_3"), table, wording_path=tmp_path / "absent.yaml")
+    assert "caveat" not in pred.columns
+    assert not any(TEXT_KEYS - {"text"} & set(r) for rs in pred["reasons"] for r in rs)
+
+
+def test_deep_pc03_reason_gets_the_dark_graphite_text():
+    cfg = A.load_wording(WORDING)
+    reason = {"feature": "deep_pc03", "z": 1.2, "contribution": 0.1, "stage": "variation", "label": "DINOv2 image pattern 03", "text": "old", "related": []}
+    shows, none, unmeasured = (A.apply_wording([reason], cfg, s)[0] for s in (0.25, 0.068, None))
+    assert shows["text"] == "InLens image shows dark-graphite zones (share 0.25); an electrical imaging contrast, not a composition difference"
+    assert none["text"].startswith("InLens image does not show dark-graphite zones (share 0.07)")
+    assert "dark-graphite share not measured" in unmeasured["text"]
+    assert shows["basis"] == "imaging" and shows["caveat"]
+    assert {k: v for k, v in shows.items() if k not in TEXT_KEYS} == {k: v for k, v in reason.items() if k != "text"}
+    assert A.apply_wording([reason | {"feature": "deep_pc01"}], cfg, 0.25)[0] == reason | {"feature": "deep_pc01", "basis": "material"}
+
+
+def test_fine_texture_and_inlens_reasons_get_their_caveats():
+    cfg = A.load_wording(WORDING)
+    words = lambda f: A.apply_wording([{"feature": f, "z": 1.0, "contribution": 0.1, "stage": "baseline", "text": "t"}], cfg)[0]
+    lbp = words("tex_bse_lbp3")
+    assert lbp["basis"] == "imaging" and lbp["text"] == "t"
+    assert lbp["caveat"] == "fine texture at the detector-noise scale (0.05 µm); changes with image noise"
+    assert words("tex_bse_glcm_contrast_d1")["caveat"] == lbp["caveat"]
+    assert words("tex_bse_glcm_contrast_d4")["basis"] == "material" and "caveat" not in words("tex_bse_glcm_contrast_d4")
+    assert words("tex_bse_lbp3_r3")["basis"] == "material"            # a radius suffix is not the 2-pixel scale
+    assert words("par_inlens_ratio_p50")["caveat"] == "InLens brightness; sensitive to electrical contrast and imaging"
+    both = words("tex_inlens_glcm_energy_d1")["caveat"]
+    assert "detector-noise" in both and "InLens brightness" in both
+    assert words("kpi_si_d50_um") == {"feature": "kpi_si_d50_um", "z": 1.0, "contribution": 0.1, "stage": "baseline", "text": "t", "basis": "material"}
+
+
+def test_predict_words_deep_pc_reasons_from_the_dark_share_column(deep_table):
+    model = A.fit_model(deep_table, "Batch_3", ("deep",))
+    with_share = A.predict(model, deep_table.assign(dark_graphite_share=0.2), wording_path=WORDING)
+    without = A.predict(model, deep_table, wording_path=WORDING)
+    pcs = [(a, b) for ra, rb in zip(with_share["reasons"], without["reasons"]) for a, b in zip(ra, rb) if a["feature"] in ("deep_pc03", "deep_pc04")]
+    assert pcs, "the synthetic deep model should give a deep_pc03/04 reason somewhere"
+    for a, b in pcs:
+        assert a["text"].startswith("InLens image shows dark-graphite zones (share 0.20)") and a["basis"] == "imaging"
+        assert "dark-graphite share not measured" in b["text"]
+
+
+RESULTS = Path("results/Hackathon-Polaron-test.json")
+REWORDED = Path("results/Hackathon-Polaron-test.reworded.json")
+NUMBER_KEYS = ("predicted", "confidence", "confidence_raw", "confidence_tier", "confidence_record", "stage_baseline", "stage_variation", "prediction_set",
+               "baseline_distance", "baseline_threshold", "outside_baseline", "n_deviating", "deviations", "predicted_distance", "predicted_threshold", "unfamiliar")
+
+
+@pytest.mark.skipif(not REWORDED.exists(), reason="no reworded results")
+def test_reworded_results_match_the_committed_numbers():
+    old, new = json.loads(RESULTS.read_text()), json.loads(REWORDED.read_text())
+    assert old["model"] == new["model"] and old["summary"] == new["summary"]
+    assert [i["image_id"] for i in old["images"]] == [i["image_id"] for i in new["images"]]
+    for a, b in zip(old["images"], new["images"]):
+        for k in [k for k in a if k.startswith("p_")] + list(NUMBER_KEYS):
+            assert a[k] == b[k], (a["image_id"], k)
+        strip = lambda rs: [{k: v for k, v in r.items() if k not in TEXT_KEYS} for r in rs]
+        assert strip(a["reasons"]) == strip(b["reasons"])
+        assert set(b) - set(a) == {"caveat"}
+
+
+@pytest.mark.skipif(not (Path("out/features.csv").exists() and A.ATTRIBUTION_MODEL_PATH.exists()), reason="needs out/features.csv and the frozen model")
+def test_frozen_model_on_known_table_changes_text_only(tmp_path):
+    model, df = A.load_model(), pd.read_csv("out/features.csv")
+    plain = A.predict(model, df, wording_path=tmp_path / "absent.yaml")
+    worded = A.predict(model, df.assign(dark_graphite_share=0.05), wording_path=WORDING)
+    assert _numbers_only(plain) == _numbers_only(worded)
