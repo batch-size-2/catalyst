@@ -142,6 +142,7 @@ export interface FeatureProfile {
   eta2: number | null;
   mean: Record<string, number | null>;
   sd: Record<string, number | null>;
+  z_vs_baseline: Record<string, number | null>;
 }
 
 export interface FeatureCall {

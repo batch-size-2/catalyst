@@ -14,7 +14,8 @@
       "used": true,
       "eta2": 0.39,
       "mean": {"Batch_1": 0.71, "Batch_2": 0.89, "Batch_3": 0.62},
-      "sd": {"Batch_1": 0.1, "Batch_2": 0.1, "Batch_3": 0.1}
+      "sd": {"Batch_1": 0.1, "Batch_2": 0.1, "Batch_3": 0.1},
+      "z_vs_baseline": {"Batch_1": 0.9, "Batch_2": 2.7, "Batch_3": 0.0}
     },
     {
       "name": "si_graphite_ratio",
@@ -23,7 +24,8 @@
       "used": true,
       "eta2": 0.31,
       "mean": {"Batch_1": 0.12, "Batch_2": 0.16, "Batch_3": 0.1},
-      "sd": {"Batch_1": 0.02, "Batch_2": 0.02, "Batch_3": 0.02}
+      "sd": {"Batch_1": 0.02, "Batch_2": 0.02, "Batch_3": 0.02},
+      "z_vs_baseline": {"Batch_1": 1.0, "Batch_2": 3.0, "Batch_3": 0.0}
     },
     {
       "name": "si_d50_um",
@@ -32,7 +34,8 @@
       "used": true,
       "eta2": 0.18,
       "mean": {"Batch_1": 3.2, "Batch_2": 3.5, "Batch_3": 3.0},
-      "sd": {"Batch_1": 0.2, "Batch_2": 0.2, "Batch_3": 0.2}
+      "sd": {"Batch_1": 0.2, "Batch_2": 0.2, "Batch_3": 0.2},
+      "z_vs_baseline": {"Batch_1": 1.0, "Batch_2": 2.5, "Batch_3": 0.0}
     },
     {
       "name": "porosity_apparent",
@@ -41,7 +44,8 @@
       "used": false,
       "eta2": 0.05,
       "mean": {"Batch_1": 0.11, "Batch_2": 0.12, "Batch_3": 0.1},
-      "sd": {"Batch_1": 0.02, "Batch_2": 0.02, "Batch_3": 0.02}
+      "sd": {"Batch_1": 0.02, "Batch_2": 0.02, "Batch_3": 0.02},
+      "z_vs_baseline": {"Batch_1": 0.5, "Batch_2": 1.0, "Batch_3": 0.0}
     }
   ],
   "evaluations": [
@@ -101,7 +105,7 @@
         }
       ],
       "nearest": ["Batch_2/known_03", "Batch_2/known_07"],
-      "heatmap": "out/attribution/example_drop/drop_01.png",
+      "heatmap": "example_drop/drop_01.png",
       "outside_baseline": [],
       "unfamiliar": false,
       "why": [
@@ -126,7 +130,7 @@
         }
       ],
       "nearest": [],
-      "heatmap": "out/attribution/example_drop/drop_02.png",
+      "heatmap": "example_drop/drop_02.png",
       "outside_baseline": ["si_dispersion_cv"],
       "unfamiliar": true,
       "why": [
