@@ -109,10 +109,10 @@ flowchart LR
     CR["crops/{type}/{n}.png<br/>example crops per particle type"]
   end
 
-  IMPACT["qc/impact.py · impact_report(kpis, particles, batch, baseline)<br/>Labs: indicative cell impact + worst cases · config/impact.yaml<br/>never feeds the verdict"]
   API["qc/api.py · FastAPI :8000<br/>GET config · batches · evidence · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation<br/>POST upload · run · attribution · verify (NDJSON progress)"]
   WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile · compare batch · library + viewer · audit log + batch passport"]
   CLI["python -m qc.run / qc.measure / qc.features / qc.attribute"]
+  IMPACT["qc/impact.py · impact_report(kpis, particles, batch, baseline)<br/>Labs: indicative cell impact + worst cases · config/impact.yaml<br/>never feeds the verdict"]
 
   D --> IO --> RUN
   RUN --> SEG --> LBL --> KPI --> RUN
@@ -182,11 +182,11 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `out/imaging.csv` | no | One row per image and channel: black level, percentiles, noise, sharpness, saturation, curtaining. Read by `compare()` |
 | `out/masks/<batch>/<image_id>.png` | no | BSE with phase overlay (4× downsampled), for eyeballing and the UI |
 | `out/previews/<batch>/<image_id>_<detector>_<size>.png` | no | Cached detector previews (512/2048 px) served by `GET /api/images` |
+| `out/impact/<baseline>/<batch>.json` | no | `python -m qc.impact` output (the API computes the same report on request) |
 | `out/crops/<type>/<n>.png` | no | Example particle crops per type, for the UI gallery |
 | `out/controls/summary.csv` | no | Measured KPI shifts for every control |
 | `out/uncertainty/` | no | `threshold_variants.csv` (KPIs at thresholds ±5) and `integral_range.csv` (per image and phase) |
 | `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads this, attribution output and masks |
-| `out/impact/<baseline>/<batch>.json` | no | `python -m qc.impact` output (the API computes the same report on request) |
 | `out/features.csv` | no | One row per image: `batch, image_id, strip_id` + `reg_`, `edge_`, `tex_`, `par_`, `kpi_`, `img_` features (`qc/features.py`), plus optional `deep_` columns (`qc/deep.py`). Never strip, size or pixel-size columns |
 | `out/attribution/evaluation.json`, `feature_ranking.csv` | no | Leave-one-strip-out balanced accuracy, confusion, permutation null and shared-strip check per feature family; univariate feature ranking on strip-segment means. Exposed by the API |
 | `out/attribution/<run>.json` | no | Per image, always a batch: `p_Batch_*`, `predicted`, `confidence` (temperature-scaled; `confidence_raw`), `confidence_tier` with `confidence_record`, `stage_baseline`, `stage_variation`, `prediction_set`, `reasons` (with plain-language `text`), `baseline_distance`, `outside_baseline`, `deviations`, `predicted_distance`, `unfamiliar` (outside the batch it was assigned to), optional `assigned` (balanced). `model.calibration` holds the out-of-fold record behind the tiers. Exposed by the API |

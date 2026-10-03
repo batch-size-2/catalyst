@@ -32,8 +32,8 @@ export default function App() {
       route[1] && route[2]
         ? ["Library", batchLabel(route[1]), <span key="id" className="mono">{route[2]}</span>]
         : ["Library"],
-    audit: ["Trust", "Audit log"],
     impact: ["Labs", "Wear & impact"],
+    audit: ["Trust", "Audit log"],
   };
 
   return (
@@ -41,7 +41,6 @@ export default function App() {
       {page === "identify" && <Identify />}
       {page === "compare" && <Compare routeBatch={route[1]} />}
       {page === "library" && <Library routeBatch={route[1]} routeImage={route[2]} />}
-      {page === "audit" && <Audit />}
       {page === "impact" &&
         (flagOn("impact") ? (
           <Impact routeBatch={route[1]} routeBaseline={route[2]} />
@@ -50,6 +49,7 @@ export default function App() {
             Wear &amp; impact is a Labs feature. Open <code className="mono">/?flags=impact</code> to switch it on.
           </p>
         ))}
+      {page === "audit" && <Audit />}
     </Shell>
   );
 }
