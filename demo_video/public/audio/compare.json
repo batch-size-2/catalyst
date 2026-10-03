@@ -1,7 +1,7 @@
 {
  "id": "compare",
- "text": "Then check the whole delivery against what the supplier promised. You'll see what's changed, by how much, and how confident I am. You get a clear call: accept, investigate or reject. And I'll explain it in the right words for the operator, the engineer, the scientist and the manager.",
- "hash": "6a27e246dd0eff6f",
+ "text": "When a new delivery comes in, check it against what the supplier promised. You'll see what's changed, by how much, and how confident I am. You get a clear call: accept, investigate or reject. And I'll explain it in the right words for the operator, the engineer, the scientist and the manager.",
+ "hash": "4c5f5a444a2b3a5f",
  "voice_id": "awmINsgxT6tx4sTpVomM",
  "model_id": "eleven_multilingual_v2",
  "voice_settings": {
@@ -9,254 +9,269 @@
   "similarity_boost": 0.75,
   "style": 0.3,
   "use_speaker_boost": true,
-  "speed": 1.08
+  "speed": 1.15
  },
- "duration": 18.901,
+ "duration": 15.743,
  "words": [
   {
-   "text": "Then",
+   "text": "When",
    "start": 0.0,
-   "end": 0.279
+   "end": 0.186
   },
   {
-   "text": "check",
-   "start": 0.383,
-   "end": 0.662
+   "text": "a",
+   "start": 0.221,
+   "end": 0.255
   },
   {
-   "text": "the",
-   "start": 0.731,
-   "end": 0.813
-  },
-  {
-   "text": "whole",
-   "start": 0.859,
-   "end": 1.068
+   "text": "new",
+   "start": 0.36,
+   "end": 0.557
   },
   {
    "text": "delivery",
-   "start": 1.103,
-   "end": 1.544
+   "start": 0.627,
+   "end": 0.94
+  },
+  {
+   "text": "comes",
+   "start": 0.998,
+   "end": 1.207
+  },
+  {
+   "text": "in,",
+   "start": 1.277,
+   "end": 1.463
+  },
+  {
+   "text": "check",
+   "start": 1.567,
+   "end": 1.8
+  },
+  {
+   "text": "it",
+   "start": 1.834,
+   "end": 1.904
   },
   {
    "text": "against",
-   "start": 1.602,
-   "end": 1.916
+   "start": 1.939,
+   "end": 2.194
   },
   {
    "text": "what",
-   "start": 1.974,
-   "end": 2.148
+   "start": 2.229,
+   "end": 2.368
   },
   {
    "text": "the",
-   "start": 2.206,
-   "end": 2.276
+   "start": 2.403,
+   "end": 2.473
   },
   {
    "text": "supplier",
-   "start": 2.322,
-   "end": 2.786
+   "start": 2.508,
+   "end": 2.914
   },
   {
    "text": "promised.",
-   "start": 2.856,
+   "start": 2.972,
    "end": 3.437
   },
   {
    "text": "You'll",
-   "start": 3.634,
-   "end": 3.982
+   "start": 3.541,
+   "end": 3.808
   },
   {
    "text": "see",
-   "start": 4.052,
-   "end": 4.238
+   "start": 3.866,
+   "end": 4.029
   },
   {
    "text": "what's",
-   "start": 4.284,
-   "end": 4.54
+   "start": 4.063,
+   "end": 4.272
   },
   {
    "text": "changed,",
-   "start": 4.609,
-   "end": 5.236
+   "start": 4.319,
+   "end": 4.853
   },
   {
    "text": "by",
-   "start": 5.306,
-   "end": 5.457
+   "start": 4.888,
+   "end": 5.027
   },
   {
    "text": "how",
-   "start": 5.538,
-   "end": 5.735
+   "start": 5.085,
+   "end": 5.213
   },
   {
    "text": "much,",
-   "start": 5.805,
-   "end": 6.2
+   "start": 5.271,
+   "end": 5.561
   },
   {
    "text": "and",
-   "start": 6.258,
-   "end": 6.455
+   "start": 5.596,
+   "end": 5.735
   },
   {
    "text": "how",
-   "start": 6.56,
-   "end": 6.757
+   "start": 5.805,
+   "end": 5.933
   },
   {
    "text": "confident",
-   "start": 6.861,
-   "end": 7.454
+   "start": 6.037,
+   "end": 6.56
   },
   {
    "text": "I",
-   "start": 7.523,
-   "end": 7.558
+   "start": 6.606,
+   "end": 6.653
   },
   {
    "text": "am.",
-   "start": 7.663,
-   "end": 8.046
+   "start": 6.757,
+   "end": 7.036
   },
   {
    "text": "You",
-   "start": 8.348,
-   "end": 8.533
+   "start": 7.117,
+   "end": 7.245
   },
   {
    "text": "get",
-   "start": 8.638,
-   "end": 8.8
+   "start": 7.326,
+   "end": 7.43
   },
   {
    "text": "a",
-   "start": 8.847,
-   "end": 8.882
+   "start": 7.465,
+   "end": 7.488
   },
   {
    "text": "clear",
-   "start": 8.986,
-   "end": 9.358
+   "start": 7.593,
+   "end": 7.848
   },
   {
    "text": "call:",
-   "start": 9.439,
-   "end": 9.95
+   "start": 7.918,
+   "end": 8.29
   },
   {
    "text": "accept,",
-   "start": 10.147,
-   "end": 10.855
+   "start": 8.417,
+   "end": 9.114
   },
   {
    "text": "investigate",
-   "start": 10.96,
-   "end": 11.842
+   "start": 9.242,
+   "end": 10.043
   },
   {
    "text": "or",
-   "start": 11.912,
-   "end": 12.167
+   "start": 10.147,
+   "end": 10.344
   },
   {
    "text": "reject.",
-   "start": 12.272,
-   "end": 13.015
+   "start": 10.449,
+   "end": 11.076
   },
   {
    "text": "And",
-   "start": 13.235,
-   "end": 13.386
+   "start": 11.111,
+   "end": 11.227
   },
   {
    "text": "I'll",
-   "start": 13.444,
-   "end": 13.595
+   "start": 11.285,
+   "end": 11.424
   },
   {
    "text": "explain",
-   "start": 13.653,
-   "end": 14.117
+   "start": 11.471,
+   "end": 11.912
   },
   {
    "text": "it",
-   "start": 14.187,
-   "end": 14.28
+   "start": 11.958,
+   "end": 12.051
   },
   {
    "text": "in",
-   "start": 14.338,
-   "end": 14.408
+   "start": 12.098,
+   "end": 12.214
   },
   {
    "text": "the",
-   "start": 14.466,
-   "end": 14.535
+   "start": 12.26,
+   "end": 12.33
   },
   {
    "text": "right",
-   "start": 14.617,
-   "end": 14.872
+   "start": 12.411,
+   "end": 12.608
   },
   {
    "text": "words",
-   "start": 14.942,
-   "end": 15.244
+   "start": 12.643,
+   "end": 12.875
   },
   {
    "text": "for",
-   "start": 15.29,
-   "end": 15.395
+   "start": 12.91,
+   "end": 13.015
   },
   {
    "text": "the",
-   "start": 15.441,
-   "end": 15.522
+   "start": 13.05,
+   "end": 13.131
   },
   {
    "text": "operator,",
-   "start": 15.592,
-   "end": 16.196
+   "start": 13.212,
+   "end": 13.7
   },
   {
    "text": "the",
-   "start": 16.242,
-   "end": 16.358
+   "start": 13.723,
+   "end": 13.816
   },
   {
    "text": "engineer,",
-   "start": 16.439,
-   "end": 16.974
+   "start": 13.885,
+   "end": 14.315
   },
   {
    "text": "the",
-   "start": 17.008,
-   "end": 17.101
+   "start": 14.35,
+   "end": 14.443
   },
   {
    "text": "scientist",
-   "start": 17.159,
-   "end": 17.74
+   "start": 14.478,
+   "end": 14.907
   },
   {
    "text": "and",
-   "start": 17.809,
-   "end": 18.03
+   "start": 14.954,
+   "end": 15.105
   },
   {
    "text": "the",
-   "start": 18.1,
-   "end": 18.169
+   "start": 15.139,
+   "end": 15.209
   },
   {
    "text": "manager.",
-   "start": 18.227,
-   "end": 18.901
+   "start": 15.244,
+   "end": 15.743
   }
  ]
 }

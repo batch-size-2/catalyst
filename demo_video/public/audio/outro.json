@@ -1,7 +1,7 @@
 {
  "id": "outro",
  "text": "Catalyst. Catch the bad batch at the factory, before it makes the news. Made by Team Batch Size 2.",
- "hash": "c5251cd8a9a7cc42",
+ "hash": "41c7025b4cd6b6db",
  "voice_id": "awmINsgxT6tx4sTpVomM",
  "model_id": "eleven_multilingual_v2",
  "voice_settings": {
@@ -9,104 +9,104 @@
   "similarity_boost": 0.75,
   "style": 0.3,
   "use_speaker_boost": true,
-  "speed": 1.08
+  "speed": 1.15
  },
- "duration": 7.616,
+ "duration": 7.105,
  "words": [
   {
    "text": "Catalyst.",
    "start": 0.0,
-   "end": 0.824
+   "end": 0.836
   },
   {
    "text": "Catch",
-   "start": 0.987,
+   "start": 1.115,
    "end": 1.358
   },
   {
    "text": "the",
-   "start": 1.428,
-   "end": 1.544
+   "start": 1.405,
+   "end": 1.474
   },
   {
    "text": "bad",
-   "start": 1.649,
-   "end": 1.974
+   "start": 1.509,
+   "end": 1.695
   },
   {
    "text": "batch",
-   "start": 2.043,
-   "end": 2.334
+   "start": 1.753,
+   "end": 1.962
   },
   {
    "text": "at",
-   "start": 2.368,
-   "end": 2.438
+   "start": 1.997,
+   "end": 2.055
   },
   {
    "text": "the",
-   "start": 2.473,
-   "end": 2.543
+   "start": 2.09,
+   "end": 2.159
   },
   {
    "text": "factory,",
-   "start": 2.612,
-   "end": 3.204
+   "start": 2.194,
+   "end": 2.717
   },
   {
    "text": "before",
-   "start": 3.251,
-   "end": 3.68
+   "start": 2.752,
+   "end": 3.019
   },
   {
    "text": "it",
-   "start": 3.738,
-   "end": 3.831
+   "start": 3.053,
+   "end": 3.111
   },
   {
    "text": "makes",
-   "start": 3.889,
-   "end": 4.145
+   "start": 3.146,
+   "end": 3.32
   },
   {
    "text": "the",
-   "start": 4.203,
-   "end": 4.296
+   "start": 3.367,
+   "end": 3.437
   },
   {
    "text": "news.",
-   "start": 4.365,
-   "end": 4.899
+   "start": 3.483,
+   "end": 3.994
   },
   {
    "text": "Made",
-   "start": 5.097,
-   "end": 5.422
+   "start": 4.331,
+   "end": 4.609
   },
   {
    "text": "by",
-   "start": 5.468,
-   "end": 5.677
+   "start": 4.656,
+   "end": 4.841
   },
   {
    "text": "Team",
-   "start": 5.759,
-   "end": 6.06
+   "start": 4.946,
+   "end": 5.329
   },
   {
    "text": "Batch",
-   "start": 6.142,
-   "end": 6.478
+   "start": 5.445,
+   "end": 5.84
   },
   {
    "text": "Size",
-   "start": 6.56,
-   "end": 6.931
+   "start": 5.968,
+   "end": 6.444
   },
   {
    "text": "2.",
-   "start": 6.978,
-   "end": 7.616
+   "start": 6.49,
+   "end": 7.105
   }
  ]
 }

@@ -1,7 +1,7 @@
 {
  "id": "science",
  "text": "I'm Catalyst, and I check battery material long before it gets near a car. This is an anode under a microscope. Grey is graphite. Orange is silicon: it holds much more lithium, but it swells every charge. Blue is space for the lithium to move. If the mix drifts, so does the battery.",
- "hash": "b762d354bd41f10f",
+ "hash": "efe37684797c04da",
  "voice_id": "awmINsgxT6tx4sTpVomM",
  "model_id": "eleven_multilingual_v2",
  "voice_settings": {
@@ -9,274 +9,274 @@
   "similarity_boost": 0.75,
   "style": 0.3,
   "use_speaker_boost": true,
-  "speed": 1.08
+  "speed": 1.15
  },
- "duration": 21.084,
+ "duration": 18.53,
  "words": [
   {
    "text": "I'm",
    "start": 0.0,
-   "end": 0.348
+   "end": 0.221
   },
   {
    "text": "Catalyst,",
-   "start": 0.418,
-   "end": 1.115
+   "start": 0.29,
+   "end": 0.813
   },
   {
    "text": "and",
-   "start": 1.149,
-   "end": 1.324
+   "start": 0.836,
+   "end": 0.917
   },
   {
    "text": "I",
-   "start": 1.44,
-   "end": 1.579
+   "start": 0.987,
+   "end": 1.01
   },
   {
    "text": "check",
-   "start": 1.741,
-   "end": 2.009
+   "start": 1.091,
+   "end": 1.265
   },
   {
    "text": "battery",
-   "start": 2.078,
-   "end": 2.438
+   "start": 1.335,
+   "end": 1.614
   },
   {
    "text": "material",
-   "start": 2.496,
-   "end": 2.995
+   "start": 1.66,
+   "end": 2.078
   },
   {
    "text": "long",
-   "start": 3.135,
-   "end": 3.448
+   "start": 2.148,
+   "end": 2.38
   },
   {
    "text": "before",
-   "start": 3.506,
-   "end": 3.785
+   "start": 2.426,
+   "end": 2.682
   },
   {
    "text": "it",
-   "start": 3.82,
-   "end": 3.878
+   "start": 2.717,
+   "end": 2.775
   },
   {
    "text": "gets",
-   "start": 3.924,
-   "end": 4.11
+   "start": 2.81,
+   "end": 2.961
   },
   {
    "text": "near",
-   "start": 4.156,
-   "end": 4.331
+   "start": 3.007,
+   "end": 3.146
   },
   {
    "text": "a",
-   "start": 4.377,
-   "end": 4.4
+   "start": 3.181,
+   "end": 3.204
   },
   {
    "text": "car.",
-   "start": 4.458,
-   "end": 4.923
+   "start": 3.251,
+   "end": 3.808
   },
   {
    "text": "This",
-   "start": 5.224,
-   "end": 5.538
+   "start": 4.145,
+   "end": 4.54
   },
   {
    "text": "is",
-   "start": 5.608,
-   "end": 5.759
+   "start": 4.609,
+   "end": 4.725
   },
   {
    "text": "an",
-   "start": 5.817,
-   "end": 5.898
+   "start": 4.772,
+   "end": 4.841
   },
   {
    "text": "anode",
-   "start": 5.956,
-   "end": 6.374
+   "start": 4.888,
+   "end": 5.259
   },
   {
    "text": "under",
-   "start": 6.42,
-   "end": 6.629
+   "start": 5.306,
+   "end": 5.492
   },
   {
    "text": "a",
-   "start": 6.687,
-   "end": 6.722
+   "start": 5.538,
+   "end": 5.561
   },
   {
    "text": "microscope.",
-   "start": 6.78,
-   "end": 7.488
+   "start": 5.608,
+   "end": 6.327
   },
   {
    "text": "Grey",
-   "start": 7.744,
-   "end": 8.29
+   "start": 6.711,
+   "end": 7.152
   },
   {
    "text": "is",
-   "start": 8.394,
-   "end": 8.58
+   "start": 7.256,
+   "end": 7.396
   },
   {
    "text": "graphite.",
-   "start": 8.649,
-   "end": 9.311
+   "start": 7.477,
+   "end": 8.231
   },
   {
    "text": "Orange",
-   "start": 9.474,
-   "end": 10.077
+   "start": 8.417,
+   "end": 8.824
   },
   {
    "text": "is",
-   "start": 10.147,
-   "end": 10.286
+   "start": 8.847,
+   "end": 8.928
   },
   {
    "text": "silicon:",
-   "start": 10.356,
-   "end": 11.076
+   "start": 8.998,
+   "end": 9.694
   },
   {
    "text": "it",
-   "start": 11.273,
-   "end": 11.436
+   "start": 9.822,
+   "end": 9.961
   },
   {
    "text": "holds",
-   "start": 11.494,
-   "end": 11.854
+   "start": 10.019,
+   "end": 10.379
   },
   {
    "text": "much",
-   "start": 11.97,
-   "end": 12.225
+   "start": 10.484,
+   "end": 10.693
   },
   {
    "text": "more",
-   "start": 12.295,
-   "end": 12.492
+   "start": 10.751,
+   "end": 10.902
   },
   {
    "text": "lithium,",
-   "start": 12.562,
-   "end": 13.096
+   "start": 10.948,
+   "end": 11.424
   },
   {
    "text": "but",
-   "start": 13.119,
-   "end": 13.305
+   "start": 11.505,
+   "end": 11.691
   },
   {
    "text": "it",
-   "start": 13.351,
-   "end": 13.444
+   "start": 11.738,
+   "end": 11.808
   },
   {
    "text": "swells",
-   "start": 13.514,
-   "end": 14.037
+   "start": 11.889,
+   "end": 12.435
   },
   {
    "text": "every",
-   "start": 14.199,
-   "end": 14.675
+   "start": 12.539,
+   "end": 12.795
   },
   {
    "text": "charge.",
-   "start": 14.745,
-   "end": 15.407
+   "start": 12.841,
+   "end": 13.561
   },
   {
    "text": "Blue",
-   "start": 15.569,
-   "end": 16.033
+   "start": 13.944,
+   "end": 14.258
   },
   {
    "text": "is",
-   "start": 16.103,
-   "end": 16.266
+   "start": 14.292,
+   "end": 14.385
   },
   {
    "text": "space",
-   "start": 16.335,
-   "end": 16.742
+   "start": 14.432,
+   "end": 14.803
   },
   {
    "text": "for",
-   "start": 16.788,
-   "end": 16.893
+   "start": 14.838,
+   "end": 14.943
   },
   {
    "text": "the",
-   "start": 16.939,
-   "end": 17.009
+   "start": 14.977,
+   "end": 15.047
   },
   {
    "text": "lithium",
-   "start": 17.078,
-   "end": 17.508
+   "start": 15.128,
+   "end": 15.523
   },
   {
    "text": "to",
-   "start": 17.578,
-   "end": 17.67
+   "start": 15.581,
+   "end": 15.651
   },
   {
    "text": "move.",
-   "start": 17.752,
-   "end": 18.216
+   "start": 15.732,
+   "end": 16.127
   },
   {
    "text": "If",
-   "start": 18.355,
-   "end": 18.564
+   "start": 16.162,
+   "end": 16.324
   },
   {
    "text": "the",
-   "start": 18.634,
-   "end": 18.739
+   "start": 16.371,
+   "end": 16.452
   },
   {
    "text": "mix",
-   "start": 18.808,
-   "end": 19.029
+   "start": 16.51,
+   "end": 16.719
   },
   {
    "text": "drifts,",
-   "start": 19.133,
-   "end": 19.656
+   "start": 16.789,
+   "end": 17.276
   },
   {
    "text": "so",
-   "start": 19.772,
-   "end": 20.016
+   "start": 17.381,
+   "end": 17.613
   },
   {
    "text": "does",
-   "start": 20.085,
-   "end": 20.259
+   "start": 17.671,
+   "end": 17.799
   },
   {
    "text": "the",
-   "start": 20.306,
-   "end": 20.376
+   "start": 17.833,
+   "end": 17.903
   },
   {
    "text": "battery.",
-   "start": 20.422,
-   "end": 21.084
+   "start": 17.938,
+   "end": 18.53
   }
  ]
 }

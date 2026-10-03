@@ -21,12 +21,12 @@
       "text": "I'm Catalyst, and I check battery material long before it gets near a car. This is an anode under a microscope. Grey is graphite. Orange is silicon: it holds much more lithium, but it swells every charge. Blue is space for the lithium to move. If the mix drifts, so does the battery."
     },
     {
-      "id": "identify",
-      "text": "When a new delivery comes in, drop in an image. I measure the silicon, the particles and the pores, then tell you which batch it looks like and how sure I am, with the reasons. If it doesn't look like anything I've seen before, I'll say so."
+      "id": "compare",
+      "text": "When a new delivery comes in, check it against what the supplier promised. You'll see what's changed, by how much, and how confident I am. You get a clear call: accept, investigate or reject. And I'll explain it in the right words for the operator, the engineer, the scientist and the manager."
     },
     {
-      "id": "compare",
-      "text": "Then check the whole delivery against what the supplier promised. You'll see what's changed, by how much, and how confident I am. You get a clear call: accept, investigate or reject. And I'll explain it in the right words for the operator, the engineer, the scientist and the manager."
+      "id": "identify",
+      "text": "You can also drop in a single image. I measure the silicon, the particles and the pores, then tell you which batch it looks like and how sure I am, with the reasons. If it doesn't look like anything I've seen before, I'll say so."
     },
     {
       "id": "inspect",
