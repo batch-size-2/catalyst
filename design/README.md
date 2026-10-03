@@ -24,11 +24,50 @@ Four places, in the sidebar:
 | Place | Job |
 |---|---|
 | **Identify tile** | Drop one tile (BSE + ETD/SE + InLens, paired by ID) → closest batch, confidence, the model's reasons, nearest known tiles, measurements against the baseline band |
-| **Compare batch** | Pick a batch and a baseline (Batch 3 by default, selectable) → verdict + next steps, shift per property in baseline σ with a ±1.5σ tolerance band, every tile on the baseline band, odd tiles, explanations per audience |
+| **Compare batch** | Pick a batch and a baseline (the default from Settings, or a one-off) → verdict + next steps, shift per property in baseline σ with a ±1.5σ tolerance band, every tile on the baseline band, odd tiles, explanations per audience |
 | **Library** | Every tile, with the viewer: detector switch, segmentation layers (Si / pore / binder), particle inspector |
 | **Audit log** | Append-only decision log, rules-frozen banner, "Verify everything", printable batch passport, the parody lawsuit button |
 
 **Labs** (wear and impact, sample size, 3D slab) sit in the sidebar as "Soon".
+
+## Boards
+
+| Boards | What |
+|---|---|
+| `Brand` | Identity and components |
+| `Main`, `Identify-Analyzing`, `Identify-Result` | v1 Identify flow: drop, analysing, result |
+| `Compare`, `Viewer`, `Audit` | v1 Compare, tile viewer, audit log + passport. Implemented in #16 |
+| `Compare-Focus`, `Identify-Result-Focus` | v2: the answer, "Look here first", everything else folded |
+| `Settings-Baseline` | v2: default baseline, baseline tiles to leave out, who picks the highlights |
+| `Compare-Guided` | v3: Claude as a guide. Summary and walkthrough over Catalyst's verdict |
+
+v2 and v3 are designs only. They wait until Pat's evaluation tells us which findings matter.
+
+## Focus: where the reviewer looks first (v2)
+
+Every analysis screen has the same four levels, top to bottom:
+
+1. **Answer.** Verdict and one plain sentence. No code names.
+2. **Caveats, pinned.** Imaging changed, unfamiliar tile, rules not frozen. Always shown, never ranked.
+3. **Look here first.** At most three cards. A card = title, numbers, baseline band, the tiles behind it, why it matters, and "why it's here".
+4. **Everything else, folded.** One row per section with a one-line summary.
+
+The UI renders the top three of a ranked list the backend sends. Who ranks is a setting, so it can change without UI work: statistics (`compare()` drivers, today), Pat's feature ranking, or Claude (below).
+
+## Baseline
+
+- **Default** (Settings): written to `config/decision.yaml` → `baseline`, logged in the audit, locked once rules are frozen. Baseline tiles can be left out (`reference_exclude`).
+- **One-off** (Compare picker): any other batch for one comparison. The default doesn't move; "Make default" links to Settings.
+
+## Claude as a guide, not a judge (v3)
+
+Catalyst decides; Claude points and explains. No language model measures, decides or sets the verdict (AGENTS.md).
+
+- **In:** the evidence JSON and dictionary entries. Never images.
+- **Out:** JSON, not free text: `summary` (≤3 sentences), `steps` (≤4, each targeting `verdict`, `moved`, `tiles` or `next`), and `whatifs` from a fixed menu (leave tiles out, other baseline) that Catalyst computes.
+- **Numbers are slots** (`{diff:si_graphite_ratio}`, `{tile:4ih2ggld.si_graphite_ratio}`, `{whatif:1}`) that the UI renders as chips from the evidence. A slot that doesn't resolve drops its sentence; two failures fall back to the `qc/explain.py` template.
+- **House style:** ≤28 words per sentence, ≤2 sentences per step. "Differs", never "defective". "Not settled" when the status is unclear. No "significant", "crucial" or "notable" unless a rule fired. No restating the verdict. Next steps only from `next_action` and the dictionary's supplier check.
+- **Labelled:** "Written by Claude", a "numbers match the evidence" check, and a one-click switch to the plain template.
 
 ## Colour
 

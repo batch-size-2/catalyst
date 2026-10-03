@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Catalyst · Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400..600&amp;display=swap">
+<style>
+body{margin:0;background:#0A0B0D}
+.cx{font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#EDECE8;background-color:#0A0B0D;background-image:linear-gradient(rgba(255,255,255,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.032) 1px,transparent 1px);background-size:32px 32px;-webkit-font-smoothing:antialiased}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.glass{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.025));-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 48px -24px rgba(0,0,0,.7)}
+.lbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8A8C92}
+.nav{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:10px;color:#A3A4A9;font-size:14px;text-decoration:none}
+.nav:hover{background:rgba(255,255,255,.05);color:#EDECE8}
+.nav.on{background:rgba(255,255,255,.07);color:#F6F5F2;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;font:500 14px 'Geist',sans-serif;color:#EDECE8;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);cursor:pointer;text-decoration:none}
+.btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.btn.pri{background:#FF7A2F;border-color:#FF7A2F;color:#1A0A00;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 24px -8px rgba(255,122,47,.6)}
+.btn.pri:hover{background:#FF8C4A;color:#1A0A00}
+a{color:#FF9A5C}a:hover{color:#FFB98A}
+</style>
+</helmet>
+<div class="cx" style="min-height: 1240px; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<aside style="flex: 1 1 232px; max-width: 260px; box-sizing: border-box; padding: 20px 14px; display: flex; flex-direction: column; gap: 28px; border-right: 1px solid rgba(255,255,255,.07); background: rgba(8,9,11,.72)">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 4px 8px; text-decoration: none; color: #F6F5F2">
+    <svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><rect x="22.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><rect x="36.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path><path d="M10 41 L1 38 M10 46 L2 49 M54 41 L63 38 M54 46 L62 49" stroke="#FF7A2F" stroke-width="3" stroke-linecap="round"></path></svg>
+    <span style="font-size: 19px; font-weight: 600; letter-spacing: -0.02em">catalyst</span>
+  </a>
+  <nav aria-label="Main" style="display: flex; flex-direction: column; gap: 2px">
+    <div class="lbl" style="padding: 0 10px 8px">Analyse</div>
+    <a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><circle cx="12" cy="12" r="3"></circle></svg>Identify tile</a>
+    <a class="nav" href="Compare-Focus.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="16" rx="1.5"></rect><rect x="14" y="4" width="7" height="16" rx="1.5"></rect></svg>Compare batch</a>
+    <a class="nav" href="Viewer.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>Library<span class="mono" style="margin-left: auto; font-size: 11px; color: #8A8C92">31</span></a>
+    <div class="lbl" style="padding: 20px 10px 8px">Trust</div>
+    <a class="nav" href="Audit.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>Audit log</a>
+    <div class="lbl" style="padding: 20px 10px 8px">Labs</div>
+    <a class="nav" href="#" style="color: #8A8C92"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"></path></svg>Wear &amp; impact<span class="mono" style="margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">SOON</span></a>
+    <a class="nav" href="#" style="color: #8A8C92"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>Sample size<span class="mono" style="margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">SOON</span></a>
+  </nav>
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+    <a class="nav on" href="Settings-Baseline.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg>Settings</a>
+    <a class="glass" href="Settings-Baseline.dc.html" style="border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; color: inherit; text-decoration: none">
+      <div class="lbl">Default baseline</div>
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500"><span style="width: 9px; height: 9px; border-radius: 3px; background: #2DD4BF"></span>Batch 3<span style="margin-left: auto; font-size: 12px; color: #8A8C92">17 tiles</span></div>
+      <div style="font-size: 12px; color: #A3A4A9; line-height: 1.45">What the supplier promised. <span style="color: #FF9A5C">Change</span></div>
+    </a>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; color: #A3A4A9"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Rules frozen · <span class="mono">f424aaf</span></div>
+  </div>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 64px; padding: 0 40px; border-bottom: 1px solid rgba(255,255,255,.07)">
+    <div style="font-size: 14px; color: #A3A4A9">Settings <span style="color: #5F6166">/</span> <span style="color: #EDECE8">Baseline</span></div>
+    <label style="margin-left: auto; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03); color: #8A8C92; font-size: 13px; min-width: 240px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" placeholder="Search tiles and batches" aria-label="Search tiles and batches" style="flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: #EDECE8; font: 13px 'Geist',sans-serif"><span class="mono" style="font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">⌘K</span></label>
+    <button type="button" aria-label="Account: Patrik" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); background: #1B1C20; color: #EDECE8; font: 600 12px 'Geist',sans-serif">PH</button>
+  </header>
+  <div style="width: 100%; max-width: 1180px; box-sizing: border-box; padding: 40px 40px 64px; display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start">
+    <nav aria-label="Settings" style="flex: 1 1 180px; max-width: 220px; display: flex; flex-direction: column; gap: 2px">
+      <div class="lbl" style="padding: 0 10px 10px">Settings</div>
+      <a class="nav on" href="Settings-Baseline.dc.html">Baseline</a>
+      <a class="nav" href="#highlights">Highlights</a>
+      <a class="nav" href="#">Decision rules</a>
+      <a class="nav" href="#">Data folders</a>
+      <a class="nav" href="#">About</a>
+    </nav>
+
+    <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 36px">
+      <section aria-labelledby="h-base" style="display: flex; flex-direction: column; gap: 18px">
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <h1 id="h-base" style="margin: 0; font-size: 32px; line-height: 1.15; font-weight: 600; letter-spacing: -0.03em">Default baseline</h1>
+          <p style="margin: 0; max-width: 640px; font-size: 15px; line-height: 1.55; color: #A3A4A9">Every new batch is compared against this one unless you pick another on Compare. Usually the material the supplier promised.</p>
+        </div>
+        <div role="radiogroup" aria-label="Default baseline" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+          <sc-for list="{{batches}}" as="b" hint-placeholder-count="3">
+            <button type="button" role="radio" aria-checked="{{b.checked}}" onClick="{{b.pick}}" style="display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 18px; color: #EDECE8; font: inherit; text-align: left; cursor: pointer; {{b.cardStyle}}">
+              <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; width: 100%">
+                <img src="{{b.th0}}" alt="" style="width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block">
+                <img src="{{b.th1}}" alt="" style="width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block">
+                <img src="{{b.th2}}" alt="" style="width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block">
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                <span style="{{b.radio}}"></span>
+                <span style="{{b.dotStyle}}"></span>
+                <span style="font-size: 16px; font-weight: 500">{{b.name}}</span>
+                <span style="margin-left: auto; font-size: 12px; color: #8A8C92">{{b.n}}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; font-size: 12px; color: #A3A4A9">
+                <span>{{b.note}}</span>
+                <sc-if value="{{b.isCur}}" hint-placeholder-val="{{false}}"><span class="mono" style="font-size: 10px; padding: 2px 6px; border-radius: 5px; border: 1px solid rgba(45,212,191,.45); color: #5EEAD4">CURRENT</span></sc-if>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{pending}}" hint-placeholder-val="{{false}}">
+          <div class="glass" role="alertdialog" aria-label="Confirm baseline change" style="border-radius: 18px; padding: 18px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; background: linear-gradient(180deg, rgba(255,122,47,.1), rgba(255,255,255,.02))">
+            <div style="flex: 1 1 380px; display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 15px; font-weight: 500">Change the default from {{currentName}} to {{pendingName}}?</span>
+              <span style="font-size: 13px; line-height: 1.5; color: #C4C5C9">New comparisons use {{pendingName}}. Past decisions keep the baseline they used. The change is written to <span class="mono">config/decision.yaml</span> and logged in the audit.</span>
+            </div>
+            <button class="btn" type="button" onClick="{{cancel}}">Cancel</button>
+            <button class="btn pri" type="button" onClick="{{confirm}}">Change default</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+          <div role="status" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(74,222,128,.3); background: rgba(74,222,128,.08); color: #86EFAC; font-size: 14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Default baseline is now {{currentName}}. Logged as audit entry #0008. <a href="Audit.dc.html" style="margin-left: auto">View</a></div>
+        </sc-if>
+
+        <div style="display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: rgba(14,15,18,.6); font-size: 13px; line-height: 1.5; color: #A3A4A9">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 2px"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+          <span>Once rules are frozen (<span class="mono">rules-frozen</span> tag), the default locks. Changing it after that means a new freeze, and the audit shows both.</span>
+        </div>
+      </section>
+
+      <section aria-labelledby="h-tiles" style="display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px">
+          <h2 id="h-tiles" style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.02em">Baseline tiles</h2>
+          <span class="mono" style="font-size: 12px; color: #8A8C92">{{tilesLine}}</span>
+        </div>
+        <p style="margin: 0; max-width: 640px; font-size: 14px; line-height: 1.55; color: #A3A4A9">Leave out tiles that shouldn’t define “normal”. These four were imaged with a raised black level.</p>
+        <div style="border-radius: 18px; border: 1px solid rgba(255,255,255,.08); background: rgba(14,15,18,.82); overflow: hidden">
+          <sc-for list="{{flagged}}" as="f" hint-placeholder-count="4">
+            <button type="button" role="switch" aria-checked="{{f.state}}" onClick="{{f.toggle}}" style="display: flex; align-items: center; gap: 14px; width: 100%; min-height: 52px; padding: 0 18px; border: 0; border-bottom: 1px solid rgba(255,255,255,.05); background: transparent; color: #EDECE8; font: 14px 'Geist', sans-serif; text-align: left; cursor: pointer">
+              <span class="mono" style="width: 96px">{{f.id}}</span>
+              <span style="flex: 1; font-size: 13px; color: #FDE68A">{{f.why}}</span>
+              <span style="font-size: 12px; color: #A3A4A9">{{f.label}}</span>
+              <span style="position: relative; width: 34px; height: 20px; border-radius: 10px; {{f.track}}"><span style="{{f.knob}}"></span></span>
+            </button>
+          </sc-for>
+          <div style="display: flex; align-items: center; min-height: 48px; padding: 0 18px; font-size: 13px; color: #8A8C92">13 other tiles, nothing unusual · <a href="Viewer.dc.html" style="margin-left: 6px">Review in Library</a></div>
+        </div>
+      </section>
+
+      <section id="highlights" aria-labelledby="h-hl" style="display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <h2 id="h-hl" style="margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.02em">Who picks “Look here first”</h2>
+          <p style="margin: 0; max-width: 640px; font-size: 14px; line-height: 1.55; color: #A3A4A9">The default for Compare and Identify. Reviewers can switch per screen.</p>
+        </div>
+        <div role="radiogroup" aria-label="Highlight source" style="border-radius: 18px; border: 1px solid rgba(255,255,255,.08); background: rgba(14,15,18,.82); overflow: hidden">
+          <sc-for list="{{sources}}" as="x" hint-placeholder-count="3">
+            <button type="button" role="radio" aria-checked="{{x.checked}}" onClick="{{x.pick}}" style="display: flex; align-items: center; gap: 14px; width: 100%; min-height: 60px; padding: 10px 18px; border: 0; border-bottom: 1px solid rgba(255,255,255,.05); background: transparent; color: #EDECE8; font: inherit; text-align: left; cursor: pointer">
+              <span style="{{x.radio}}"></span>
+              <span style="display: flex; flex-direction: column; gap: 3px"><span style="font-size: 14px; font-weight: 500">{{x.label}}</span><span style="font-size: 13px; color: #A3A4A9">{{x.note}}</span></span>
+            </button>
+          </sc-for>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 1440, "height": 1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { current: 'Batch 3', pending: null, done: false, excluded: {}, source: 'stats' };
+  }
+  renderVals() {
+    const s = this.state;
+    const B = [
+      { name: 'Batch 3', n: '17 tiles', note: 'What the supplier promised', dot: '#2DD4BF', th: ['/_blob/ebe88f3d7b3842cb6e592509a283aae9', '/_blob/6f3ea10148c6b05a969a615f73a8b1cb', '/_blob/98476e4a136103be2bbcd18762d7424c'] },
+      { name: 'Batch 2', n: '7 tiles', note: 'Arrived later', dot: '#B794FF', th: ['/_blob/e93e8786a67c9dc2d9025d26905e47d7', '/_blob/9b76fa7d8aaea78947187eb8d6a14c5b', '/_blob/7038962dd1b94db01ab606fccb12e0d1'] },
+      { name: 'Batch 1', n: '7 tiles', note: 'Arrived later', dot: '#6EA8FF', th: ['/_blob/172da177d06619d71e815fd77bff0eab', '/_blob/99123e07bf0645b92047bfe4a6067597', '/_blob/615b2e28afb538acb60b2c71a188e276'] },
+    ];
+    const chosen = s.pending || s.current;
+    const batches = B.map((b) => {
+      const isCur = s.current === b.name;
+      const isSel = chosen === b.name;
+      return {
+        ...b, th0: b.th[0], th1: b.th[1], th2: b.th[2], isCur, checked: isSel ? 'true' : 'false',
+        pick: () => this.setState({ pending: b.name === s.current ? null : b.name, done: false }),
+        dotStyle: `width: 10px; height: 10px; border-radius: 3px; background: ${b.dot}`,
+        cardStyle: isSel
+          ? `border: 1.5px solid ${b.dot}; background: rgba(255,255,255,.05); box-shadow: 0 0 0 4px rgba(255,255,255,.04)`
+          : 'border: 1.5px solid rgba(255,255,255,.1); background: rgba(14,15,18,.82)',
+        radio: isSel
+          ? `width: 18px; height: 18px; border-radius: 50%; box-sizing: border-box; border: 5px solid ${b.dot}; background: #0A0B0D`
+          : 'width: 18px; height: 18px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid rgba(255,255,255,.3)',
+      };
+    });
+    const FLAG = [
+      { id: '71vgq3fw', why: 'BSE black level 22 (others 0)' },
+      { id: 'kbdh4tri', why: 'BSE black level 23 (others 0)' },
+      { id: 'tuy3zymq', why: 'BSE black level 22 (others 0)' },
+      { id: 'x7u69zsw', why: 'BSE black level 23 (others 0)' },
+    ];
+    const flagged = FLAG.map((f) => {
+      const out = !!s.excluded[f.id];
+      return {
+        ...f, out, state: out ? 'true' : 'false', label: out ? 'Left out' : 'Included',
+        toggle: () => this.setState({ excluded: { ...s.excluded, [f.id]: !out } }),
+        track: out ? 'background: #FF7A2F' : 'background: rgba(255,255,255,.14)',
+        knob: out
+          ? 'position: absolute; top: 2px; left: 16px; width: 16px; height: 16px; border-radius: 50%; background: #fff'
+          : 'position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #A3A4A9',
+      };
+    });
+    const nOut = Object.values(s.excluded).filter(Boolean).length;
+    const SRC = [
+      { id: 'stats', label: 'Statistics', note: 'Largest shift against tolerance, from the comparison itself. Works today.' },
+      { id: 'model', label: 'Pat’s model', note: 'Pat’s feature ranking. Turns on once her evaluation is final.' },
+      { id: 'claude', label: 'Claude (experimental)', note: 'Picks from findings Catalyst already computed. Never adds or changes numbers.' },
+    ];
+    const sources = SRC.map((x) => ({
+      ...x, checked: s.source === x.id ? 'true' : 'false',
+      pick: () => this.setState({ source: x.id }),
+      radio: s.source === x.id
+        ? 'width: 18px; height: 18px; border-radius: 50%; box-sizing: border-box; border: 5px solid #FF7A2F; background: #0A0B0D; flex: none'
+        : 'width: 18px; height: 18px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid rgba(255,255,255,.3); flex: none',
+    }));
+    return {
+      batches, flagged, sources,
+      pending: !!s.pending,
+      pendingName: s.pending,
+      currentName: s.current,
+      done: s.done,
+      cancel: () => this.setState({ pending: null }),
+      confirm: () => this.setState({ current: s.pending, pending: null, done: true }),
+      tilesLine: `${17 - nOut} of 17 Batch 3 tiles in the baseline`,
+    };
+  }
+}
+</script>
+</body>
+</html>
