@@ -202,30 +202,58 @@ def _deep_pcs(names: list[str]) -> list[int]:
     return [i for i, n in enumerate(names) if n.startswith(f"{DEEP_FAMILY}_pc")]
 
 
+def _covariates(cov: np.ndarray, fit: dict) -> np.ndarray:
+    """Raw covariates, or their first k principal components when the fit reduced them."""
+    if "cov_components" not in fit:
+        return cov
+    z = np.nan_to_num((cov - np.asarray(fit["cov_std_mean"], float)) / np.asarray(fit["cov_std_sd"], float))
+    return z @ np.asarray(fit["cov_components"], float).T
+
+
 def _residualise(Xr: np.ndarray, cov: np.ndarray, fit: dict) -> np.ndarray:
-    """Subtract from the deep PC columns what an intercept plus the covariates predict (coefficients in `fit`)."""
-    A = np.column_stack([np.ones(len(cov)), np.nan_to_num(cov - np.asarray(fit["cov_mean"], float))])
+    """Subtract from the target columns (`pcs`) what an intercept plus the covariates predict (coefficients in `fit`)."""
+    c = _covariates(cov, fit)
+    A = np.column_stack([np.ones(len(c)), np.nan_to_num(c - np.asarray(fit["cov_mean"], float))])
     out = Xr.copy()
     out[:, fit["pcs"]] -= A @ np.asarray(fit["beta"], float)
     return out
 
 
-def _fit_part(df: pd.DataFrame, y: np.ndarray, groups: np.ndarray, features: list[str], seed: int = 0, nested: bool = True, C: float | None = None, residualize: list[str] | None = None) -> dict:
+def _fit_residualiser(df: pd.DataFrame, Xr: np.ndarray, names: list[str], residualize) -> dict | None:
+    """OLS of the target columns on the covariates, on these (training) rows.
+
+    `residualize` is a list of column names (deep PCs only, docs/experiments/T2.md), or a dict
+    {"columns": [...], "scope": "deep" | "all", "k": int | None}: with `k`, the covariates are
+    standardised and reduced to k principal components first (docs/experiments/T9.md)."""
+    spec = {"columns": list(residualize), "scope": "deep", "k": None} if not isinstance(residualize, dict) else {"scope": "deep", "k": None, **residualize}
+    targets = _deep_pcs(names) if spec["scope"] == "deep" else list(range(Xr.shape[1]))
+    if not targets:
+        return None
+    raw = _matrix(df, spec["columns"])
+    fit: dict = {"columns": list(spec["columns"]), "pcs": targets}
+    if spec["k"]:
+        std = Standardiser(raw)
+        z = std(raw)
+        _, _, vt = np.linalg.svd(z - z.mean(axis=0), full_matrices=False)
+        fit |= {"cov_std_mean": std.mean.tolist(), "cov_std_sd": std.sd.tolist(), "cov_components": vt[: spec["k"]].tolist()}
+    c = _covariates(raw, fit)
+    fit["cov_mean"] = np.nanmean(c, axis=0).tolist()
+    A = np.column_stack([np.ones(len(c)), np.nan_to_num(c - np.asarray(fit["cov_mean"]))])
+    fit["beta"] = np.linalg.lstsq(A, Xr[:, targets], rcond=None)[0].tolist()
+    return fit
+
+
+def _fit_part(df: pd.DataFrame, y: np.ndarray, groups: np.ndarray, features: list[str], seed: int = 0, nested: bool = True, C: float | None = None, residualize=None) -> dict:
     """One logistic regression as plain data: reducer, scaler, coefficients. A single class fits nothing.
 
-    `residualize` (diagnostic, docs/experiments/T2.md): column names whose linear effect is removed from
-    the deep PCs, fit by OLS on these (training) rows. None leaves the part exactly as before."""
+    `residualize` (diagnostic; see `_fit_residualiser`): covariates whose linear effect is removed inside
+    the fold. None leaves the part exactly as before."""
     X = _matrix(df, features)
     red = Reducer(X, features)
     Xr = red(X)
-    resid = None
-    if residualize and (pcs := _deep_pcs(red.names)):
-        cov = _matrix(df, residualize)
-        cov_mean = np.nanmean(cov, axis=0)
-        A = np.column_stack([np.ones(len(cov)), np.nan_to_num(cov - cov_mean)])
-        beta = np.linalg.lstsq(A, Xr[:, pcs], rcond=None)[0]
-        resid = {"columns": list(residualize), "pcs": pcs, "cov_mean": cov_mean.tolist(), "beta": beta.tolist()}
-        Xr = _residualise(Xr, cov, resid)
+    resid = _fit_residualiser(df, Xr, red.names, residualize) if residualize else None
+    if resid:
+        Xr = _residualise(Xr, _matrix(df, resid["columns"]), resid)
     std = Standardiser(Xr)
     part = {"features": list(features), "model_features": red.names, "reducer": red.to_json(), "classes": sorted(map(str, np.unique(y))), "C": None, "mean": std.mean, "sd": std.sd}
     if resid:
@@ -264,7 +292,7 @@ def _stage_features(df: pd.DataFrame, families, staged) -> list[str] | tuple[lis
     return (usable_features(df, staged[0]), usable_features(df, staged[1])) if staged else usable_features(df, families)
 
 
-def _fit_parts(df: pd.DataFrame, features, baseline: str | None, seed: int = 0, nested: bool = True, C: float | None = None, residualize: list[str] | None = None) -> dict[str, dict]:
+def _fit_parts(df: pd.DataFrame, features, baseline: str | None, seed: int = 0, nested: bool = True, C: float | None = None, residualize=None) -> dict[str, dict]:
     """{"all": part} for one three-way model, or {"baseline": part, "variation": part} when `features`
     is a pair: baseline-or-not on every row, then which variation on the rows that are not baseline."""
     y, groups = df["batch"].to_numpy(str), df["strip_id"].map(strip_group).to_numpy(str)
@@ -295,7 +323,7 @@ def _parts_proba(parts: dict[str, dict], feats: pd.DataFrame, classes: list[str]
     return probs
 
 
-def loso_cv(df: pd.DataFrame, families=MATERIAL_FAMILIES, features=None, seed: int = 0, nested: bool = True, staged=None, baseline: str | None = None, residualize: list[str] | None = None) -> dict:
+def loso_cv(df: pd.DataFrame, families=MATERIAL_FAMILIES, features=None, seed: int = 0, nested: bool = True, staged=None, baseline: str | None = None, residualize=None) -> dict:
     """Leave-one-strip-out: every fold holds out all images of one physical strip, in every batch.
 
     Reducer and standardisation are fit inside each fold. C is chosen by an inner LOSO when `nested`.
@@ -336,7 +364,7 @@ def loso_cv(df: pd.DataFrame, families=MATERIAL_FAMILIES, features=None, seed: i
     }
 
 
-def permutation_null(df: pd.DataFrame, families=MATERIAL_FAMILIES, n: int = N_PERMUTATIONS, seed: int = 0, features=None, staged=None, baseline: str | None = None, residualize: list[str] | None = None) -> dict:
+def permutation_null(df: pd.DataFrame, families=MATERIAL_FAMILIES, n: int = N_PERMUTATIONS, seed: int = 0, features=None, staged=None, baseline: str | None = None, residualize=None) -> dict:
     """Balanced accuracy of the same LOSO pipeline when batch labels are shuffled across strip segments.
 
     Labels move with whole segments so the strip structure of the null matches the data. Fixed C

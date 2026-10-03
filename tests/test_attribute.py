@@ -290,3 +290,23 @@ def test_describe_gives_plain_names():
     assert F.describe("tex_bse_si_lbp4") == "BSE fine texture inside silicon: share of straight edges"
     assert F.describe("par_d50_um") == "median silicon particle size (D50)" and F.describe("par_solidity_iqr") == "spread of silicon particle compactness"
     assert F.describe("deep_pc03") == "deep_pc03"
+
+
+def test_residualize_all_scope_with_reduced_covariates(deep_table):
+    df = deep_table.copy()
+    rng = np.random.default_rng(1)
+    feats = A.usable_features(df, (*F.MATERIAL_FAMILIES, "deep"))
+    for j in range(5):
+        df[f"img_c{j}"] = df[feats[j]] * (j + 1) + rng.normal(size=len(df))  # covariates that track some features
+    spec = {"columns": [f"img_c{j}" for j in range(5)], "scope": "all", "k": 2}
+    part = A._fit_parts(df, feats, None, residualize=spec)["all"]
+    fit = part["residualize"]
+    assert fit["pcs"] == list(range(len(part["model_features"]))) and len(fit["cov_components"]) == 2
+    Xr = A.Reducer.from_json(part["features"], part["reducer"])(A._matrix(df, part["features"]))
+    raw = A._matrix(df, spec["columns"])
+    resid = A._residualise(Xr, raw, fit)
+    c = A._covariates(raw, fit)
+    ok = np.isfinite(Xr).all(axis=0)
+    r = resid[:, ok]
+    assert ok.sum() > 10 and np.allclose((r - r.mean(0)).T @ (c - c.mean(0)), 0, atol=1e-6)  # no training covariance left
+    assert A.loso_cv(df, features=feats, residualize=spec)["n_images"] == len(df)
