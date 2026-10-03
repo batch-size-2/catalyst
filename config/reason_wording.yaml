@@ -15,6 +15,11 @@ imaging_features:
     shows_at: 0.10          # dark_graphite_share >= this -> "shows", else "does not show"
     caveat: "this image pattern follows the InLens dark-graphite share (|r| about 0.6, docs/experiments/T2.md)"
 
+  # T2: deep_pc05 and deep_pc07 correlate |r| ~ 0.59 with InLens saturation and InLens p1 (img_ descriptors).
+  # deep_pc01 stays material: its strongest link is BSE p99, which follows composition.
+  - pattern: 'deep_pc0[57]$'
+    caveat: "this image pattern follows InLens brightness and saturation (|r| about 0.6, docs/experiments/T2.md)"
+
   # T1: the 2-pixel texture features follow detector noise (noise sigma 5 flips 12 of 17 Batch_3 calls).
   - pattern: 'tex_.*_(lbp\d+|glcm_[a-z]+_d1)$'
     caveat: "fine texture at the detector-noise scale (0.05 µm); changes with image noise"

@@ -172,7 +172,8 @@
      "label": "DINOv2 image pattern 07",
      "text": "DINOv2 image pattern 07: an overall look of the InLens image that no single named measurement captures",
      "related": [],
-     "basis": "material"
+     "basis": "imaging",
+     "caveat": "this image pattern follows InLens brightness and saturation (|r| about 0.6, docs/experiments/T2.md)"
     },
     {
      "feature": "deep_pc04",
@@ -318,7 +319,8 @@
      "label": "DINOv2 image pattern 07",
      "text": "DINOv2 image pattern 07: an overall look of the InLens image that no single named measurement captures",
      "related": [],
-     "basis": "material"
+     "basis": "imaging",
+     "caveat": "this image pattern follows InLens brightness and saturation (|r| about 0.6, docs/experiments/T2.md)"
     },
     {
      "feature": "deep_pc03",
@@ -370,7 +372,8 @@
      "label": "DINOv2 image pattern 05",
      "text": "DINOv2 image pattern 05: an overall look of the InLens image that no single named measurement captures",
      "related": [],
-     "basis": "material"
+     "basis": "imaging",
+     "caveat": "this image pattern follows InLens brightness and saturation (|r| about 0.6, docs/experiments/T2.md)"
     }
    ],
    "baseline_distance": 1.316099171369273,
