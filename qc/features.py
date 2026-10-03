@@ -1,6 +1,6 @@
 """Per-image feature table for batch attribution (PLAN_v4 §3.14). Owned by the ML engineer.
 
-One row per image, `META_COLUMNS` plus features in five families, each with its own prefix so a
+One row per image, `META_COLUMNS` plus features in six families (seven with deep_), each with its own prefix so a
 family can be switched on or off in qc/attribute.py:
 
     reg_   regional: cheap phase descriptors per ~15 um tile, summarised over tiles (mean, SD, CV,
@@ -13,7 +13,7 @@ family can be switched on or off in qc/attribute.py:
     img_   imaging descriptors per channel: acquisition, not material. Kept apart on purpose
     deep_  optional: pretrained DINOv2 tile embeddings, added by qc/deep.py (not computed here)
 
-Leakage rule (AGENT_HANDOVER §4 G4): strip_id, image height or width, px_um and XResolution are
+Leakage rule (PLAN_v4 §2, Rule 2): strip_id, image height or width, px_um and XResolution are
 never features. `assert_no_leakage()` enforces it on every table this module writes.
 
 Usage: uv run python -m qc.features [data/Batch_1 ...]   # default: every folder in data/ -> out/features.csv
@@ -50,7 +50,7 @@ TEXTURE_STEP = 2          # LBP/GLCM at 2x downsample (0.05 um/px)
 LBP_P, LBP_R = 8, 1
 LBP_BINS = LBP_P + 2
 GLCM_LEVELS = 32
-GLCM_DISTANCES = (1, 4)   # at TEXTURE_STEP: 0.1 um and 0.4 um
+GLCM_DISTANCES = (1, 4)   # at TEXTURE_STEP (0.05 um/px): 0.05 um and 0.2 um
 GLCM_PROPS = ("contrast", "homogeneity", "energy", "correlation")
 TILE_QUANTITIES = ("si_frac", "pore_frac", "graphite_frac", "binder_frac", "si_graphite", "graphite_chord_um", "pore_chord_um")
 SUMMARIES = ("mean", "sd", "cv", "p10", "p50", "p90")
@@ -262,6 +262,70 @@ def kpi_features(values: dict[str, float]) -> dict[str, float]:
 
 def imaging_features(descs: dict[str, dict[str, float]]) -> dict[str, float]:
     return {f"img_{ch.lower()}_{k}": float(v) for ch, d in descs.items() for k, v in d.items()}
+
+
+# ---------------------------------------------------------------- plain-language names
+
+_CHANNEL = {"bse": "BSE", "etd": "ETD", "inlens": "InLens"}
+_QUANTITY = {
+    "si_frac": "silicon fraction", "pore_frac": "pore fraction", "graphite_frac": "graphite fraction",
+    "binder_frac": "binder fraction", "si_graphite": "silicon/graphite ratio",
+    "graphite_chord_um": "graphite chord length", "pore_chord_um": "pore chord length",
+}
+_SUMMARY = {
+    "mean": "average over regions", "sd": "spread between regions", "cv": "relative spread between regions",
+    "p10": "lowest regions", "p50": "typical region", "p90": "highest regions",
+    "slope": "top-to-bottom trend", "top_bottom": "top half / bottom half",
+}
+_LBP = {0: "bright specks", 1: "line ends", 2: "sharp corners", 3: "corners", 4: "straight edges", 5: "soft corners",
+        6: "shallow curves", 7: "dark notches", 8: "flat areas and dark specks", 9: "irregular, noisy patterns"}
+_GLCM = {"contrast": "local contrast", "homogeneity": "smoothness", "energy": "uniformity", "correlation": "pattern regularity"}
+_GLCM_AT = {f"d{d}": f"at {d * TEXTURE_STEP * 0.025:g} um" for d in GLCM_DISTANCES} | {"aniso": "horizontal vs vertical"}
+_PARTICLE = {
+    "n_per_1e4um2": "silicon particles per area", "d10_um": "small-end silicon particle size (D10)",
+    "d50_um": "median silicon particle size (D50)", "d90_um": "coarse silicon particle size (D90)",
+    "d_mean_um": "mean silicon particle size", "log_d_sd": "width of the silicon size distribution",
+    "coarse_area_share": "share of silicon in particles over 5 um", "void_frac_aw": "void fraction inside silicon",
+    "porous_share": "share of porous silicon", "low_solidity_share": "share of irregular silicon particles",
+    "contrast_ratio": "silicon brightness against graphite", "inlens_ratio": "silicon InLens signal against graphite",
+    "texture": "graininess inside silicon", "solidity": "silicon particle compactness",
+}
+
+
+def describe(feature: str, dictionary: dict | None = None) -> str:
+    """Plain-language name of a feature column; the column name itself when there is no rule for it."""
+    family, _, rest = feature.partition("_")
+    if family == "kpi":
+        return ((dictionary or {}).get(rest) or {}).get("name") or rest
+    if family == "reg":
+        for q, name in _QUANTITY.items():
+            if rest.startswith(q + "_") and rest[len(q) + 1:] in _SUMMARY:
+                return f"{name}, {_SUMMARY[rest[len(q) + 1:]]}"
+    if family == "edge":
+        band, _, q = rest.partition("_")
+        return f"{_QUANTITY.get(q, q)} in the {band} edge band"
+    if family == "tex":
+        ch, _, tail = rest.partition("_")
+        where = ""
+        for phase in ("graphite", "si"):
+            if tail.startswith(phase + "_"):
+                where, tail = f" inside {'silicon' if phase == 'si' else phase}", tail[len(phase) + 1:]
+        if tail.startswith("lbp") and tail[3:].isdigit():
+            return f"{_CHANNEL.get(ch, ch)} fine texture{where}: share of {_LBP.get(int(tail[3:]), tail)}"
+        if tail.startswith("glcm_"):
+            prop, _, at = tail[5:].rpartition("_")
+            return f"{_CHANNEL.get(ch, ch)} texture {_GLCM.get(prop, prop)} {_GLCM_AT.get(at, at)}"
+    if family == "par":
+        for stat, name in (("_p50", "typical"), ("_iqr", "spread of")):
+            if rest.endswith(stat) and rest[: -len(stat)] in _PARTICLE:
+                return f"{name} {_PARTICLE[rest[: -len(stat)]]}"
+        if rest.startswith("type_") and rest.endswith("_share"):
+            return f"share of silicon particle type {rest[5:-6].upper()}"
+        return _PARTICLE.get(rest, feature)
+    if family == "img":
+        ch, _, k = rest.partition("_")
+        return f"{_CHANNEL.get(ch, ch)} imaging: {k.replace('_', ' ')}"
+    return feature
 
 
 # ---------------------------------------------------------------- per image
