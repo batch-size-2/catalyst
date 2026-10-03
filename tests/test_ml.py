@@ -274,3 +274,26 @@ def test_uncertainty_helpers():
     small = area_needed(ir["phi"], ir["a_int_um2"], 2 * ir["predicted_sd"])
     large = area_needed(ir["phi"], ir["a_int_um2"], ir["predicted_sd"] / 2)
     assert large > small
+
+
+def test_t13_report_only_descriptors():
+    from qc.measure import binder_profile, horizontal_pores, si_class, si_class_shares
+
+    parts = pd.DataFrame({"contrast_ratio": [2.1, 1.6, 2.0, 1.6], "solidity": [0.9, 0.8, 0.9, 0.9],
+                          "void_frac": [0.0, 0.0, 0.2, 0.0], "texture": [0.1, 0.1, 0.1, 0.5], "area_um2": [1.0, 2.0, 3.0, 4.0]})
+    assert si_class(parts, 0.3).tolist() == ["dense", "dim_ragged", "porous", "porous"]
+    assert si_class_shares(parts, 0.3) == pytest.approx({"si_share_dense": 0.1, "si_share_porous": 0.7, "si_share_dim_ragged": 0.2})
+    assert np.isnan(si_class_shares(parts.iloc[:0], 0.3)["si_share_dense"])
+
+    mask = np.full((400, 400), Phase.GRAPHITE, np.uint8)
+    mask[:20], mask[-20:] = Phase.IGNORE, Phase.IGNORE
+    mask[300:380, :] = Phase.BINDER  # binder only near the bottom
+    out = binder_profile(mask)
+    assert out["binder_area_frac"] == pytest.approx(80 / 360) and out["binder_slope"] > 0
+
+    pores = np.full((400, 800), Phase.GRAPHITE, np.uint8)
+    pores[100:104, 100:700] = Phase.PORE  # 600 px = 15 um long, 0.1 um thick, horizontal: counts
+    pores[150:450, 50:54] = Phase.PORE    # vertical: does not count
+    pores[200:220, 300:320] = Phase.PORE  # blob: does not count
+    hp = horizontal_pores(pores, 0.025)
+    assert hp["hpore_per_1e4um2"] > 0 and 0.3 < hp["hpore_area_frac"] < 0.7

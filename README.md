@@ -236,6 +236,8 @@ One command, `qc.run`, does steps 1–9 for the baseline plus each requested bat
 | 8 | **Write.** One row per image into the KPI table (incl. `area_um2`, the analysed area), the particle and imaging tables, plus a mask overlay | `run.measure_field`, `run.save_tables`, `run.save_overlay` | `out/kpis.csv`, `out/particles.csv`, `out/imaging.csv`, `out/masks/` |
 | 9 | **Compare** each batch against the baseline on all three tables and record provenance | `decide.split_tables`, `decide.evaluate`, `provenance.provenance` | `out/evidence/<batch>.json` |
 
+Report-only, outside this pipeline (`docs/experiments/T13.md`), for describing what differs: `measure.si_class_shares(parts, texture_max)` gives the area share of rule-based Si classes (`dim_ragged`: contrast < 1.75× graphite and solidity < 0.85; `porous`: void fraction > 0.1 or texture above Batch_3's p90; `dense`). `measure.binder_profile(mask)` gives the BINDER share and its normalised top-to-bottom slope. `measure.horizontal_pores(mask, px_um)` gives long (> 5 µm), thin (aspect > 5), near-horizontal pores per 10⁴ µm². None of them is in `kpis()`, the feature table or the verdict.
+
 **Input details (step 2, PLAN_v4 §1.1)**
 - **Detectors** are normalised to `BSE` / `ETD` / `InLens`; `SE` is an alias for `ETD`. The `img_` prefix is dropped from IDs.
 - **`px_um`** comes from the TIFF `XResolution` / `ResolutionUnit` tags (0.025 µm/px), or NaN if missing.
