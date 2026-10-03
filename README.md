@@ -214,7 +214,7 @@ What that means at our sample sizes:
 | 0 / 17 | 0 – 16.2% | ACCEPT |
 | 2 / 17 | 2.1 – 32.6% | INVESTIGATE |
 
-PLAN_v1 quotes 28% for 0/7, which is a one-sided 90% bound. The code uses the upper end of the two-sided 90% interval, 35%. That's for the backend to settle.
+PLAN_v1 §3.5 uses the same convention and the same numbers.
 
 **5. Next action**, computed rather than templated:
 - **REJECT:** "Quarantine the lot…".
@@ -229,7 +229,7 @@ PLAN_v1 quotes 28% for 0/7, which is a one-sided 90% bound. The code uses the up
 |---|---|---|
 | `version` | `v1-draft` | Written into every evidence file |
 | `data_dir` | `data` | Where batch folders live |
-| `baseline` | `Batch_1` | Baseline folder. **Unconfirmed**: ask the mentors (PLAN_v1 §8) |
+| `baseline` | `Batch_1` | Baseline folder. **Unconfirmed**: ask the mentors (PLAN_v1 §9) |
 | `reference_exclude` | `[]` | Baseline `image_id`s to drop from the reference (e.g. the P2316 strip if it isn't "approved") |
 | `band_coverage` | `0.95` | Coverage of the tolerance band, across all KPIs together |
 | `ci_level` | `0.90` | Confidence level of the interval on the non-conforming rate |
@@ -241,7 +241,7 @@ PLAN_v1 quotes 28% for 0/7, which is a one-sided 90% bound. The code uses the up
 - per-KPI uncertainty by source (§3.6)
 - strip instead of tile as the counting unit
 - baseline audit, i.e. leave-one-strip-out on the baseline
-- controls (§4)
+- controls (§3.7)
 
 **First run on the real data** (stub segmentation, baseline `Batch_1`):
 

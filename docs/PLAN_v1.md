@@ -33,8 +33,9 @@ A quality-control tool that tells a battery manufacturer whether a new delivery 
 | 25 nm per pixel, read from the TIFF tags | All sizes in µm |
 | Fields are cuts from 13 longer strips; 5 strips span more than one folder | Count by strip. Validate leave-one-strip-out. `strip_id` (image height and resolution tag) identifies the strip |
 | Grey levels differ between strips (detector settings) | Subtract the black level; normalise contrast before DINOv2 |
-| Three kinds of silicon particle: small dense bright (most strips); larger and dimmer (`4ih2ggld`, `5n1q8atc`, Batch_1); porous inside (`x7u69zsw`, `tuy3zymq`, `kbdh4tri`, `71vgq3fw`, Batch_3) | KPIs for fraction, size, brightness ratio and internal voids |
+| Three kinds of silicon particle: small dense bright (most strips); larger and dimmer (`4ih2ggld`, `5n1q8atc`, Batch_1, strip `2316_1015998`, "P2316"); porous inside (`x7u69zsw`, `tuy3zymq`, `kbdh4tri`, `71vgq3fw`, Batch_3) | KPIs for fraction, size, brightness ratio and internal voids |
 | Baseline is assumed to be Batch_1, not confirmed | Baseline audit; config can exclude reference images |
+| Batch_1 is bimodal: P2316's Si fraction is about 0.19–0.20, the rest about 0.06. The `si_area_frac` band comes out as −0.10 to 0.30, which catches nothing | If the mentors say P2316 is not approved, put `4ih2ggld`, `5n1q8atc` in `reference_exclude` |
 
 ## 3. Pipeline
 
@@ -56,7 +57,35 @@ A quality-control tool that tells a battery manufacturer whether a new delivery 
 | Show | API and web UI | `qc/api.py`, `web/` | Patrik | exists |
 | Explain | Verified tags, investigator agent, report | `qc/agent.py` | Patrik | new |
 
+**Data flow.** `qc.run` does steps 1–6 for the baseline plus each requested batch; `qc.measure` does 1–5.
+
+| # | Step | Code | Output |
+|---|---|---|---|
+| 1 | Find fields: group `img_<image_id>_<detector>.tif` by ID | `io.field_paths` | `{image_id: {detector: path}}` |
+| 2 | Load: one channel, crop 8 px left and right (green edge line on 13 images), pixel size, `strip_id` | `io.load_field` | `Field(batch, image_id, strip_id, channels, px_um)` |
+| 3 | Segment | `measure.segment` | `uint8` mask of `Phase` codes |
+| 4 | Measure | `measure.kpis` | `{kpi: value}` |
+| 5 | Write one row per image and a mask overlay (4× downsampled) | `run.measure_field`, `run.save_overlay` | `out/kpis.csv`, `out/masks/` |
+| 6 | Judge each batch against the baseline | `decide.judge` | `out/evidence/<batch>.json` |
+
+- A KPI that is not computed, or an image whose segmentation crashes, is written as NaN. The run never stops on one bad image.
+- `out/kpis.csv` columns: `batch, image_id, strip_id, px_um`, then the 8 KPIs.
+- `Evidence` fields now: `batch`, `baseline`, `verdict`, `next_action`, `nonconforming {x, n, ci, unit}`, `kpis[] {name, unit, band, baseline_mean, batch_mean, n_outside}`, `tiles[] {image_id, strip_id, status, kpis, reasons}`, `n_images`, `config_version`.
+- Shared by both of us: `qc/schema.py`, `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv`. Changes need both.
+
 ### 3.2 Segmentation and KPIs
+
+| Code | Phase | Look in BSE |
+|---|---|---|
+| 0 | `PORE` | black |
+| 1 | `GRAPHITE` | dark grey flakes |
+| 2 | `SI` | bright particles |
+| 3 | `BINDER` | thin films at particle edges |
+| 255 | `IGNORE` | excluded pixels |
+
+**Now in the code:** Gaussian blur σ = 2 px on BSE, then 3-class multi-Otsu fitted on a 4× subsample. Known gap: bright binder fringes land in `SI`.
+
+**Target:**
 
 | Step | What |
 |---|---|
@@ -98,7 +127,50 @@ A quality-control tool that tells a battery manufacturer whether a new delivery 
 | Batch: ACCEPT | None non-conforming, none suspect, controls passed. Printed with its upper bound |
 | Batch: INVESTIGATE | Everything else, with a next action |
 
-### 3.6 Controls
+**Band formula** (in `decide.tolerance_band`):
+
+```
+band = mean ± t(1 − α/2, n − 1) · sd · √(1 + 1/n),   α = (1 − band_coverage) / K
+```
+
+`n` = baseline images, `K` = KPIs in use. With `n = 7` the band is ±2.6 sd for one KPI, ±3.2 sd for two, ±4.4 sd for all eight. A KPI is used only if at least 2 baseline images have a value.
+
+**Interval on the non-conforming fraction:** exact Clopper–Pearson at `ci_level` 90%, so each end is a 95% one-sided bound.
+
+| Observed | Interval | Verdict |
+|---|---|---|
+| 0 / 7 | 0 – 34.8% | ACCEPT, "cannot rule out up to 35%" |
+| 1 / 7 | 0.7 – 52.1% | INVESTIGATE |
+| 2 / 7 | 5.3 – 65.9% | REJECT |
+| 0 / 17 | 0 – 16.2% | ACCEPT |
+| 2 / 17 | 2.1 – 32.6% | INVESTIGATE |
+
+**Next action** is computed: "Quarantine the lot" on REJECT; "Release" with the bound on ACCEPT; on INVESTIGATE either "Image ~N more fields" (smallest N that would push the lower bound past the reject threshold at the observed rate) or "Review N SUSPECT images".
+
+**Config** (`config/decision.yaml`):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `version` | `v1-draft` | Written into every evidence file |
+| `data_dir` | `data` | Where batch folders live |
+| `baseline` | `Batch_1` | Baseline folder. Unconfirmed |
+| `reference_exclude` | `[]` | Baseline image IDs dropped from the reference |
+| `band_coverage` | `0.95` | Coverage of the tolerance band, across all KPIs together |
+| `ci_level` | `0.90` | Confidence level of the interval on the non-conforming fraction |
+| `reject_lower_bound` | `0.05` | REJECT when the interval's lower bound exceeds this |
+
+### 3.6 Uncertainty
+
+`uncertainty(mask, px_um, channels)` returns one standard error per KPI, combining two sources. The evidence shows them separately.
+
+| Source | Estimated from |
+|---|---|
+| Sampling | Spread of the KPI across 1000 px windows inside the image |
+| Segmentation | Spread across threshold variants (±5 grey levels, two smoothing widths) |
+| Imaging | Movement of the KPI under the negative controls |
+| Reference | Width of the tolerance band itself (few baseline images) |
+
+### 3.7 Controls
 
 Run with every batch. Made from 3 baseline images.
 
@@ -107,12 +179,56 @@ Run with every batch. Made from 3 baseline images.
 | Negative | Brightness ±20%, contrast ±20%, black level +20, added noise | CONFORMING |
 | Positive | Si particles pasted in (+50%, +100% fraction). Voids punched into 30% of Si particles | Flagged |
 
-### 3.7 Training policy
+### 3.8 Training policy
 
 - Before the freeze: nothing trained.
 - After the freeze, a trained piece is kept only if it catches more positive controls at the same false-alarm rate, tested on strips it never saw.
 - Allowed candidates: a small classifier on DINOv2 features from hand-drawn strokes (voids, cracks); a decoder trained on baseline images only; a segmenter trained on our own threshold masks with brightness and contrast changes.
 - Not allowed: anything trained on batch labels.
+
+### 3.9 Infrastructure
+
+Everything runs locally and offline. Three processes:
+
+| Process | Command | Port | Role |
+|---|---|---|---|
+| Pipeline | `uv run python -m qc.run --batch data/<batch>` | – | Measure → judge → write `out/`. This is what we freeze and run on the unseen batch |
+| API | `uv run uvicorn qc.api:app --reload` | 8000 | Thin FastAPI wrapper: reads `out/`, saves uploads to `data/`, calls `run()`. No QC logic |
+| Web UI | `cd web && npm install && npm run dev` | 5173 | Vite + React + TypeScript + Tailwind. Talks only to `/api` |
+
+Other commands: `uv run python -m qc.measure` (ML only: `out/kpis.csv` and `out/masks/`), `uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline` (software only, no images), `uv run pytest`. Setup: `brew install uv node@22` (the UI needs Node ≥ 20.19).
+
+| Path | In git | Contents |
+|---|---|---|
+| `data/<batch>/` | no | Input TIFFs or symlinks. Folder name = batch name |
+| `config/decision.yaml` | yes | Decision settings |
+| `out/kpis.csv` | no | One row per image, all batches measured so far |
+| `out/masks/<batch>/<image_id>.png` | no | BSE with phase overlay |
+| `out/evidence/<batch>.json` | no | The verdict and everything behind it |
+| `tests/fixtures/kpis_fake.csv` | yes | Hand-made KPI table for building without images |
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/config` | The decision config |
+| `GET /api/batches` | `[{name, has_images, verdict}]` |
+| `GET /api/evidence/{batch}` | `Evidence` |
+| `GET /api/masks/{batch}/{image_id}.png` | Mask overlay |
+| `POST /api/batches/{batch}/files` | Upload a folder's TIFFs into `data/{batch}/` |
+| `POST /api/runs/{batch}` | Progress stream per image, then the evidence or an error |
+
+Dependencies: `pyproject.toml` + `uv.lock` (Python 3.11), `web/package.json`. Packages published in the last week are blocked (`exclude-newer` for Python; `npm install --before=<a week ago>` for npm).
+
+### 3.10 Where the code stands
+
+First run on the real data, from the README (basic segmentation, 2 KPIs, baseline Batch_1):
+
+| Batch | Verdict | Non-conforming | Flagged |
+|---|---|---|---|
+| Batch_1 | ACCEPT | 0/7 | – |
+| Batch_2 | ACCEPT | 0/7 | – |
+| Batch_3 | INVESTIGATE | 2/17 | `0grcilhi`, `hzumfsms`: apparent porosity 0.145 and 0.154, above the band 0.038–0.136 |
+
+Not built yet: six KPIs, imaging check, anomaly, uncertainty, controls, counting by strip, baseline audit, the explain layer.
 
 ---
 
@@ -138,7 +254,7 @@ Run with every batch. Made from 3 baseline images.
 5. **Sync 1.**
 6. `uncertainty(mask, px_um, channels)`: rerun KPIs on 1000 px windows and on threshold variants (±5 grey levels, two smoothing widths). Return one standard error per KPI.
 7. `imaging(channels)`: black level, 1st/50th/99th percentile, noise, sharpness, saturated fraction, per channel.
-8. `qc/controls.py`: `make_controls(channels, px_um)` for the table in §3.6.
+8. `qc/controls.py`: `make_controls(channels, px_um)` for the table in §3.7.
 9. `qc/anomaly.py`: `anomaly(channels, px_um)` with [dinov2-base](https://huggingface.co/facebook/dinov2-base) (`uv add torch transformers scikit-learn`). Pick PCA or nearest-neighbour on the controls. Leave it out of the frozen config if not solid by the dry run.
 10. **Dry run, freeze.**
 
