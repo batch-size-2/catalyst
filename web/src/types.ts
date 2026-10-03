@@ -1,9 +1,8 @@
-/** Mirrors qc/schema.py (Evidence, Attribution) and qc/api.py (BatchSummary, run events). Update together. */
+/** Mirror Pat's qc/attribute.py output (pat/ml-v3 @ 4557035); not part of qc/schema.py */
 
 export type Verdict = "ACCEPT" | "INVESTIGATE" | "REJECT";
 export type Status = "SIMILAR" | "DIFFERENT" | "UNCLEAR";
 export type Unit = "image" | "strip";
-export type AttributionScheme = "leave-one-strip-out" | "leave-one-image-out" | "held-out";
 export type Range = [number, number];
 
 export interface Segment {
@@ -134,59 +133,90 @@ export interface Evidence {
   config_version: string;
 }
 
-export interface FeatureProfile {
-  name: string;
-  unit: string;
-  family: string | null;
-  used: boolean;
-  eta2: number | null;
-  mean: Record<string, number | null>;
-  sd: Record<string, number | null>;
-  z_vs_baseline: Record<string, number | null>;
-}
-
-export interface FeatureCall {
-  name: string;
-  value: number | null;
-  z: Record<string, number | null>;
+export interface AttributionReason {
+  feature: string;
+  z: number | null;
   contribution: number | null;
 }
 
-export interface ImageCall {
-  image_id: string;
-  folder: string;
-  strip_id: string | null;
-  predicted: string;
-  probabilities: Record<string, number>;
-  assigned: string | null;
-  truth: string | null;
-  features: FeatureCall[];
-  nearest: string[];
-  heatmap: string | null;
-  outside_baseline: string[];
-  unfamiliar: boolean;
-  why: string[];
+export interface Deviation {
+  feature: string;
+  z: number | null;
+  direction: string;
 }
 
-export interface Evaluation {
-  scheme: AttributionScheme;
-  n: number;
-  accuracy: number;
-  balanced_accuracy: number;
-  null_95: number | null;
-  confusion: Record<string, Record<string, number>>;
+export interface AttributedImage {
+  image_id: string;
+  strip_id: string | null;
+  predicted: string;
+  confidence: number | null;
+  assigned?: string | null;
+  reasons: AttributionReason[];
+  baseline_distance: number | null;
+  baseline_threshold: number | null;
+  unfamiliar: boolean | null;
+  n_deviating?: number | null;
+  deviations: Deviation[];
+  [key: `p_${string}`]: number | null;
+}
+
+export interface AttributionModelInfo {
+  fitted_at: string;
+  classes: string[];
+  baseline: string;
+  loso_balanced_accuracy: number | null;
 }
 
 export interface Attribution {
   run: string;
+  model: AttributionModelInfo;
+  images: AttributedImage[];
+  summary: Record<string, number>;
+}
+
+export interface NullScores {
+  n: number;
+  mean: number | null;
+  p95: number | null;
+  max: number | null;
+}
+
+export interface SharedStripCheck {
+  strip: string;
   batches: string[];
-  baseline: string;
-  model: InputFile | null;
-  features: FeatureProfile[];
-  evaluations: Evaluation[];
-  clustering_ari: number | null;
-  calls: ImageCall[];
-  provenance: Provenance | null;
+  n_images: number;
+  accuracy: number;
+  predicted: Record<string, string[]>;
+}
+
+export interface FamilyResult {
+  families: string[];
+  n_features: number;
+  n_images: number;
+  n_strips: number;
+  balanced_accuracy: number | null;
+  confusion: Record<string, Record<string, number>>;
+  chosen_C: number[];
+  null: NullScores | null;
+  above_null: boolean;
+  shared_strips: SharedStripCheck[];
+  seconds: number | null;
+}
+
+export type RankedFeature = {
+  feature: string;
+  family: string;
+  effect_size: number | null;
+  loso_acc: number | null;
+} & {
+  [key: `mean_${string}`]: number | null;
+};
+
+export interface AttributionEvaluation {
+  n_images: number;
+  batches: string[];
+  family_sets: Record<string, FamilyResult>;
+  top_features: RankedFeature[];
 }
 
 export interface BatchSummary {

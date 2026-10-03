@@ -39,9 +39,9 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 
 ## Done (step 2, branch `PtrkH/attribution-contract`)
 
-- Proposed the `Attribution` contract and added a fully populated fixture with strict round-trip validation.
-- Added the runner glue and thin API endpoints, including the 501 response while Pat's module is unavailable.
-- Updated the README architecture, infrastructure, API, attribution and ownership sections.
+- Reworked the wrapper to read Pat's actual `attribute_images` and `--evaluate` files (`pat/ml-v3` @ `4557035`), not a software-owned output schema.
+- Added NaN-safe JSON loading and pass-through API endpoints, including 501 while Pat's module is unavailable.
+- Replaced the fixtures and updated the README to mirror Pat's formats and drop protocol.
 
 ## Done (step 3, branch `PtrkH/particles-imaging`)
 
@@ -57,9 +57,9 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 
 ## Done (step 5, branch `PtrkH/ui-views`)
 
-- Added baseline z-scores to feature profiles, relative heatmap paths and the attribution-file static API route.
-- Built the Sort images, What's different and Batch verdict views, including probability bands, evaluations, explanations and gallery calls.
-- Added fixture preview instructions, heatmap API documentation and the attribution image-file test.
+- Updated the UI to read Pat's actual per-run attribution and evaluation outputs (`pat/ml-v3` @ `4557035`).
+- Built the Sort images, What's different and Batch verdict views with her probabilities, reasons, familiarity data, evaluation tables and gallery calls.
+- Added fixture preview instructions and removed the proposed heatmap-file handling.
 
 ## Done (PR #4)
 
@@ -80,7 +80,7 @@ Done, see Done.
 
 ### 2. Wrap Pat's batch attribution (decided 3 Oct: Pat owns it)
 
-Done, see Done. Pending: Pat confirms the contract.
+Done, see Done.
 
 ### 3. Plumbing for Pat's outputs (no edits to her files)
 
@@ -108,6 +108,7 @@ Listed in PR #4, section "For Pat":
 - **Column names:** confirm the proposed `PARTICLE_COLUMNS` / `IMAGING_COLUMNS`.
 - **When `pat/ml-v3` lands:** `run()` must pass `split_tables(tables.kpis, tables.particles, tables.imaging)` (her `measure()` returns `Tables`).
 - **KPI_UNITS:** add `si_graphite_ratio` and the other descriptors, then regenerate the fixture with `uv run python -m tests.synth`.
-- **Attribution contract:** confirm the proposed `Attribution` schema (step 2).
+- **Attribution JSON layout:** if Pat changes her output, `web/src/types.ts` and both attribution fixtures must follow it.
+- **PLAN_v4 (draft) §6 items for Patrik after her branch lands:** attribution block in `Evidence`, `run()` calling her `predict` on the batch's feature rows, and one template sentence each on attribution and familiarity.
 - **Her other pieces:** the dictionary content, image pre-processing, particle types, controls.
 - **Plan change:** rule 2 is replaced by Pat-owned batch attribution; the software side wraps her output.

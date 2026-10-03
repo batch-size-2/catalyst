@@ -1,7 +1,7 @@
 """The contract between the two halves of the pipeline (PLAN_v3 §3.1).
 
     ML side:      channels -> segment() -> mask -> kpis() -> one row  (qc/measure.py)
-    Glue:         data/<batch>/*.tif -> out/kpis.csv -> evidence / attribution  (qc/run.py)
+    Glue:         data/<batch>/*.tif -> out/kpis.csv -> evidence      (qc/run.py)
     Backend side: KPI table -> evaluate()/compare() -> out/evidence/<batch>.json  (qc/decide.py)
     UI:           reads evidence + mask overlays via the API          (qc/api.py, web/)
 
@@ -208,76 +208,14 @@ class Evidence(BaseModel):
     config_version: str
 
 
-AttributionScheme = Literal["leave-one-strip-out", "leave-one-image-out", "held-out"]
-
-
-class FeatureProfile(BaseModel):
-    """One feature across the known batches: the bands behind every call."""
-
-    name: str
-    unit: str
-    family: str | None = None            # e.g. "kpi", "regional", "texture", "deep", "imaging"
-    used: bool                           # in the frozen model
-    eta2: float | None = None            # share of image-level variance between known batches
-    mean: dict[str, float | None]        # batch -> mean over its images
-    sd: dict[str, float | None]          # batch -> SD over its images (ddof 1)
-    z_vs_baseline: dict[str, float | None] = {}  # batch -> (batch mean - baseline mean) / baseline SD
-
-
-class FeatureCall(BaseModel):
-    """One feature's evidence for one image; bands and units are in Attribution.features."""
-
-    name: str
-    value: float | None
-    z: dict[str, float | None]           # batch -> (value - batch mean) / batch SD, from the profile
-    contribution: float | None = None    # signed support for `predicted` over the runner-up, in the model's units
-
-
-class ImageCall(BaseModel):
-    image_id: str
-    folder: str                          # input folder under data_dir
-    strip_id: str | None = None
-    predicted: str                       # most probable known batch
-    probabilities: dict[str, float]      # known batch -> probability, sums to 1
-    assigned: str | None = None          # balanced assignment (equal counts per batch), when requested
-    truth: str | None = None             # known label, when scored
-    features: list[FeatureCall] = []     # most decisive first
-    nearest: list[str] = []              # "<folder>/<image_id>" of the most similar known images, nearest first
-    heatmap: str | None = None           # PNG path relative to out/attribution/: per-region support for `predicted`
-    outside_baseline: list[str] = []     # features more than odd_sd baseline SDs from the baseline mean
-    unfamiliar: bool = False             # unlike every known batch
-    why: list[str] = []                  # fixed-template sentences, most important first
-
-
-class Evaluation(BaseModel):
-    scheme: AttributionScheme
-    n: int
-    accuracy: float
-    balanced_accuracy: float
-    null_95: float | None = None         # 95th percentile balanced accuracy with shuffled labels
-    confusion: dict[str, dict[str, int]] # truth -> predicted -> count
-
-
-class Attribution(BaseModel):
-    """One batch-attribution run (Pat's qc/attribute.py), written to out/attribution/<run>.json."""
-
-    run: str
-    batches: list[str]                   # known batches, display order
-    baseline: str
-    model: InputFile | None = None       # frozen model file and its SHA-256
-    features: list[FeatureProfile]       # most separating first
-    evaluations: list[Evaluation] = []
-    clustering_ari: float | None = None  # unsupervised check: clusters of the used features vs labels
-    calls: list[ImageCall] = []
-    provenance: Provenance | None = None
-
-
 CONFIG_PATH = Path("config/decision.yaml")
 OUT_DIR = Path("out")
 KPI_TABLE = OUT_DIR / "kpis.csv"
 PARTICLE_TABLE = OUT_DIR / "particles.csv"
 IMAGING_TABLE = OUT_DIR / "imaging.csv"
+ATTRIBUTION_MODEL_PATH = Path("config/attribution_model.json")
 EVIDENCE_DIR = OUT_DIR / "evidence"
+FEATURE_TABLE = OUT_DIR / "features.csv"
 ATTRIBUTION_DIR = OUT_DIR / "attribution"
 
 
@@ -285,8 +223,9 @@ def evidence_path(batch: str) -> Path:
     return EVIDENCE_DIR / f"{batch}.json"
 
 
-def attribution_path(run: str) -> Path:
-    return ATTRIBUTION_DIR / f"{run}.json"
+def attribution_path(name: str) -> Path:
+    """Batch attribution result (qc/attribute.py) for one run, e.g. a drop folder."""
+    return ATTRIBUTION_DIR / f"{name}.json"
 
 
 def mask_path(batch: str, image_id: str) -> Path:

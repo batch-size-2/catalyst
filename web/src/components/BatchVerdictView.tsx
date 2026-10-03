@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAttribution } from "../api";
-import type { Evidence, ImageCall } from "../types";
+import type { AttributedImage, Evidence } from "../types";
 import Differences from "./Differences";
 import ExplanationTabs from "./ExplanationTabs";
 import ProvenancePanel from "./ProvenancePanel";
@@ -8,23 +8,18 @@ import TileGallery from "./TileGallery";
 import VerdictCard from "./VerdictCard";
 
 export default function BatchVerdictView({ evidence, batches }: { evidence: Evidence; batches: string[] }) {
-  const [calls, setCalls] = useState<ImageCall[]>([]);
+  const [calls, setCalls] = useState<AttributedImage[]>([]);
 
   useEffect(() => {
     let current = true;
     setCalls([]);
     getAttribution(evidence.batch).then(
       (attribution) => {
-        if (current) setCalls(attribution.calls);
+        if (current) setCalls(attribution.images);
       },
-      () => getAttribution("known").then(
-        (attribution) => {
-          if (current) setCalls(attribution.calls.filter((call) => call.folder === evidence.batch));
-        },
-        () => {
-          if (current) setCalls([]);
-        },
-      ),
+      () => {
+        if (current) setCalls([]);
+      },
     );
     return () => {
       current = false;

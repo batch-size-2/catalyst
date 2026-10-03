@@ -35,6 +35,7 @@ uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline
 mkdir -p out/evidence out/attribution
 cp tests/fixtures/evidence_example.json out/evidence/example.json
 cp tests/fixtures/attribution_example.json out/attribution/example_drop.json
+cp tests/fixtures/attribution_evaluation_example.json out/attribution/evaluation.json
 
 # UI: two terminals
 uv run uvicorn qc.api:app --reload     # API on :8000
@@ -64,8 +65,8 @@ flowchart LR
     KPI["kpis(mask, px_um, channels) → dict<br/>names + units in schema.KPI_UNITS"]
   end
 
-  subgraph ATTRIB["ML · Pat's qc/attribute.py (planned)"]
-    PREDICT["predict(dirs, progress) → Attribution"]
+  subgraph ATTRIB["ML · Pat's qc/attribute.py (pat/ml-v3)"]
+    PREDICT["attribute_images(image_dir, model, balanced) · --evaluate"]
   end
 
   subgraph BE["Backend · qc/decide.py"]
@@ -76,20 +77,22 @@ flowchart LR
   subgraph OUT["out/ (gitignored)"]
     T["kpis.csv<br/>one row per image, incl. area_um2"]
     PI["particles.csv · imaging.csv<br/>when Pat's tables are present"]
+    FT["features.csv<br/>Pat's per-image feature table"]
     E["evidence/{batch}.json"]
-    A["attribution/{run}.json"]
+    A["attribution/{run}.json · evaluation.json"]
     P["masks/{batch}/{id}.png"]
   end
 
-  API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · masks · attribution · attribution-files<br/>POST upload · run · attribution (NDJSON progress)"]
+  API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · masks · attribution · attribution-evaluation<br/>POST upload · run · attribution (NDJSON progress)"]
   WEB["web/ · Vite + React :5173<br/>sort images · what's different · batch verdict (four audiences, gallery with odd images and calls) · provenance"]
   CLI["python -m qc.run / qc.measure"]
 
   D --> IO --> RUN
   RUN --> SEG --> KPI --> RUN
-  RUN -. "attribute() calls" .-> PREDICT --> A
+  RUN -. "attribute() wraps Pat" .-> PREDICT --> A
   RUN --> T --> J
   PI --> J
+  FT --> PREDICT
   CFG --> J
   RUN --> EXPLAIN
   J --> EXPLAIN
@@ -130,13 +133,14 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `config/kpi_dictionary.yaml` | yes | Pat's descriptor/particle-type content; read by `explain()` and hashed into provenance; arrives with `pat/ml-v3` |
 | `config/attribution_model.json` | yes | Pat's frozen attribution model; hashed into provenance when present |
 | `out/kpis.csv` | no | KPI table, one row per image (incl. `area_um2`, the analysed area), all batches measured so far |
+| `out/features.csv` | no | Pat's per-image feature table from `qc/features.py` |
 | `out/particles.csv`, `out/imaging.csv` | no | Written by Pat's measuring (`pat/ml-v3`); read by `compare()` and `python -m qc.decide` |
 | `out/masks/<batch>/<image_id>.png` | no | BSE with phase overlay (4× downsampled), for eyeballing and the UI |
 | `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads this, attribution output and masks |
-| `out/attribution/<run>.json` | no | Attribution output from Pat's model, exposed by the API |
+| `out/attribution/<run>.json`, `evaluation.json` | no | Pat's attribution and feature-evaluation outputs, exposed by the API |
 | `tests/fixtures/kpis_fake.csv` | yes | Synthetic KPI table (`tests/synth.py`), so the backend and UI can be built with no images |
 | `tests/fixtures/evidence_example.json` | yes | Hand-made, fully populated Evidence. To view it in the UI: `cp tests/fixtures/evidence_example.json out/evidence/example.json` and select `example` |
-| `tests/fixtures/attribution_example.json` | yes | Hand-made, fully populated Attribution contract example |
+| `tests/fixtures/attribution_example.json`, `attribution_evaluation_example.json` | yes | Fixtures mirroring Pat's output format |
 
 **HTTP API** (`qc/api.py`, called from `web/src/api.ts`)
 
@@ -147,11 +151,11 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `GET /api/evidence/{batch}` | `Evidence` |
 | `GET /api/attribution` | Sorted attribution run names |
 | `GET /api/attribution/{name}` | `Attribution` |
-| `GET /api/attribution-files/{path}` | Heatmap PNGs under `out/attribution/` |
+| `GET /api/attribution-evaluation` | Pat's feature-family evaluation report |
 | `GET /api/masks/{batch}/{image_id}.png` | Mask overlay |
 | `POST /api/batches/{batch}/files` | Multipart upload of a folder's TIFFs into `data/{batch}/` |
 | `POST /api/runs/{batch}` | NDJSON stream: one `{"type":"progress","done","total","tile"}` per measured tile, then `{"type":"done","evidence"}` or `{"type":"error","message"}` |
-| `POST /api/attribution/{name}` | NDJSON progress and result from Pat's `predict`; 501 if `qc.attribute` is unavailable |
+| `POST /api/attribution/{name}?balanced={k}` | Run output from Pat's `attribute_images`; `balanced` is optional, 501 if `qc.attribute` is unavailable |
 
 **Dependencies.**
 - Python: `pyproject.toml` + `uv.lock`, Python 3.11.
@@ -333,30 +337,25 @@ For `si_graphite_ratio` r, silicon share is `s = r / (1 + r)`. Theoretical capac
 
 ## Batch attribution (Pat's `qc/attribute.py`)
 
-The software side builds no classifier; `qc.run.attribute()` wraps Pat's predictor and persists its validated output.
+The software reads Pat's output as written on `pat/ml-v3` (4557035); it defines no classifier or attribution schema. `load_model()` reads the frozen model, and `attribute_images(image_dir, model, balanced=None)` writes `out/attribution/<folder>.json`. `qc.run.attribute()` calls those functions and sanitizes NaN/Infinity to JSON `null` for the browser.
 
-| Model | Contents |
-|---|---|
-| `FeatureProfile` | Feature unit/family, model use, eta², per-batch means and SDs, and `z_vs_baseline` |
-| `FeatureCall` | Image value, per-batch z-scores and signed contribution |
-| `ImageCall` | Prediction and probabilities, optional assignment/truth, feature evidence, nearest images, heatmap path relative to `out/attribution/`, unfamiliar and baseline flags, templated reasons |
-| `Evaluation` | Evaluation scheme, n, accuracy, balanced accuracy, shuffled-label null and confusion matrix |
-| `Attribution` | Run, known batches, baseline, model file, feature profiles, evaluations, clustering ARI, image calls and provenance |
+The per-run file contains the model summary, one image record with class probabilities, prediction/confidence, signed feature reasons, baseline distance/deviations and optional balanced assignment, plus prediction/unfamiliar counts. `--evaluate` writes `out/attribution/evaluation.json` with family-set LOSO scores, confusion, permutation nulls, shared-strip checks and ranked features.
 
-`predict(dirs: list[Path], progress) -> Attribution` returns the model or an equivalent dict; `run.attribute()` validates the result and writes `out/attribution/<run>.json`.
+The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution/{name}`, `GET /api/attribution-evaluation`, and `POST /api/attribution/{name}?balanced={k}`.
 
-**Held-out protocol**
-1. Put the new images in their own folders under `data/`, never inside the known batch folders.
-2. Freeze the model, then `git tag rules-frozen`.
-3. Predict once.
-4. Commit the output unchanged.
+**Drop protocol (PLAN_v4 §4)**
+1. Dry run with `uv run python -m qc.attribute --dry-run`.
+2. Fit the frozen model with `uv run python -m qc.attribute --fit`.
+3. Tag `rules-frozen`, covering `decision.yaml`, `particle_types.json` and `attribution_model.json`.
+4. Run `uv run python -m qc.attribute --images data/<drop> --balanced 3` once, then commit its output unchanged.
 
 ## Who owns what
 
 | File | Owner |
 |---|---|
-| `qc/schema.py` Evidence and `Attribution` models | **Both.** The contract: changes need both of us |
-| `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv`, `tests/fixtures/evidence_example.json`, `tests/fixtures/attribution_example.json` | **Both.** Contract and fixtures |
+| `qc/schema.py` Evidence models | **Both.** The contract: changes need both of us |
+| `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv`, `tests/fixtures/evidence_example.json` | **Both.** Evidence contract and fixture |
+| `tests/fixtures/attribution_example.json`, `tests/fixtures/attribution_evaluation_example.json` | Software (Patrik); mirror Pat's format |
 | `qc/measure.py` (`segment`, `kpis`) | ML (Pat) |
 | `qc/attribute.py`, `qc/features.py`, `config/attribution_model.json` | ML (Pat) |
 | `config/kpi_dictionary.yaml` | ML (Pat) |

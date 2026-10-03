@@ -1,10 +1,10 @@
 import { maskUrl } from "../api";
 import { batchColor } from "../colors";
-import type { Evidence, ImageCall } from "../types";
+import type { AttributedImage, Evidence } from "../types";
 
 interface Props {
   evidence: Evidence;
-  calls?: ImageCall[];
+  calls?: AttributedImage[];
   batches?: string[];
 }
 
@@ -32,7 +32,7 @@ export default function TileGallery({ evidence, calls = [], batches = [] }: Prop
                   .filter((odd) => odd.image_ids[0] === imageId)
                   .map((odd) => odd.quantity)));
                 const call = callsByImage.get(imageId);
-                const probability = call ? call.probabilities[call.predicted] ?? 0 : 0;
+                const probability = call?.confidence ?? 0;
                 return (
                   <figure key={imageId} className="overflow-hidden rounded-xl border border-white/5 bg-slate-900/60">
                     <div className="aspect-[3/1] bg-slate-800/50">
@@ -48,7 +48,7 @@ export default function TileGallery({ evidence, calls = [], batches = [] }: Prop
                       )}
                       {call && (
                         <span className="rounded bg-white/5 px-1.5 py-0.5" style={{ color: batchColor(call.predicted, batches) }}>
-                          {call.predicted} · {(probability * 100).toFixed(0)}%
+                          looks like {call.predicted} · {(probability * 100).toFixed(0)}%
                         </span>
                       )}
                     </figcaption>

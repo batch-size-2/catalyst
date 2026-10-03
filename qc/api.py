@@ -15,17 +15,15 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 
-from qc.run import Progress, attribute, attribution_predict, run
+from qc.run import Progress, attribute, attribution_module, read_json, run
 from qc.schema import (
-    ATTRIBUTION_DIR, EVIDENCE_DIR, OUT_DIR, Attribution, Evidence, Verdict, attribution_path, evidence_path,
+    ATTRIBUTION_DIR, EVIDENCE_DIR, OUT_DIR, Evidence, Verdict, attribution_path, evidence_path,
     load_config,
 )
 
 app = FastAPI(title="Catalyst QC")
 (OUT_DIR / "masks").mkdir(parents=True, exist_ok=True)
 app.mount("/api/masks", StaticFiles(directory=OUT_DIR / "masks"), name="masks")
-ATTRIBUTION_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/api/attribution-files", StaticFiles(directory=ATTRIBUTION_DIR), name="attribution-files")
 
 
 class BatchSummary(BaseModel):
@@ -72,19 +70,25 @@ def evidence(batch: str) -> Evidence:
 
 @app.get("/api/attribution")
 def attributions() -> list[str]:
-    return sorted(path.stem for path in ATTRIBUTION_DIR.glob("*.json")) if ATTRIBUTION_DIR.is_dir() else []
+    return sorted(path.stem for path in ATTRIBUTION_DIR.glob("*.json")
+                  if path.stem != "evaluation") if ATTRIBUTION_DIR.is_dir() else []
+
+
+@app.get("/api/attribution-evaluation")
+def attribution_evaluation() -> dict:
+    path = ATTRIBUTION_DIR / "evaluation.json"
+    if not path.exists():
+        raise HTTPException(404, "no attribution evaluation")
+    return read_json(path)
 
 
 @app.get("/api/attribution/{name}")
-def attribution_result(name: str) -> Attribution:
+def attribution_result(name: str) -> dict:
     batch_dir(name)
     path = attribution_path(name)
     if not path.exists():
         raise HTTPException(404, f"no attribution for {name!r}")
-    try:
-        return Attribution.model_validate_json(path.read_text())
-    except ValidationError:
-        raise HTTPException(409, "attribution in an old format; re-run the batch")
+    return read_json(path)
 
 
 @app.post("/api/batches/{batch}/files")
@@ -125,9 +129,9 @@ def start_run(batch: str) -> StreamingResponse:
 
 
 @app.post("/api/attribution/{name}")
-def start_attribution(name: str) -> StreamingResponse:
+def start_attribution(name: str, balanced: int | None = None) -> StreamingResponse:
     target = batch_dir(name)
-    if attribution_predict() is None:
+    if attribution_module() is None:
         raise HTTPException(501, "batch attribution is not available yet (qc/attribute.py)")
     return ndjson_stream(lambda progress: {
-        "type": "done", "attribution": attribute([target], progress).model_dump(mode="json")})
+        "type": "done", "attribution": attribute(target, balanced)})

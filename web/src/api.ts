@@ -1,4 +1,6 @@
-import type { Attribution, AttributionEvent, BatchSummary, Config, Evidence, RunEvent } from "./types";
+import type {
+  Attribution, AttributionEvaluation, AttributionEvent, BatchSummary, Config, Evidence, RunEvent,
+} from "./types";
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -13,9 +15,8 @@ export const listBatches = () => getJson<BatchSummary[]>("/api/batches");
 export const getEvidence = (batch: string) => getJson<Evidence>(`/api/evidence/${enc(batch)}`);
 export const listAttributions = () => getJson<string[]>("/api/attribution");
 export const getAttribution = (name: string) => getJson<Attribution>(`/api/attribution/${enc(name)}`);
+export const getAttributionEvaluation = () => getJson<AttributionEvaluation>("/api/attribution-evaluation");
 export const maskUrl = (batch: string, imageId: string) => `/api/masks/${enc(batch)}/${enc(imageId)}.png`;
-export const attributionFileUrl = (path: string) =>
-  `/api/attribution-files/${path.split("/").map(enc).join("/")}`;
 
 export async function uploadBatch(batch: string, files: File[]) {
   const body = new FormData();
@@ -56,5 +57,7 @@ async function streamNdjson<T>(url: string, onEvent: (event: T) => void) {
 export const runBatch = (batch: string, onEvent: (event: RunEvent) => void) =>
   streamNdjson(`/api/runs/${enc(batch)}`, onEvent);
 
-export const runAttribution = (name: string, onEvent: (event: AttributionEvent) => void) =>
-  streamNdjson(`/api/attribution/${enc(name)}`, onEvent);
+export const runAttribution = (name: string, balanced: number | null, onEvent: (event: AttributionEvent) => void) => {
+  const query = balanced == null ? "" : `?balanced=${enc(balanced)}`;
+  return streamNdjson(`/api/attribution/${enc(name)}${query}`, onEvent);
+};

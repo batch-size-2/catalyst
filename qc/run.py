@@ -5,6 +5,7 @@ Usage: uv run python -m qc.run --batch data/Batch_2 [data/Batch_3 ...]
 
 import argparse
 import importlib
+import json
 from collections.abc import Callable
 from pathlib import Path
 
@@ -19,8 +20,8 @@ from qc.io import field_paths, load_field
 from qc.measure import kpis, segment
 from qc.provenance import provenance
 from qc.schema import (
-    CONFIG_PATH, KPI_TABLE, KPI_TABLE_COLUMNS, KPI_UNITS, Attribution, Evidence, Field, Phase, attribution_path,
-    evidence_path, load_config, mask_path,
+    ATTRIBUTION_MODEL_PATH, CONFIG_PATH, KPI_TABLE, KPI_TABLE_COLUMNS, KPI_UNITS, Evidence, Field, Phase,
+    attribution_path, evidence_path, load_config, mask_path,
 )
 
 Progress = Callable[[int, int, str], None]
@@ -28,27 +29,31 @@ OVERLAY_RGB = {Phase.PORE: (40, 120, 255), Phase.SI: (255, 140, 0), Phase.BINDER
 TIFF_SUFFIXES = {".tif", ".tiff"}
 
 
-def attribution_predict():
-    """Pat's qc.attribute.predict(dirs, progress) -> Attribution, or None until that module exists."""
+def attribution_module():
+    """Pat's qc.attribute, or None until that module exists (an error inside it still raises)."""
     try:
-        module = importlib.import_module("qc.attribute")
+        return importlib.import_module("qc.attribute")
     except ModuleNotFoundError as error:
         if error.name != "qc.attribute":
             raise
         return None
-    return getattr(module, "predict", None)
 
 
-def attribute(dirs: list[Path], progress: Progress | None = None) -> Attribution:
-    """Runs Pat's attribution on image folders, validates the result and writes out/attribution/<run>.json."""
-    predict = attribution_predict()
-    if predict is None:
+def read_json(path: Path):
+    """JSON written by Pat's tools; NaN/Infinity (Python's json default) become null for the browser."""
+    return json.loads(path.read_text(), parse_constant=lambda _: None)
+
+
+def attribute(image_dir: Path, balanced: int | None = None) -> dict:
+    """Pat's attribute_images() with her frozen model; returns out/attribution/<folder>.json."""
+    module = attribution_module()
+    if module is None:
         raise NotImplementedError("batch attribution is not available yet (qc/attribute.py)")
-    result = Attribution.model_validate(predict(dirs, progress), from_attributes=True)
-    path = attribution_path(result.run)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(result.model_dump_json(indent=2))
-    return result
+    model = module.load_model()
+    if model is None:
+        raise FileNotFoundError(f"no {ATTRIBUTION_MODEL_PATH}: run `uv run python -m qc.attribute --fit` first")
+    module.attribute_images(image_dir, model, balanced=balanced)
+    return read_json(attribution_path(image_dir.name))
 
 
 def run(batch_dirs: list[Path], cfg: dict, progress: Progress | None = None) -> list[Evidence]:
