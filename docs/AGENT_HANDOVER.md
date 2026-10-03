@@ -16,7 +16,7 @@ Read this first, then `docs/PLAN_v3.md` (the team plan), `docs/ML_HANDOVER.md` (
 | Python env | `uv` is at `~/.local/bin/uv` (`export PATH="$HOME/.local/bin:$PATH"`). Then `uv sync` and `uv run pytest -q` (15 pass, about 10 s) |
 | Data | `data/Batch_1`, `data/Batch_2`, `data/Batch_3` are symlinks to `/Users/pat/conductor/workspaces/catalyst/data/Batch_*`. 31 fields × 3 detectors (BSE, ETD, Inlens), 8-bit, 2316×~7000 px, 0.025 µm/px. Gitignored |
 | Hard rules | Images never leave the machine (no upload to any external service, LLM or cloud without Polaron's OK). Never commit `data/` or `out/`. No Polaron models or tools (PLAN rule 1; their open-source code such as ImageRep, TauFactor or HR-Dv2 is also off-limits until mentor question §10 Q10 is answered). No LLM measures, decides or explains. Don't edit `config/decision.yaml` or `config/particle_types.json` after the `rules-frozen` tag |
-| Untracked on purpose | `config/particle_types.json` (first type fit, not frozen) |
+| Provisional config | `config/particle_types.json` is committed but is only the first type fit (k=2, all batches), **not frozen**. Refit before `rules-frozen` (§5 step 6) |
 | Local artefacts | `out/kpis.csv`, `out/particles.csv`, `out/imaging.csv`, `out/masks/`, `out/crops/T1,T2/`, `out/controls/summary.csv`, `out/uncertainty/*.csv`. Review images in `/tmp/qc_review/` (`v2_*.png` overlays, `types_sheet.png`, `kpis_before.csv`) |
 
 ---

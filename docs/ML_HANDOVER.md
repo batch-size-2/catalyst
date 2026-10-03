@@ -151,7 +151,7 @@ This confirms §1.2: most variation sits between strips. Batch_1's difference is
 ## 6. Open items
 
 - **Pat, by eye (§3.2 acceptance):** two overlays per strip. One known limit: a few smooth mid-grey particles (about 1.3–1.5× graphite, possibly the "larger, dimmer" kind) now land in BINDER. If the mentors say those are Si/SiOx, lower `SI_MIN_CONTRAST` and rerun.
-- Freeze `config/particle_types.json` at Sync 2. It is deliberately **not committed** yet; your local `run()` will use it if it exists.
+- Freeze `config/particle_types.json` at Sync 2. The committed file is the first, provisional fit; it will be refitted before `rules-frozen`. `run()` uses it whenever it exists.
 - Mentor review of the causes in `config/kpi_dictionary.yaml` (§10 Q7). Fill its `particle_types:` section after the names are fixed.
 - `config/decision.yaml` still says `baseline: Batch_1`. Switching to `Batch_3` is on your list (§6 step 1).
 - Evening items not started: how-many-images curve, strip-leak chart, two-point-correlation and DINOv2 safety nets. `two_point()` and `integral_range()` are the building blocks.
