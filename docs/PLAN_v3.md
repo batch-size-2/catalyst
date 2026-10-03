@@ -57,6 +57,21 @@ Most of the variation sits between strips, not between folders. The exception is
 
 Shared strips with Batch_3 as reference: P2080 (Batch_1, Batch_2, Batch_3), P2068 and P2272 (Batch_2, Batch_3). That is 1 of Batch_1's 6 strips and 3 of Batch_2's 6.
 
+**How each folder is made up**
+
+| Folder | Images | Strips | Images from strips found only in this folder |
+|---|---|---|---|
+| Batch_1 | 7 | 6 | 4 of 7 |
+| Batch_2 | 7 | 6 | **2 of 7** (P2048). The other 5 are neighbours of images in Batch_1 or Batch_3 |
+| Batch_3 | 17 | 7 | 12 of 17 |
+
+A continuous strip is one piece of electrode, so the folders are not all physically separate deliveries. Two readings, and we do not yet know which is right (§10 Q2):
+
+- **Assembled on purpose.** With few images available, the organisers built some folders, Batch_2 above all, partly from pieces of strips that also appear elsewhere, to give each batch realistic within-batch variation. Then the shared images are meant as ordinary material, and Batch_2 is probably meant to pass.
+- **Same material, counted twice.** The shared images are the reference (or Batch_1) material wearing another label. Counting them makes a batch look closer to the reference than its own material justifies.
+
+On today's stub numbers, nothing in Batch_2 stands out either way: its own strip P2048 sits inside the ordinary range (silicon fraction 0.054; ordinary strips 0.054–0.081). Both readings are kept open, and §3.13 tests them.
+
 These numbers are from a stub segmentation; the variance split (§3.5) recomputes them with the real descriptors at Sync 1.
 
 ## 2. Rules
@@ -193,7 +208,7 @@ Resolution limit we state: at 25 nm/px and a 0.25 µm² minimum, Si below about 
 | Status | DIFFERENT: p < `alpha` and \|difference\| > δ. SIMILAR: the interval lies within ±δ. UNCLEAR: otherwise |
 | Drivers | Key quantities ranked by \|difference\| / δ |
 | Nearest batch | Known batch with the smallest mean \|T\| over the key quantities |
-| Shared strips | Segments whose strip also appears in the other batch are the same physical sample. **Main comparison without them; the comparison with them is reported as a sensitivity check**, and if the status differs the report says so (`shared_strips: exclude`; `include` makes the comparison with them the main one). Batch_2 against Batch_3 then compares 3 segments with 4: 35 arrangements, smallest possible p ≈ 0.03, still below `alpha` |
+| Shared strips | Segments whose strip also appears in the other batch are the same physical sample. **Every run computes both variants**, with and without them, and shows them side by side. `shared_strips` (`include` or `exclude`) says which one drives the verdict; it is chosen before the freeze by the test in §3.13. If the two variants give different statuses for a key quantity, the verdict is INVESTIGATE with the reason "the result depends on images shared with the reference", whatever the setting. Without them, Batch_2 against Batch_3 compares 3 segments with 4: 35 arrangements, smallest possible p ≈ 0.03, still below `alpha` |
 | Power limit | Number of distinct arrangements < 1/`alpha` → no quantity can be DIFFERENT; the next action says how many more strips would allow it |
 
 **Verdict**
@@ -206,7 +221,7 @@ Resolution limit we state: at 25 nm/px and a 0.25 µm² minimum, Si below about 
 
 Next action is computed: REJECT names the top driver and the supplier check from the KPI dictionary; INVESTIGATE says how many more strips the how-many-images curve (§3.6) needs to settle the top UNCLEAR quantity.
 
-**Config** (`config/decision.yaml`): `version`, `data_dir`, `baseline` (`Batch_3`), `reference_exclude`, `key_descriptors`, `ci_level` (0.90), `alpha` (0.10), `similar_margin`, `new_type_share` (0.05), `n_resamples` (5000), `seed`, `shared_strips` (`exclude`).
+**Config** (`config/decision.yaml`): `version`, `data_dir`, `baseline` (`Batch_3`), `reference_exclude`, `key_descriptors`, `ci_level` (0.90), `alpha` (0.10), `similar_margin`, `new_type_share` (0.05), `n_resamples` (5000), `seed`, `shared_strips` (`exclude` until the test in §3.13 decides).
 
 ### 3.6 Uncertainty and how many images are enough
 
@@ -292,13 +307,41 @@ Every evidence file records: the SHA-256 of each input image, the git commit, a 
 
 Nothing is trained on batch labels. If time allows after the freeze, one trained piece (for example a small classifier for voids or a segmenter from hand-drawn strokes) is kept only if it makes the positive controls easier to detect on strips it never saw.
 
+### 3.13 Shared strips: testing both readings
+
+Before the freeze, both variants (`include`, `exclude`) are run on test batches with a known answer that copy Batch_2's structure, and on the known batches.
+
+**Shared-strip controls.** Built like the controls in §3.7, from reference strips with 2 or more images (P2068, P2060, P1904, P2088, P1612): split such a strip, put some of its images in the test batch, and keep the rest in the reference. That creates a shared strip with a known answer.
+
+| Control | Test batch | Must come out |
+|---|---|---|
+| Shared, unchanged | Split-strip images, unaltered, plus images from other whole reference strips | SIMILAR in both variants |
+| Shared, diluting a change | Split-strip images, unaltered, plus images from other strips with silicon added (+50%) | DIFFERENT, driver `si_graphite_ratio` |
+| Unshared change | Only images from whole strips, silicon added (+50%) | DIFFERENT in both variants (sanity check) |
+
+The second row is the case that separates the two readings. Shared images that equal the reference can hide a real change, and `include` is the variant at risk.
+
+**Known batches.** Batch_1 and Batch_2 against Batch_3, and Batch_1 against Batch_2, each in both variants. Record the status per key quantity and whether the variants agree.
+
+**Choosing `shared_strips`** at Sync 2, recorded in the config with the reason:
+
+| Outcome | Choice |
+|---|---|
+| `include` gets all three controls right and the variants agree on the known batches | `include`: more strips, more power, and it fits the "assembled on purpose" reading |
+| `include` lets the diluted change through as SIMILAR or UNCLEAR | `exclude` |
+| Both variants get the controls right but disagree on a known batch | `exclude`; the disagreement rule in §3.5 makes that batch INVESTIGATE with the reason shown |
+
+A mentor answer to §10 Q2 overrides the test.
+
+For the unseen batch nothing changes: if its images come from new strips there is nothing shared, and if they come from existing strips, `strip_id` finds them automatically and both variants are reported.
+
 ## 4. Sync points
 
 | When | What |
 |---|---|
 | Now | Both read §3.1 interface decisions; object within the hour or they stand |
 | Sync 1 | Real `out/kpis.csv` and `out/particles.csv` for all three batches go through `compare`. Reference against itself split by strips → SIMILAR. Variance split computed |
-| Sync 2 | Types fitted and frozen to `config/particle_types.json`. Controls pass. `similar_margin` fixed |
+| Sync 2 | Types fitted and frozen to `config/particle_types.json`. Controls pass. `similar_margin` fixed. `shared_strips` chosen by the test in §3.13 |
 | Dry run, 1 h before the drop | Batch_2 as if unseen: refit types without Batch_2 (so the dry run never sees its own particles), then one command. Restore the full fit afterwards |
 | Freeze, 30 min before the drop | `git tag rules-frozen`, push |
 | Drop | One run. Commit the output unchanged |
@@ -315,7 +358,7 @@ Nothing is trained on batch labels. If time allows after the freeze, one trained
 5. **Sync 1.** Look at the variance split: which descriptors actually separate the three batches?
 6. **`qc/types.py`**: fit, LOSO stability, naming, unassigned rule, persist. Porous fallback rule if needed.
 7. `imaging()` with the curtaining index, using `Field.black_level`.
-8. `qc/controls.py`: the table in §3.7, with tests that each control changes what it should on synthetic images.
+8. `qc/controls.py`: the table in §3.7 and the shared-strip controls in §3.13, with tests that each control changes what it should on synthetic images.
 9. Threshold variants (±5 grey levels) on the reference, and the integral-range estimate per image (§3.6).
 10. **Sync 2.** `config/kpi_dictionary.yaml`; ask a mentor to check the causes.
 11. **Dry run, freeze.**
@@ -341,9 +384,9 @@ Nothing is trained on batch labels. If time allows after the freeze, one trained
 1. `config/decision.yaml`: `baseline: Batch_3` and the keys in §3.5, including `shared_strips`. Update the README.
 2. `qc/schema.py`: new `Evidence` — `fingerprint` (descriptors with intervals, type shares, image groups, variance split), `differences[]` (name, unit, reference, batch, difference, interval, margin, p, status), `drivers[]`, `nearest_batch`, `shared_strips` (listed segments plus the status with them included), `new_type_share`, `imaging_changed`, `imaging_outliers_in_reference`, `power_limited`, `controls`, `verdict`, `next_action`, `explanations {operator, engineer, scientist, manager}`, `provenance`, `config_version`. Mirror in `web/src/types.ts`; update `tests/fixtures/` and `tests/test_contract.py`.
 3. `qc/io.py`: `black_level` per channel on `Field`. `qc/run.py`: call `particles`, `assign_types`, `imaging`, `make_controls`; write the outputs in §3.1; fill `provenance` (§3.11).
-4. `qc/decide.py`: `compare()` per §3.5 (bootstrap, permutation with max-statistic, margin, status, drivers, nearest batch, shared strips out of the main comparison and in the sensitivity check, power limit, verdict, next action, controls check). Imaging range without reference outlier strips (§3.3).
+4. `qc/decide.py`: `compare()` per §3.5 (bootstrap, permutation with max-statistic, margin, status, drivers, nearest batch, both shared-strip variants with the disagreement rule, power limit, verdict, next action, controls check). Then run the §3.13 test and record the `shared_strips` choice. Imaging range without reference outlier strips (§3.3).
 5. `qc/explain.py`: four templates, with the indicative consequences (§3.8) under each driver.
-6. Tests: reference split by strips → ACCEPT; one key quantity shifted by 3 δ → REJECT with that driver first; 2 strips per batch → INVESTIGATE with power limit; negative controls SIMILAR, positive controls DIFFERENT with the right driver; segments of shared strips left out of the main comparison; the same inputs give the same evidence apart from the timestamp.
+6. Tests: reference split by strips → ACCEPT; one key quantity shifted by 3 δ → REJECT with that driver first; 2 strips per batch → INVESTIGATE with power limit; negative controls SIMILAR, positive controls DIFFERENT with the right driver; both shared-strip variants computed, and a disagreement between them gives INVESTIGATE; the same inputs give the same evidence apart from the timestamp.
 7. **Sync 1, Sync 2.**
 8. UI: verdict card with four audience tabs; driver chart (difference against ±δ); distribution overlays; particle-type gallery with shares; variance-split bar; typical reference image next to the most different batch image per driver; image groups; per-image browser with overlay; "shared strip" badge; provenance panel.
 9. **Dry run, freeze.**
@@ -410,7 +453,7 @@ Never cut: segmentation with overlays, key descriptors, strip-level comparison, 
 ## 10. Open questions for the mentors
 
 1. Batch_3 is the reference: confirmed?
-2. Images in different folders are adjacent pieces of one strip (`cfe5vt7s` → `r17byphk` → `ffwubibz`). Intended, or should shared strips be dropped?
+2. Images in different folders are adjacent pieces of one strip (`cfe5vt7s` → `r17byphk` → `ffwubibz`); 5 of Batch_2's 7 images have neighbours in other folders. Were the folders assembled from shared material on purpose (for example to add within-batch variation), and is Batch_2 meant to pass?
 3. When does the unseen batch drop, and what do you want back: a verdict, the differences, or both?
 4. The three kinds of bright particle: are they all silicon (e.g. different Si or SiOx products, porous Si)?
 5. Which two or three descriptors matter most, and at what tolerance?
@@ -496,6 +539,7 @@ Contact: Martin, a battery scientist (previously battery R&D at JLR), on Discord
 | Si:graphite ratio | Silicon area divided by graphite area. Follows the recipe; unlike the area fraction, it does not move with porosity |
 | Pore connectivity | Share of pore area in the largest connected pore cluster. Apparent in 2D |
 | Shared strip | A strip with images in both batches being compared: the same physical sample on both sides |
+| Shared-strip control | A test batch that deliberately shares strips with the reference, with a known answer. Used to choose how shared strips are handled |
 | Imaging outlier in the reference | A reference strip whose imaging (e.g. black level) is far from the others; left out of the imaging range |
 | Indicative consequence | A range for what a difference means for the cell (capacity, swelling, rate), from textbook relations. Never part of the verdict |
 | Bruggeman relation | Rule of thumb: ion transport through a porous layer scales with porosity^1.5 |
@@ -569,7 +613,7 @@ Strength: **strong** = direct evidence on our kind of problem; **analogous** = e
 | Decision (section) | Support | Strength | What it says / caveat |
 |---|---|---|---|
 | `si_graphite_ratio` as the silicon key (§3.2) | Designer's own term; [R20], [R21] for why Si content matters | strong | The ratio follows formulation and is independent of porosity. `si_area_frac` stays as a reported number |
-| Shared strips out of the main comparison (§3.5) | Our audit (§1.2); [R4] | strong | Half of Batch_2's strips are also in Batch_3. Measurements on one strip are correlated, the same reason as rule 8 |
+| Shared strips: both variants, chosen by a test (§3.5, §3.13) | Our audit (§1.2); [R4] | strong | Half of Batch_2's strips are also in Batch_3, and only 2 of its 7 images come from a strip of its own. Measurements on one strip are correlated (rule 8), but the sharing may be deliberate, so the choice is tested on controls with a known answer rather than assumed |
 | `inlens_ratio` against local graphite (§3.2) | Our audit (§1.1) | strong | InLens saturation and top-to-bottom shading would otherwise leak position into a particle feature |
 | Imaging range without reference outlier strips (§3.3) | Our audit (§1.1) | strong | P2060's black level alone would widen the range to 0–23 |
 | Indicative consequences (§3.8) | Textbook values; [R15], [R18], [R21] | partial | Directions are well established; magnitudes depend on Si vs SiOx and on 3D structure we cannot see, hence ranges |
