@@ -22,7 +22,7 @@ Read the shared context and rules first.
 - **Baseline:** Batch_3 is what the supplier "promised". Batch_1 and Batch_2 arrived later. They are not better or worse; they show the kinds of variation we need to pick up.
 - **Defects:** the baseline isn't necessarily defect-free, and defects alone don't define the batches: "there's a lot of complex morphology features to examine".
 - **How the batches were made:** the data is real but the batches are synthetic. There is "usually some pattern that clusters the samples in a batch together".
-- **Strips:** tiles cut from one long image (same `strip_id`) don't matter. Don't build on them.
+- **Strips:** tiles cut from one long image (same `strip_id`) don't matter. Don't build on them. Never use them as features, nor image height or resolution tags, which identify strips. Hold whole strips out when estimating accuracy, because images from one strip are correlated.
 - **Tolerance:** a manufacturer would be wary of anything too far outside the baseline's standard deviation, in either direction.
 - **The judged test:** identify what is different about the batches, and so categorise held-back samples correctly. If that works, an unknown batch N can be called in or out of distribution. The core feature might be "given a sample image, can you categorise it into one of your batches?"
 - **Feature asks:** "a nice comparison UI that allows us to compare 2 batches and see their differences nicely visualised". Extra: "how would this material wear over time and degrade?"
@@ -36,19 +36,21 @@ Read the shared context and rules first.
   - four baseline images have a raised black level (22–23 instead of 0 in BSE);
   - coloured stitch columns at the edges are cropped at load.
 - **Still to come:**
-  - **9 held-back images** (27 files) from the three known batches, split unknown. Keep them unseen until the sorter is frozen with a git tag, score them once, commit the result, then add them to training.
+  - **9 held-back images** (27 files) from the three known batches, split unknown. Keep them unseen until attribution is frozen with a git tag, score them once, commit the result, then add them to training.
   - **2 images at the presentation**, "which batch do they belong to, and WHY". (The brief also mentions an unseen batch dropping on day one; the organisers' latest messages describe it as the held-back samples above.)
-- **What the crude stub segmentation already shows:**
-  - silicon fraction and porosity alone sort images at chance (12 of 31), so the batch pattern lives in richer morphology;
-  - two Batch_1 images have about 3× the baseline's silicon fraction.
+- **What Pat's first real measurements show** (branch `pat/ml-v3`, `docs/AGENT_HANDOVER.md`; first results, 3 Oct):
+  - with the current features, three-way attribution is at chance when whole strips are held out;
+  - Batch_3 vs the rest does separate on texture and material features, but imaging features alone also separate it, so acquisition differences must be ruled out;
+  - Batch_1's higher silicon comes almost entirely from one strip.
 
 ### How the features fit together
 
 ```text
-images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
+images ─► Pat's model: segmentation, KPIs, particles, imaging metrics,
+          features (qc/features.py), batch attribution (qc/attribute.py)
               │
               ▼
-   feature table (one row per image) ─► 1 Sort · 2 Compare · 3 Consistency · 4 Verdict
+   feature table + attribution output ─► 1 Sort · 2 Compare · 3 Consistency · 4 Verdict
                                               │
                                               ▼
                        5 Explain · 6 Impact · 7 Audit · 8 Cost of certainty
@@ -60,15 +62,19 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
 ### Rules for every feature agent
 
 - **Read first:** `AGENTS.md`, `README.md` (what's built), `docs/HANDOFF.md` (status and design notes), `docs/PLAN_v3.md` (the team plan).
-- **The model is Pat's.** She owns segmentation, KPIs, particles, particle types, imaging metrics, controls, the content of `config/kpi_dictionary.yaml`, `qc/measure.py`, `qc/types.py`, `qc/controls.py` and `KPI_UNITS`. Don't edit them; consume her outputs (`out/kpis.csv`, `out/particles.csv`, `out/imaging.csv`).
+- **The model is Pat's,** including batch attribution.
+  - She owns segmentation, KPIs, particles, particle types, imaging metrics, controls, uncertainty, the per-image feature table, the attribution model, and the content of `config/kpi_dictionary.yaml`.
+  - Her files: `qc/measure.py`, `qc/types.py`, `qc/controls.py`, `qc/uncertainty.py`, `qc/features.py`, `qc/attribute.py`, `config/particle_types.json`, `config/attribution_model.json` and `KPI_UNITS`.
+  - Don't edit them. Consume her outputs: `out/kpis.csv`, `out/particles.csv`, `out/imaging.csv`, `out/features.csv`, `out/attribution/<run>.json`.
+  - Her plan and status are in `docs/AGENT_HANDOVER.md` and the draft `docs/PLAN_v4.md` on branch `pat/ml-v3`.
 - **Feature-agnostic code.** New descriptor columns must flow through without code changes.
 - **Testing:**
-  - don't judge quality on the stub segmentation; test your code on synthetic tables (`tests/synth.py`);
-  - measure real performance once Pat's features land;
+  - judge model quality only on Pat's features, with whole strips held out;
+  - test your own code on synthetic tables (`tests/synth.py`);
   - never train or tune on held-back images.
 - **Contract:** `qc/schema.py` changes are additive; mirror them in `web/src/types.ts`. Small PRs, with `uv run pytest` and `cd web && npm run build` green and the README in sync.
 - **No language model** measures, decides or explains: the organisers saw an LLM describe images well but fail to group batches.
-- **Shared prerequisite:** feeding Pat's particle and imaging outputs into the tables (HANDOFF step 3). Whoever needs it first does it as its own small PR.
+- **Shared prerequisite:** feeding Pat's particle and imaging outputs into the tables (HANDOFF step 3). Her branch already writes `out/particles.csv` and `out/imaging.csv` from `qc/run.py`, so check it before building any plumbing. Whoever needs it first does the rest as its own small PR.
 
 ### One visual language
 
@@ -86,12 +92,20 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
 
 **Why it matters:** this is the live test ("2 images: which batch, and WHY"), the held-back 9, and "accuracy on the new batch".
 
+**Who does what:**
+- **Pat** builds the attribution model in `qc/attribute.py`, on `qc/features.py`. It provides per-image probabilities, the predicted batch, the top reasons, a heatmap, nearest known images, an "unfamiliar" flag, and an optional balanced assignment.
+- **This feature (software side)** wraps it and presents it. It builds **no second classifier**:
+  - the `Attribution` contract in `qc/schema.py`, agreed with Pat;
+  - the API;
+  - the Sort view;
+  - the held-out run and its record.
+
 **Core challenge:**
-- **Tiny, imbalanced training set:** 31 labelled images (17/7/7). With dozens of candidate features it is easy to overfit, so keep the feature count small, choose features *inside* cross-validation, and use equal priors so Batch_3 isn't favoured.
-- **The pattern is subtle morphology chosen by the organisers.** Simple fractions sort at chance, so success depends on Pat's richer features: size distributions, particle types, texture, spatial arrangement.
-- **Honest confidence:** probabilities that are right about how often they're right, and an "unlike any known batch" answer for out-of-distribution samples.
-- **The "why" must be the model's actual reason**, not a story added afterwards. Show the image's value on each deciding feature against each batch's range; point at example particles or similar known images where possible.
-- **Discipline:** freeze before the held-back images arrive; one scored run.
+- **Honesty while the model is weak.** Pat's first results put three-way attribution at chance. The view must show probabilities, the "unfamiliar" flag, and the expected accuracy from strip-held-out testing next to every call, and must never look more certain than the model is.
+- **The "why" must be the model's actual reasons**, not a story added afterwards. Render Pat's reasons as the image's value on each deciding feature against each batch's range, with the heatmap and the nearest known images.
+- **A tiny, imbalanced training set** (31 images, 17/7/7). Model choices (few features, nested strip-held-out tuning, class balance) are Pat's. Make their effect visible: confusion matrices, chance level.
+- **A reliable live path for the 2 images handed over shortly before we present:** upload, then Pat's `predict`, then a result in seconds, offline.
+- **Discipline:** freeze (git tag) before the held-back images arrive; one scored run, committed unchanged. If they turn out to be 3 per batch, show Pat's balanced assignment next to the unconstrained one.
 
 **Great looks like:**
 - held-out balanced accuracy far above chance (33%);
@@ -99,7 +113,7 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
 - a "why" a materials scientist would write themselves;
 - drag-and-drop, offline, seconds.
 
-**Builds on:** the sorter design in HANDOFF step 2 (`qc/classify.py`, `ImageCall`, `Sorting`).
+**Builds on:** Pat's `qc/attribute.py` (output `out/attribution/<run>.json`, CLI `uv run python -m qc.attribute --images data/<drop>`) and the wrapping plan in HANDOFF step 2 (`Attribution` contract, `/api/attribution` endpoints, `tests/fixtures/attribution_example.json`).
 
 ### 2. Compare two batches: what's different
 
@@ -115,7 +129,7 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
 
 **Great looks like:** a materials expert agrees with the top three drivers, and a non-expert sees the difference within ten seconds.
 
-**Builds on:** `compare()` in `qc/decide.py` (differences, intervals, drivers) and the sorter's feature ranking.
+**Builds on:** `compare()` in `qc/decide.py` (differences, intervals, drivers), and Pat's feature ranking and two-sided baseline z-scores (`qc/attribute.py`, `out/features.csv`).
 
 ### 3. Consistency within a batch
 
@@ -133,7 +147,7 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
 - outliers flagged with a reason;
 - a similarity view that shows clean blocks, or honestly shows where batches overlap.
 
-**Builds on:** the sorter's feature space, the odd-image check in `compare()`, and the clustering check (HANDOFF step 2).
+**Builds on:** Pat's per-image feature table (`out/features.csv`) and attribution output, the odd-image check in `compare()`, and her integral-range estimate (`qc/uncertainty.py`).
 
 ### 4. Verdict for an unknown batch: accept, investigate or reject
 
@@ -247,7 +261,7 @@ images ─► Pat's model: segmentation, KPIs, particles, imaging metrics
 
 **Great looks like:** "N images are enough to tell these batches apart", with the curve behind it.
 
-**Builds on:** PLAN_v3 §3.6, the sorter's evaluation, the verdict's next action.
+**Builds on:** PLAN_v3 §3.6, Pat's attribution evaluation (strip-held-out CV, permutation null) and `qc/uncertainty.py` (`integral_range`, `area_needed`), and the verdict's next action.
 
 ### 9. The app: one product, and the demo
 
