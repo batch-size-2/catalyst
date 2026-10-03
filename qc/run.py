@@ -14,6 +14,7 @@ from skimage.exposure import rescale_intensity
 from skimage.io import imsave
 
 from qc.decide import evaluate, split_tables
+from qc.explain import explain, load_dictionary
 from qc.io import field_paths, load_field
 from qc.measure import kpis, segment
 from qc.provenance import provenance
@@ -62,6 +63,7 @@ def run(batch_dirs: list[Path], cfg: dict, progress: Progress | None = None) -> 
     results = []
     for batch_dir in batch_dirs:
         evidence = evaluate(tables, batch_dir.name, cfg)
+        evidence.explanations = explain(evidence, load_dictionary())
         tiffs = sorted({p for d in (baseline_dir, batch_dir) for p in d.iterdir()
                         if p.suffix.lower() in TIFF_SUFFIXES})
         evidence.provenance = provenance(tiffs, cfg, data_dir)

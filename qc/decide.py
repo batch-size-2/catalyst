@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import t
 
+from qc.explain import explain, load_dictionary
 from qc.provenance import provenance
 from qc.schema import (
     IMAGING_COLUMNS, KPI_TABLE, KPI_UNITS, PARTICLE_COLUMNS, Controls, Descriptor, Difference, Evidence,
@@ -568,6 +569,7 @@ if __name__ == "__main__":
     input_tables = [args.kpis_csv, *sidecars(args.kpis_csv)]
     for name in tables:
         evidence = evaluate(tables, name, cfg)
+        evidence.explanations = explain(evidence, load_dictionary())
         evidence.provenance = provenance(input_tables, cfg, Path(cfg["data_dir"]))
         evidence_path(name).parent.mkdir(parents=True, exist_ok=True)
         evidence_path(name).write_text(evidence.model_dump_json(indent=2))
