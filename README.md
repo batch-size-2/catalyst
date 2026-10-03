@@ -193,6 +193,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `docs/TICKETS.md` | yes | Post-freeze experiment and implementation tickets (T1–T15). None of them changes the frozen model |
 | `scripts/experiments/<ticket>_<slug>.py` | yes | One script per experiment ticket. Diagnostics and v2 candidates only; never in the frozen path |
 | `docs/experiments/<ticket>.md` | yes | Pre-registered hypothesis and reading rules, then the results of each experiment ticket |
+| `docs/screenshots/` | yes | App screenshots on the real images for PRs and docs (e.g. `T5_compare_batch1.jpg`) |
 | `out/experiments/<ticket>/` | no | Raw outputs of the experiment scripts (tables, caches such as T1's `perturbed_features.parquet`) |
 
 **HTTP API** (`qc/api.py`, called from `web/src/api.ts`)
@@ -316,6 +317,8 @@ Pure statistics on KPI, particle and imaging tables; it never sees image pixels.
 
 **8. Odd units, verdict, next action.** `odd_units` flags batch images or strips outside the baseline mean ± `odd_sd` × SD of baseline values at that unit (at least 3 baseline values); `odd_images` and `odd_strips` are both reported, but only the driving unit's list triggers the verdict. The verdict follows the precedence in the deviations below (controls → new type → DIFFERENT not contradicted by the other unit → imaging → odd units → contradictions → power → UNCLEAR → controls missing → nothing measured), with `reasons` listing every trigger that fired. `next_action` is computed from the first trigger: quarantine/check-supplier on REJECT, more units on power limit, `units_to_settle` (the extra units that push the top UNCLEAR quantity's interval fully inside or outside ±δ) on UNCLEAR, "Release the batch" on ACCEPT.
 
+**8a. Spread and silicon content (report-only, TICKETS T5).** Neither enters the verdict, the reasons or the next action, and neither has a config key. For every key quantity and for `si_area_frac`, `Difference.variance_ratio` = batch SD / baseline SD of the driving-unit values (ddof 1), with `variance_ratio_interval` the `ci_level` interval from the F distribution: the variance ratio over F(n_b − 1, n_ref − 1) quantiles, square-rooted to an SD ratio. `other_unit.variance_ratios` gives the same ratio at the other unit (the strip view by default). It is null with fewer than 2 values on either side or a baseline SD of 0. `silicon_content` reports, per side (`batch`, `baseline`), `si_area_frac` and `si_solid_frac` = `si_area_frac / (1 − porosity_apparent)` per image, which is Si / (Si + graphite + binder) because the four phases make up the non-ignored pixels (PLAN_v4 §3.8). Each is a `Descriptor`: driving-unit mean, `ci_level` t-interval and strip values. An area fraction estimates the volume fraction; silicon content does not sort the batches.
+
 **9. Fingerprint and provenance.** `fingerprint.segments` stays at strip level for the image gallery; each descriptor's value and t-interval use the driving unit, with `by_strip` values from the strip segments. Type shares are listed separately in `fingerprint.type_shares`; `imaging`, `controls` and `explanations` remain available. Nearest batch, image groups and variance split were dropped: batch attribution (Pat's `qc/attribute.py`) replaces them. `qc/provenance.py` fills `provenance` (§3.11): SHA-256 per input TIFF, git commit + dirty flag, a canonical hash of the config plus hashes of `config/particle_types.json`/`config/kpi_dictionary.yaml` when present, the `rules-frozen` tag if it exists, and a timestamp — the only field that differs between identical runs.
 
 ### Changes from the v3 design
@@ -378,7 +381,8 @@ Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real s
   "differences": [{"name": "si_graphite_ratio", "unit": "", "key": true, "used": true,
                    "reference": 0.0889, "batch": 0.129, "difference": 0.0401,
                    "interval": [0.0323, 0.0479], "margin": 0.0121, "p": 0.000200,
-                   "status": "DIFFERENT", "n_segments": [8, 17]}],
+                   "status": "DIFFERENT", "n_segments": [8, 17],
+                   "variance_ratio": 1.85, "variance_ratio_interval": [1.13, 3.46]}],
   "drivers": ["si_graphite_ratio", "si_contrast_ratio", "porosity_apparent", "..."],
   "power": {"n_segments": [8, 17], "n_arrangements": 1081575, "min_p": 9.25e-07,
             "limited": false, "extra_needed": 0},
@@ -386,15 +390,20 @@ Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real s
                  "min_p": 0.000583, "limited": false, "extra_needed": 0},
                  "statuses": {"si_graphite_ratio": "DIFFERENT", "si_d50_um": "SIMILAR",
                               "si_internal_void_frac": "SIMILAR", "si_contrast_ratio": "UNCLEAR",
-                              "porosity_apparent": "SIMILAR"}, "contradictions": []},
+                              "porosity_apparent": "SIMILAR"}, "contradictions": [],
+                 "variance_ratios": {"si_graphite_ratio": {"ratio": 1.89, "interval": [0.905, 4.22], "n": [6, 7]}, "...": "..."}},
   "odd_images": [{"strip_id": "S1", "image_ids": ["fake_shift_S1_0"], "quantity": "si_graphite_ratio",
                   "value": 0.142, "range": [0.0647, 0.113]}, "..."],
   "odd_strips": [{"strip_id": "S1", "image_ids": ["fake_shift_S1_0", "fake_shift_S1_1"],
                   "quantity": "si_graphite_ratio", "value": 0.140, "range": [0.0652, 0.112]}, "..."],
+  "silicon_content": {"batch": [{"name": "si_area_frac", "unit": "fraction", "value": 0.0735, "interval": [0.0643, 0.0826], "by_strip": {"S1": 0.0895, "...": "..."}},
+                                 {"name": "si_solid_frac", "...": "..."}], "baseline": ["..."]},
   "n_images": {"batch": 8, "baseline": 17},
   "config_version": "v3-draft"
 }
 ```
+
+`variance_ratio`, `variance_ratio_interval`, `other_unit.variance_ratios` and `silicon_content` are report-only (§8a): the verdict never reads them.
 
 `tests/fixtures/evidence_example.json` is a fully populated example (stats, controls, fingerprint, provenance) for the UI and for reading the contract.
 
@@ -408,6 +417,15 @@ Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real s
 | Engineer | Top quantities, possible causes to check, supplier checks, odd images/strips, imaging flags and next action |
 | Scientist | Unit counts, p-values, intervals, other-unit statuses, unused quantities, imaging and controls |
 | Manager | Main driver, decision certainty, dictionary relevance and indicative consequences |
+
+**What's different (TICKETS T5).** `explanations.statements` holds short fixed statements for the Compare view, filled from the evidence (`BATCH_STATEMENTS` in `qc/explain.py`, keyed on the batch name for Batch_1 and Batch_2):
+
+- Batch_1: a different silicon population in 2 of its images (strip 2316: dimmer, more ragged particles, docs/experiments/T13.md), and the most variable batch, with the silicon SD ratio from `si_area_frac`'s `variance_ratio`;
+- Batch_2: not materially different from the baseline in anything we measure;
+- any other batch: its silicon SD ratio and its largest shift against the margin; the baseline against itself says so;
+- always last: imaging differences are shown separately, and the batch-sorting model's signal is also predicted by how the images were acquired (docs/experiments/T9.md).
+
+`explanations.silicon_note` is "Area fraction ≈ volume fraction. Silicon content does not sort the batches." `explanations.pictures` lists images that go with the statements (`BATCH_PICTURES`: for Batch_1 a strip 2080 InLens image and a strip 2316 BSE image, found by strip prefix in the batch's segments).
 
 All numbers come from the evidence or the stated formulas. Causes are worded "possible causes to check"; missing dictionary fields are left out. `config/kpi_dictionary.yaml` has one top-level entry per descriptor with `name`, `unit`, `key`, `meaning`, `why_it_matters`, `if_higher`, `if_lower` and `supplier_check`, plus `particle_types` entries keyed by type ID.
 

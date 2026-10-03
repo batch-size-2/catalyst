@@ -11,17 +11,19 @@ from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
-from scipy.stats import t
+from scipy.stats import f, t
 
 from qc.explain import explain, load_dictionary
 from qc.provenance import provenance
 from qc.schema import (
     IMAGING_COLUMNS, KPI_TABLE, KPI_UNITS, PARTICLE_COLUMNS, Controls, Descriptor, Difference, Evidence,
-    Fingerprint, ImagingCheck, Odd, Power, Segment, Status, Tables, Unit, UnitView, evidence_path, load_config,
+    Fingerprint, ImagingCheck, Odd, Power, Segment, SiliconContent, Status, Tables, Unit, UnitView,
+    VarianceRatio, evidence_path, load_config,
 )
 
 NON_QUANTITY = {"batch", "image_id", "strip_id", "px_um", "area_um2"}
 T_CLIP = 1e12
+SPREAD_ALSO = ["si_area_frac"]          # variance ratio for these besides the key quantities (report-only)
 
 
 def num(value) -> float | None:
@@ -201,6 +203,57 @@ def t_stats(batch_values: list[float], ref_values: list[float], ci_level: float)
     half = float(t.ppf((1 + ci_level) / 2, df)) * se
     interval = (float(diff - half), float(diff + half)) if np.isfinite(half) else None
     return Stats(diff, interval, T, sp, (n1, n2))
+
+
+def variance_ratio(batch_values: list[float], ref_values: list[float], ci_level: float) -> VarianceRatio:
+    """Batch SD / reference SD with a ci_level interval: F(n1 - 1, n2 - 1) on the variances, square-rooted."""
+    n1, n2 = len(batch_values), len(ref_values)
+    if n1 < 2 or n2 < 2:
+        return VarianceRatio(ratio=None, n=(n1, n2))
+    sd1, sd2 = float(np.std(batch_values, ddof=1)), float(np.std(ref_values, ddof=1))
+    if sd2 == 0:
+        return VarianceRatio(ratio=None, n=(n1, n2))
+    ratio = sd1 / sd2
+    tail = (1 - ci_level) / 2
+    interval = (ratio / float(np.sqrt(f.ppf(1 - tail, n1 - 1, n2 - 1))),
+                ratio / float(np.sqrt(f.ppf(tail, n1 - 1, n2 - 1))))
+    return VarianceRatio(ratio=ratio, interval=interval, n=(n1, n2))
+
+
+def describe(q: str, drive: list[Segment], strips: list[Segment], ci_level: float,
+             name: str | None = None) -> Descriptor:
+    """Mean and t-interval of the driving-unit values, with the strip values."""
+    vals = values_of(drive, q)
+    interval = None
+    if len(vals) >= 2:
+        half = float(t.ppf((1 + ci_level) / 2, len(vals) - 1)) \
+            * float(np.std(vals, ddof=1)) / float(np.sqrt(len(vals)))
+        interval = (float(np.mean(vals) - half), float(np.mean(vals) + half))
+    return Descriptor(name=name or q, unit=unit_of(q),
+                      value=num(np.mean(vals)) if vals else None, interval=interval,
+                      by_strip={s.strip_id: s.values.get(q) for s in strips})
+
+
+def silicon_content(ref_kpis: pd.DataFrame, batch_kpis: pd.DataFrame, batch_name: str,
+                    cfg: dict) -> SiliconContent:
+    """Silicon as a share of the image and of the solid (PLAN_v4 §3.8). Report-only.
+
+    Pores, graphite, Si and binder make up the non-ignored pixels, so per image
+    Si / (Si + graphite + binder) = si_area_frac / (1 - porosity_apparent).
+    """
+    quantities = ["si_area_frac", "si_solid_frac"]
+
+    def side(kpis: pd.DataFrame, name: str) -> list[Descriptor]:
+        if kpis.empty or "si_area_frac" not in kpis:
+            return []
+        solid = (1 - kpis["porosity_apparent"]).where(lambda s: s > 0) if "porosity_apparent" in kpis else np.nan
+        frame = kpis.assign(si_solid_frac=kpis["si_area_frac"] / solid)
+        drive = segments_of(frame, name, quantities, cfg.get("unit", "image"))
+        strips = segments_of(frame, name, quantities, "strip")
+        return [describe(q, drive, strips, cfg["ci_level"]).model_copy(update={"unit": "fraction"})
+                for q in quantities]
+
+    return SiliconContent(batch=side(batch_kpis, batch_name), baseline=side(ref_kpis, cfg["baseline"]))
 
 
 def permutation_p(units: list[Segment], n1: int, keys: list[str], cfg: dict) -> dict[str, float]:
@@ -408,6 +461,14 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
     driving_status = {d.name: d.status for d in differences if d.used}
     other_diffs, _, other_power = analyze(ref_other, batch_other, cfg, quantities, margins, keys, unusable)
     other_status = {d.name: d.status for d in other_diffs if d.used}
+    # spread, report-only: computed after the statuses and never read by verdict_of
+    spread = [q for q in quantities if q in keys or q in SPREAD_ALSO]
+    for d in differences:
+        if d.name in spread:
+            vr = variance_ratio(values_of(batch_drive, d.name), values_of(ref_drive, d.name), cfg["ci_level"])
+            d.variance_ratio, d.variance_ratio_interval = vr.ratio, vr.interval
+    other_ratios = {q: variance_ratio(values_of(batch_other, q), values_of(ref_other, q), cfg["ci_level"])
+                    for q in spread}
     contra = contradictions(driving_status, other_status)
     odd_images = odd_units(batch_image, ref_image, list(driving_status), cfg)
     odd_strips = odd_units(batch_strip, ref_strip, list(driving_status), cfg)
@@ -417,28 +478,22 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
                                                odds, pow_, unit, imaging, controls,
                                                batch_new_type_share, stats, cfg)
 
-    def describe(q: str, name: str | None = None) -> Descriptor:
-        vals = values_of(batch_drive, q)
-        interval = None
-        if len(vals) >= 2:
-            half = float(t.ppf((1 + cfg["ci_level"]) / 2, len(vals) - 1)) \
-                * float(np.std(vals, ddof=1)) / float(np.sqrt(len(vals)))
-            interval = (float(np.mean(vals) - half), float(np.mean(vals) + half))
-        return Descriptor(name=name or q, unit=unit_of(q),
-                          value=num(np.mean(vals)) if vals else None, interval=interval,
-                          by_strip={s.strip_id: s.values.get(q) for s in batch_strip})
+    def batch_descriptor(q: str, name: str | None = None) -> Descriptor:
+        return describe(q, batch_drive, batch_strip, cfg["ci_level"], name)
 
     return Evidence(
         batch=batch_name, baseline=cfg["baseline"], verdict=verdict, reasons=reasons,
         next_action=next_action, unit=unit, differences=differences, drivers=drivers, power=pow_,
-        other_unit=UnitView(unit=other, power=other_power, statuses=other_status, contradictions=contra),
+        other_unit=UnitView(unit=other, power=other_power, statuses=other_status, contradictions=contra,
+                            variance_ratios=other_ratios),
         odd_images=odd_images, odd_strips=odd_strips,
         new_type_share=batch_new_type_share, imaging=imaging, controls=controls,
         fingerprint=Fingerprint(segments=batch_strip,
-                                descriptors=[describe(q) for q in quantities
+                                descriptors=[batch_descriptor(q) for q in quantities
                                              if q not in type_share_quantities],
-                                type_shares=[describe(q, q.removeprefix("type_share:"))
+                                type_shares=[batch_descriptor(q, q.removeprefix("type_share:"))
                                              for q in type_share_quantities]),
+        silicon_content=silicon_content(ref_kpis, batch_kpis, batch_name, cfg),
         n_images={"batch": len(batch_kpis), "baseline": len(ref_kpis)},
         config_version=cfg["version"])
 

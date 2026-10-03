@@ -89,3 +89,37 @@ def test_load_dictionary(tmp_path):
     path = tmp_path / "dictionary.yaml"
     path.write_text(yaml.safe_dump(DICT))
     assert load_dictionary(path) == DICT
+
+
+def test_batch_statements_and_silicon_note():
+    tables = read_tables(FAKE)
+    evidence = evaluate(tables, "fake_odd", CFG)
+    spread = next(d for d in evidence.differences if d.name == "si_area_frac")
+    imaging = explain(evidence, {}).statements[-1]
+    assert imaging.startswith("Imaging differences are shown separately.") and "T9.md" in imaging
+    generic = explain(evidence, {})
+    assert generic.statements[0] == f"fake_odd: silicon SD {spread.variance_ratio:.1f}× the baseline's."
+    assert generic.silicon_note == "Area fraction ≈ volume fraction. Silicon content does not sort the batches."
+    assert generic.pictures == []
+    itself = explain(evaluate(tables, "fake_baseline", CFG), {}).statements
+    assert itself == ["fake_baseline is the baseline, compared here with itself.", imaging]
+
+    as_batch_1 = evidence.model_copy(update={"batch": "Batch_1"})
+    first = explain(as_batch_1, {}).statements
+    assert first[0].startswith(f"Batch_1 holds a different silicon population in 2 of "
+                               f"{evidence.n_images['batch']} images (strip 2316")
+    assert first[1] == f"It is the most variable batch: silicon SD {spread.variance_ratio:.1f}× the baseline's."
+    as_batch_2 = evidence.model_copy(update={"batch": "Batch_2"})
+    assert explain(as_batch_2, {}).statements == [
+        "Batch_2 is not materially different from the baseline in anything we measure.", imaging]
+
+
+def test_batch_1_pictures_follow_its_strips():
+    evidence = evaluate(read_tables(FAKE), "fake_odd", CFG)
+    segments = [s.model_copy(update={"strip_id": f"{prefix}_1015991"})
+                for s, prefix in zip(evidence.fingerprint.segments, ("2080", "2316"))]
+    evidence = evidence.model_copy(update={"batch": "Batch_1", "fingerprint": evidence.fingerprint.model_copy(
+        update={"segments": segments})})
+    pictures = explain(evidence, {}).pictures
+    assert [(p.image_id, p.detector) for p in pictures] == [
+        (segments[0].image_ids[0], "InLens"), (segments[1].image_ids[0], "BSE")]
