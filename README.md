@@ -68,6 +68,7 @@ flowchart LR
 
   subgraph OUT["out/ (gitignored)"]
     T["kpis.csv<br/>one row per image, incl. area_um2"]
+    PI["particles.csv · imaging.csv<br/>when Pat's tables are present"]
     E["evidence/{batch}.json"]
     A["attribution/{run}.json"]
     P["masks/{batch}/{id}.png"]
@@ -81,6 +82,7 @@ flowchart LR
   RUN --> SEG --> KPI --> RUN
   RUN -. "attribute() calls" .-> PREDICT --> A
   RUN --> T --> J
+  PI --> J
   CFG --> J
   RUN --> P
   RUN --> PROV --> E
@@ -116,7 +118,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `config/decision.yaml` | yes | Decision settings. Frozen with `git tag rules-frozen` before the unseen batch |
 | `config/attribution_model.json` | yes | Pat's frozen attribution model; hashed into provenance when present |
 | `out/kpis.csv` | no | KPI table, one row per image (incl. `area_um2`, the analysed area), all batches measured so far |
-| `out/particles.csv`, `out/imaging.csv` | no | Planned (§3.1): one row per Si particle, and per image and channel |
+| `out/particles.csv`, `out/imaging.csv` | no | Written by Pat's measuring (`pat/ml-v3`); read by `compare()` and `python -m qc.decide` |
 | `out/masks/<batch>/<image_id>.png` | no | BSE with phase overlay (4× downsampled), for eyeballing and the UI |
 | `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads this, attribution output and masks |
 | `out/attribution/<run>.json` | no | Attribution output from Pat's model, exposed by the API |
@@ -154,7 +156,9 @@ One command, `qc.run`, does steps 1–6 for the baseline plus each requested bat
 | 3 | **Segment** | `measure.segment(channels, px_um)` | `uint8` mask with `Phase` codes |
 | 4 | **Measure KPIs** | `measure.kpis(mask, px_um, channels)` | `{kpi: value}` |
 | 5 | **Write.** One row per image into the KPI table (incl. `area_um2`, the analysed area), plus a mask overlay | `run.measure_field`, `run.save_overlay` | `out/kpis.csv`, `out/masks/` |
-| 6 | **Compare** each batch against the baseline and record provenance | `decide.split_tables`, `decide.evaluate`, `provenance.provenance` | `out/evidence/<batch>.json` |
+| 6 | **Compare** each batch against the baseline and record provenance | `decide.read_tables`, `decide.evaluate`, `provenance.provenance` | `out/evidence/<batch>.json` |
+
+`compare()` consumes `out/particles.csv` and `out/imaging.csv` when present. Pat's `run.py` wiring on branch `pat/ml-v3` writes them; on `main`, `run()` still passes only the KPI table until her branch lands.
 
 **Input details (step 2, from PLAN_v1 §2)**
 - **Detectors** are normalised to `BSE` / `ETD` / `InLens`; `SE` is an alias for `ETD`. The `img_` prefix is dropped from IDs.
@@ -193,23 +197,25 @@ A KPI that isn't computed, or an image whose segmentation crashes, is written as
 
 ## Decision algorithm (`qc/decide.py`)
 
-Pure statistics on KPI tables; it never sees an image. It follows PLAN_v3 §3.5, with the deviations listed below.
+Pure statistics on KPI, particle and imaging tables; it never sees image pixels. It follows PLAN_v3 §3.5, with the deviations listed below.
 
 **1. Tables and units.** `split_tables` groups `out/kpis.csv` into one `Tables` per batch (`kpis` now, `particles`/`imaging` once they exist). `compare(ref, batch, cfg)` builds both image units (one per image) and strip units (one per `strip_id`, with a value area-weighted over its images; equal weights where area is missing). `unit` selects which view drives the verdict; the other is reported alongside it. An image with a missing `strip_id` uses its `image_id` as the strip id.
 
-**2. Quantities.** `key_descriptors` in config order, then `KPI_UNITS`, then any other numeric column. `key` = counts towards the verdict; `used` = key and measured on both sides (`note: "not measured"` otherwise).
+**2. Quantities.** `key_descriptors` in config order, then type-share quantities sorted by name, `KPI_UNITS`, then other numeric columns. Type shares count as keys when `key_type_shares` is true. `used` = key and measured on both sides (`note: "not measured"` otherwise).
 
-**3. Units.** `unit` is `image` or `strip` (default `image`). `analyze` runs at both units with nothing dropped; `Evidence.other_unit` holds the other unit's power and used-key statuses. A used key quantity that is DIFFERENT at one unit and SIMILAR at the other is a contradiction: INVESTIGATE, not REJECT, because images from one strip are correlated and an image-level p can be too small.
+**3. Particle types and imaging.** Per image, `type_share:<type>` = Si area of that type / all typed Si area (border particles included), and `unassigned_share` likewise; `new_type_share` pools the unassigned share over the batch. Type shares become keys when `key_type_shares` is true, and `fingerprint.type_shares` reports their driving-unit values, intervals and strip values. Strip shares are area-weighted means of the images' shares, not pooled particles. The imaging check flags baseline images whose black level in any channel differs from that channel's median by more than `imaging_black_outlier`, then compares each metric with the non-outlier baseline min–max range widened by `imaging_widen` and at least `imaging_min_pad`. Any batch image outside a range sets `imaging.changed`; `imaging_sensitive` keys are then unused. When `curtaining_max` is not null, BSE `curtaining_index` above it blanks `curtaining_sensitive` descriptors on both sides; null leaves them untouched.
 
-**4. Difference per quantity.** `reference`/`batch` = unweighted means over the driving-unit values; `difference` = batch − reference. `interval` = `ci_level` t-interval on the difference with pooled SD `sp` and n1 + n2 − 2 degrees of freedom. `margin` δ = `margins[name]` if set, else `similar_margin` × SD (ddof 1) of the baseline's image values; the same δ is used at both units.
+**4. Units.** `unit` is `image` or `strip` (default `image`). `analyze` runs at both units with nothing dropped; `Evidence.other_unit` holds the other unit's power and used-key statuses. A used key quantity that is DIFFERENT at one unit and SIMILAR at the other is a contradiction: INVESTIGATE, not REJECT, because images from one strip are correlated and an image-level p can be too small.
 
-**5. Family-wise p, status, drivers.** Labels are shuffled over driving-unit values (the units are values for ≥ 1 used key quantity): all C(n1 + n2, n1) arrangements when ≤ `n_resamples`, else `n_resamples` seeded draws; the observed arrangement always counts. `p` = share of arrangements whose **max-|T| over the used key quantities** reaches the observed |T| (single-step Westfall–Young: the same p protects all key quantities at once). Status for a used key quantity: DIFFERENT when `p < alpha` and |difference| > δ; SIMILAR when the interval lies inside ±δ; else UNCLEAR. Non-key or unused-but-measured quantities get a descriptive status from the interval alone — it never affects the verdict. `drivers` ranks the used key quantities by |difference| / δ.
+**5. Difference per quantity.** `reference`/`batch` = unweighted means over the driving-unit values; `difference` = batch − reference. `interval` = `ci_level` t-interval on the difference with pooled SD `sp` and n1 + n2 − 2 degrees of freedom. `margin` δ = `margins[name]` if set, else `similar_margin` × SD (ddof 1) of the baseline's image values; the same δ is used at both units.
 
-**6. Power.** `power.n_arrangements` = C(n1 + n2, n1) on the driving unit counts; `min_p` = 2/N for equal counts else 1/N; `limited` when `min_p ≥ alpha`; `extra_needed` = the extra batch units that would lift the limit (≤ 20).
+**6. Family-wise p, status, drivers.** Labels are shuffled over driving-unit values (the units are values for ≥ 1 used key quantity): all C(n1 + n2, n1) arrangements when ≤ `n_resamples`, else `n_resamples` seeded draws; the observed arrangement always counts. `p` = share of arrangements whose **max-|T| over the used key quantities** reaches the observed |T| (single-step Westfall–Young: the same p protects all key quantities at once). Status for a used key quantity: DIFFERENT when `p < alpha` and |difference| > δ; SIMILAR when the interval lies inside ±δ; else UNCLEAR. Non-key or unused-but-measured quantities get a descriptive status from the interval alone — it never affects the verdict. `drivers` ranks the used key quantities by |difference| / δ.
 
-**7. Odd units, verdict, next action.** `odd_units` flags batch images or strips outside the baseline mean ± `odd_sd` × SD of baseline values at that unit (at least 3 baseline values); `odd_images` and `odd_strips` are both reported, but only the driving unit's list triggers the verdict. The verdict follows the precedence in the deviations below (controls → new type → DIFFERENT not contradicted by the other unit → imaging → odd units → contradictions → power → UNCLEAR → controls missing → nothing measured), with `reasons` listing every trigger that fired. `next_action` is computed from the first trigger: quarantine/check-supplier on REJECT, more units on power limit, `units_to_settle` (the extra units that push the top UNCLEAR quantity's interval fully inside or outside ±δ) on UNCLEAR, "Release the batch" on ACCEPT.
+**7. Power.** `power.n_arrangements` = C(n1 + n2, n1) on the driving unit counts; `min_p` = 2/N for equal counts else 1/N; `limited` when `min_p ≥ alpha`; `extra_needed` = the extra batch units that would lift the limit (≤ 20).
 
-**8. Fingerprint and provenance.** `fingerprint.segments` stays at strip level for the image gallery; each descriptor's value and t-interval use the driving unit, with `by_strip` values from the strip segments. `type_shares`, `imaging`, `controls` and `explanations` remain available. Nearest batch, image groups and variance split were dropped: batch attribution (Pat's `qc/attribute.py`) replaces them. `qc/provenance.py` fills `provenance` (§3.11): SHA-256 per input TIFF, git commit + dirty flag, a canonical hash of the config plus hashes of `config/particle_types.json`/`config/kpi_dictionary.yaml` when present, the `rules-frozen` tag if it exists, and a timestamp — the only field that differs between identical runs.
+**8. Odd units, verdict, next action.** `odd_units` flags batch images or strips outside the baseline mean ± `odd_sd` × SD of baseline values at that unit (at least 3 baseline values); `odd_images` and `odd_strips` are both reported, but only the driving unit's list triggers the verdict. The verdict follows the precedence in the deviations below (controls → new type → DIFFERENT not contradicted by the other unit → imaging → odd units → contradictions → power → UNCLEAR → controls missing → nothing measured), with `reasons` listing every trigger that fired. `next_action` is computed from the first trigger: quarantine/check-supplier on REJECT, more units on power limit, `units_to_settle` (the extra units that push the top UNCLEAR quantity's interval fully inside or outside ±δ) on UNCLEAR, "Release the batch" on ACCEPT.
+
+**9. Fingerprint and provenance.** `fingerprint.segments` stays at strip level for the image gallery; each descriptor's value and t-interval use the driving unit, with `by_strip` values from the strip segments. Type shares are listed separately in `fingerprint.type_shares`; `imaging`, `controls` and `explanations` remain available. Nearest batch, image groups and variance split were dropped: batch attribution (Pat's `qc/attribute.py`) replaces them. `qc/provenance.py` fills `provenance` (§3.11): SHA-256 per input TIFF, git commit + dirty flag, a canonical hash of the config plus hashes of `config/particle_types.json`/`config/kpi_dictionary.yaml` when present, the `rules-frozen` tag if it exists, and a timestamp — the only field that differs between identical runs.
 
 ### Deviations from PLAN_v3
 
@@ -220,6 +226,10 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 - **SIMILAR uses a t-interval, not the two-level bootstrap (§3.5).** 90% interval on driving-unit values with pooled SD and n1 + n2 − 2 degrees of freedom, as in the FDA tier-1 method the plan cites [R7]. The margin δ is `similar_margin` × the baseline image SD, used at both units, and can be fixed per key quantity in `margins` at Sync 2.
 - **Consequence: INVESTIGATE is the normal answer for the strip view.** With 3–7 strips SIMILAR is rare. Per image there are 7–17 units. The next action says how many more units would settle it. The Sync 1 self-split check passes when at most `alpha` of the splits come out DIFFERENT, and each negative control (§3.7) passes when it is not DIFFERENT: no false REJECT. Neither needs SIMILAR.
 - **Power limit.** A comparison is power-limited when the smallest achievable p ≥ `alpha`: 2/N for equal unit counts (an arrangement and its mirror give the same |T|), else 1/N, where N is the number of arrangements. The plan's "N < 1/alpha" misses e.g. a 3 vs 3 strip comparison, N = 20, smallest p = 0.10.
+- **Imaging range padding.** The 10% widening has a per-metric floor (`imaging_min_pad`), so a metric that is constant in the baseline (BSE black level 0) doesn't flag a 1-grey-level change.
+- **Imaging outliers.** Outliers are baseline images, not strips (§3.3 says strips), since the image is the unit.
+- **Type shares.** Shares are per image; a strip value is the area-weighted mean of its images' shares, not pooled particles (§3.5).
+- **Curtaining.** BSE `curtaining_index` blanks `curtaining_sensitive` on both sides; off (`curtaining_max: null`) until Pat calibrates it.
 - **The image is the unit of the verdict (§3.5 says strip segment).** Mentors (3 Oct): batches are synthetic morphology groupings, so strips don't matter. The strip view is computed alongside; a DIFFERENT-vs-SIMILAR split between units → INVESTIGATE because images of one strip are correlated and an image-level p can be too small.
 - **Shared-strip variants removed (§3.5, §3.13).**
 - **Nearest batch, image groups and variance split dropped (§3.5):** batch attribution replaces them.
@@ -239,6 +249,11 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 | `key_descriptors` | 5 items | Quantities that count towards the verdict |
 | `key_type_shares` | `true` | Particle-type shares count as key quantities (§3.4) |
 | `imaging_sensitive` | `si_contrast_ratio`, `porosity_apparent` | Reported but unused if imaging changed (§3.3) |
+| `imaging_black_outlier` | `10` | Exclude a baseline image from the imaging range if any channel's black level differs from its baseline median by more than this |
+| `imaging_widen` | `0.1` | Widen each baseline metric range by this fraction of its width on both sides |
+| `imaging_min_pad` | `{black_level: 2, p1: 2, p50: 2, p99: 2, saturated_frac: 0.001}` | Minimum padding on each side of the listed imaging metric ranges |
+| `curtaining_max` | `null` | BSE `curtaining_index` above this blanks run-length descriptors; `null` turns it off pending Pat's calibration |
+| `curtaining_sensitive` | `[graphite_chord_um, pore_chord_um, graphite_anisotropy]` | Descriptors set to NaN on curtained images |
 | `ci_level` | `0.90` | Level of the t-intervals |
 | `alpha` | `0.10` | Family-wise threshold for DIFFERENT |
 | `similar_margin` | `1.5` | δ = this × baseline image SD (FDA tier-1) |
@@ -247,7 +262,7 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 | `n_resamples`, `seed` | `5000`, `0` | Resampling budget and seed |
 | `odd_sd` | `3.0` | Odd range = baseline mean ± this × baseline SD at each unit; `null` turns it off |
 
-**Not built yet** (next pieces): particle-based quantities (pooled D50, type shares, new-type detection, §3.4), the imaging check (§3.3), the batch-attribution views, controls (§3.7) and explanations (§3.8). The verdict logic already reacts to `new_type_share`, `imaging.changed` and `controls` once they are filled.
+**Not built yet** (next pieces): the batch-attribution views, controls (§3.7) and explanations (§3.8). The verdict logic already reacts to `new_type_share`, `imaging.changed` and `controls` once they are filled.
 
 **Held-out protocol** (for batch attribution):
 1. Put the new images in their own folders under `data/`, never inside the known batch folders.
