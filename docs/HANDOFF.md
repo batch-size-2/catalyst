@@ -49,6 +49,12 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 - Added baseline imaging ranges/outliers, imaging-sensitive quantities and optional curtaining blanking.
 - Added CLI sidecar loading, synthetic tests and README documentation.
 
+## Done (step 4, branch `PtrkH/explain`)
+
+- Added fixed-template operator, engineer, scientist and manager explanations with dictionary fallbacks and indicative formulas.
+- Wired explanations into `run()` and the decision CLI before evidence is written.
+- Added synthetic explanation tests and README documentation; no dictionary file was created.
+
 ## Done (PR #4)
 
 - **Evidence contract**: `qc/schema.py`, mirrored in `web/src/types.ts`; full example in `tests/fixtures/evidence_example.json`.
@@ -76,13 +82,7 @@ Done, see Done. When `pat/ml-v3` lands: `run()` must pass `split_tables(tables.k
 
 ### 4. Explanations: `qc/explain.py`
 
-- **The dictionary file:** create `config/kpi_dictionary.yaml` with the **structure only**. Per descriptor and per particle type: name, unit, meaning, why_it_matters, causes_higher, causes_lower, supplier_check. Fill name and unit; leave the rest empty for Pat. Don't write domain content.
-- **The texts:** `explain(evidence, dictionary) -> Explanations` produces the four templates of PLAN_v3 §3.8 (operator, engineer, scientist, manager).
-  - Every number comes from the evidence.
-  - Causes are worded "possible causes to check"; never "defective".
-  - Missing dictionary fields are left out.
-  - Indicative consequences follow §3.8: a capacity range spanning Si to SiOx, swelling, and Bruggeman for porosity.
-- **Wiring:** `run()` fills `evidence.explanations`.
+Done, see Done. The dictionary file comes with `pat/ml-v3` (her format: name, unit, key, meaning, why_it_matters, if_higher, if_lower, supplier_check, particle_types); no structure-only file was created to avoid a conflict.
 
 ### 5. UI and API
 

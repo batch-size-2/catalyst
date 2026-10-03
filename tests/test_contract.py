@@ -198,6 +198,7 @@ def test_end_to_end_run(tmp_path, monkeypatch):
     fake_batch(Path("data/new"), 2)
     first, second = run([Path("data/new")], CFG), run([Path("data/new")], CFG)
     assert Evidence.model_validate_json(evidence_path("new").read_text()) == second[0]
+    assert second[0].explanations.operator.startswith(second[0].verdict)
 
     assert "area_um2" in pd.read_csv("out/kpis.csv").columns
     image_ids = [i for s in second[0].fingerprint.segments for i in s.image_ids]

@@ -11,7 +11,7 @@ A decision layer on top of SEM microstructure analysis. Drop in a folder of micr
 - how sure we are;
 - what to do next.
 
-No model is trained. Measurements come from classic image processing, and the verdict from plain statistics.
+Measurements come from classic image processing, and the QC verdict from plain statistics. Pat builds a separate attribution model for sorting images into batches.
 
 ## Plan
 
@@ -45,11 +45,12 @@ flowchart LR
   subgraph IN["Inputs"]
     D["data/{batch}/img_{id}_{detector}.tif<br/>BSE · ETD/SE · InLens, 0.025 µm/px"]
     CFG["config/decision.yaml<br/>baseline · key_descriptors · margins · unit<br/>alpha · ci_level"]
+    DICT["config/kpi_dictionary.yaml<br/>Pat's audience dictionary, when present"]
   end
 
   subgraph GLUE["Shared glue"]
     IO["qc/io.py<br/>load_field → Field<br/>alias detectors · crop edges · px_um · strip_id · black_level"]
-    RUN["qc/run.py · run() / attribute()<br/>measure + evaluate · wrap Pat's predict()"]
+    RUN["qc/run.py · run() / attribute()<br/>measure + evaluate · explain before writing"]
     PROV["qc/provenance.py<br/>input + config hashes · git state · rules-frozen tag"]
   end
 
@@ -64,6 +65,7 @@ flowchart LR
 
   subgraph BE["Backend · qc/decide.py"]
     J["evaluate(tables, batch, cfg) → compare(ref, batch, cfg) → Evidence<br/>image + strip units → differences → verdict"]
+    EXPLAIN["qc/explain.py · explain(evidence, dictionary) → Explanations"]
   end
 
   subgraph OUT["out/ (gitignored)"]
@@ -84,6 +86,10 @@ flowchart LR
   RUN --> T --> J
   PI --> J
   CFG --> J
+  RUN --> EXPLAIN
+  J --> EXPLAIN
+  DICT --> EXPLAIN
+  EXPLAIN --> E
   RUN --> P
   RUN --> PROV --> E
   J --> E
@@ -116,6 +122,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `data/<batch>/` | no | Input TIFFs (or symlinks to them). One folder per batch; the folder name is the batch name |
 | `EXAMPLE BATCHES FOR LOCAL REFERENCE/` | no | The 1.6 GB of Polaron images. Don't upload anywhere without Polaron's OK (PLAN_v1 §1, rule 5) |
 | `config/decision.yaml` | yes | Decision settings. Frozen with `git tag rules-frozen` before the unseen batch |
+| `config/kpi_dictionary.yaml` | yes | Pat's descriptor/particle-type content; read by `explain()` and hashed into provenance; arrives with `pat/ml-v3` |
 | `config/attribution_model.json` | yes | Pat's frozen attribution model; hashed into provenance when present |
 | `out/kpis.csv` | no | KPI table, one row per image (incl. `area_um2`, the analysed area), all batches measured so far |
 | `out/particles.csv`, `out/imaging.csv` | no | Written by Pat's measuring (`pat/ml-v3`); read by `compare()` and `python -m qc.decide` |
@@ -230,6 +237,7 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 - **Imaging outliers.** Outliers are baseline images, not strips (§3.3 says strips), since the image is the unit.
 - **Type shares.** Shares are per image; a strip value is the area-weighted mean of its images' shares, not pooled particles (§3.5).
 - **Curtaining.** BSE `curtaining_index` blanks `curtaining_sensitive` on both sides; off (`curtaining_max: null`) until Pat calibrates it.
+- **Explanation presentation.** The audience texts carry no pictures yet (§3.8 says pictures go with the words); the UI adds them in step 5. The interval level is not in the texts because `ci_level` is not part of `Evidence`.
 - **The image is the unit of the verdict (§3.5 says strip segment).** Mentors (3 Oct): batches are synthetic morphology groupings, so strips don't matter. The strip view is computed alongside; a DIFFERENT-vs-SIMILAR split between units → INVESTIGATE because images of one strip are correlated and an image-level p can be too small.
 - **Shared-strip variants removed (§3.5, §3.13).**
 - **Nearest batch, image groups and variance split dropped (§3.5):** batch attribution replaces them.
@@ -262,7 +270,7 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 | `n_resamples`, `seed` | `5000`, `0` | Resampling budget and seed |
 | `odd_sd` | `3.0` | Odd range = baseline mean ± this × baseline SD at each unit; `null` turns it off |
 
-**Not built yet** (next pieces): the batch-attribution views, controls (§3.7) and explanations (§3.8). The verdict logic already reacts to `new_type_share`, `imaging.changed` and `controls` once they are filled.
+**Not built yet** (next pieces): the batch-attribution views and controls (§3.7). The verdict logic already reacts to `new_type_share` and `imaging.changed` once they are filled.
 
 **Held-out protocol** (for batch attribution):
 1. Put the new images in their own folders under `data/`, never inside the known batch folders.
@@ -302,6 +310,21 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 
 `tests/fixtures/evidence_example.json` is a fully populated example (stats, controls, fingerprint, provenance) for the UI and for reading the contract.
 
+## Explanations (`qc/explain.py`)
+
+`explain(evidence, dictionary)` produces four fixed-template texts from one `Evidence`, with no language model.
+
+| Audience | Gets |
+|---|---|
+| Operator | Verdict headline and release/hold action |
+| Engineer | Top quantities, possible causes to check, supplier checks, odd images/strips, imaging flags and next action |
+| Scientist | Unit counts, p-values, intervals, other-unit statuses, unused quantities, imaging and controls |
+| Manager | Main driver, decision certainty, dictionary relevance and indicative consequences |
+
+All numbers come from the evidence or the stated formulas. Causes are worded "possible causes to check"; missing dictionary fields are left out. `config/kpi_dictionary.yaml` has one top-level entry per descriptor with `name`, `unit`, `key`, `meaning`, `why_it_matters`, `if_higher`, `if_lower` and `supplier_check`, plus `particle_types` entries keyed by type ID.
+
+For `si_graphite_ratio` r, silicon share is `s = r / (1 + r)`. Theoretical capacity at silicon capacity C is `cap(s, C) = s·C + (1 − s)·372`, reported as a relative change over the SiOx-to-Si range C = 1,500 to 3,600 mAh/g. Silicon-driven swelling is reported as the ratio of the silicon shares (Si expands about 2.8× on full lithiation, graphite about 0.1×). For apparent porosity p, the indicative ion-transport change is `(p_batch / p_reference)^1.5 − 1` (Bruggeman). These are textbook ranges, not predictions.
+
 ## Batch attribution (Pat's `qc/attribute.py`)
 
 The software side builds no classifier; `qc.run.attribute()` wraps Pat's predictor and persists its validated output.
@@ -330,6 +353,8 @@ The software side builds no classifier; `qc.run.attribute()` wraps Pat's predict
 | `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv`, `tests/fixtures/evidence_example.json`, `tests/fixtures/attribution_example.json` | **Both.** Contract and fixtures |
 | `qc/measure.py` (`segment`, `kpis`) | ML (Pat) |
 | `qc/attribute.py`, `qc/features.py`, `config/attribution_model.json` | ML (Pat) |
+| `config/kpi_dictionary.yaml` | ML (Pat) |
+| `qc/explain.py` | Software (Patrik) |
 | `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
 | `qc/api.py`, `web/` | Software (Patrik) |
 | `qc/io.py`, `qc/run.py` | Shared glue |
