@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Catalyst · Identity</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400..600&amp;display=swap">
+<style>
+body{margin:0;background:#0A0B0D}
+.cx{font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#EDECE8;background-color:#0A0B0D;background-image:linear-gradient(rgba(255,255,255,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.032) 1px,transparent 1px);background-size:32px 32px;-webkit-font-smoothing:antialiased}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.glass{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.025));-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 48px -24px rgba(0,0,0,.7)}
+.lbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8A8C92}
+.nav{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:10px;color:#A3A4A9;font-size:14px;text-decoration:none}
+.nav:hover{background:rgba(255,255,255,.05);color:#EDECE8}
+.nav.on{background:rgba(255,255,255,.07);color:#F6F5F2;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;font:500 14px 'Geist',sans-serif;color:#EDECE8;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);cursor:pointer;text-decoration:none}
+.btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.btn.pri{background:#FF7A2F;border-color:#FF7A2F;color:#1A0A00;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 24px -8px rgba(255,122,47,.6)}
+.btn.pri:hover{background:#FF8C4A;color:#1A0A00}
+a{color:#FF9A5C}a:hover{color:#FFB98A}
+</style>
+</helmet>
+<div class="cx" style="width: 1440px; height: 1180px; box-sizing: border-box; padding: 56px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto auto auto; gap: 24px; overflow: hidden">
+
+  <section style="grid-column: span 7; position: relative; border-radius: 28px; border: 1px solid rgba(255,255,255,.08); background: rgba(10,11,13,.6); padding: 32px; display: flex; flex-direction: column; gap: 20px; overflow: hidden">
+    <div class="lbl">01 · Mark</div>
+    <div style="display: flex; align-items: center; gap: 40px">
+      <svg width="340" height="340" viewBox="-8 -6 80 76" aria-label="Catalyst mark construction" style="flex: none">
+        <g stroke="rgba(255,255,255,.08)" stroke-width=".2"><path d="M-8 0H72M-8 8H72M-8 16H72M-8 24H72M-8 32H72M-8 40H72M-8 48H72M-8 56H72M-8 64H72"></path><path d="M0 -6V70M8 -6V70M16 -6V70M24 -6V70M32 -6V70M40 -6V70M48 -6V70M56 -6V70M64 -6V70"></path></g>
+        <path d="M12 38 L22 21 L42 21 L52 38 L42 55 L22 55 Z" fill="none" stroke="#2DD4BF" stroke-width=".5" stroke-dasharray="1.5 1"></path>
+        <circle cx="32" cy="38" r="11" fill="none" stroke="#2DD4BF" stroke-width=".5" stroke-dasharray="1.5 1"></circle>
+        <path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" fill-opacity=".92" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path>
+        <path d="M18.5 16 L19.8 27 L25.5 23.5 Z M45.5 16 L44.2 27 L38.5 23.5 Z" fill="#FFC6A3"></path>
+        <rect x="22.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><rect x="36.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect>
+        <path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path>
+        <path d="M10 41 L1 38 M10 46 L2 49 M54 41 L63 38 M54 46 L62 49" stroke="#FF7A2F" stroke-width="3" stroke-linecap="round"></path>
+        <g fill="#2DD4BF"><circle cx="12" cy="38" r=".9"></circle><circle cx="52" cy="38" r=".9"></circle><circle cx="22" cy="55" r=".9"></circle><circle cx="42" cy="55" r=".9"></circle><circle cx="22" cy="21" r=".9"></circle><circle cx="42" cy="21" r=".9"></circle></g>
+      </svg>
+      <div style="display: flex; flex-direction: column; gap: 18px; font-size: 14px; line-height: 1.5; color: #A3A4A9; max-width: 260px">
+        <p style="margin: 0"><span style="color: #5EEAD4">Ring.</span> The head is a benzene hexagon, the chemist's shorthand for a catalyst.</p>
+        <p style="margin: 0"><span style="color: #FF9A5C">Ears.</span> The two top bonds lift into ears.</p>
+        <p style="margin: 0"><span style="color: #FF9A5C">Whiskers.</span> Side bonds, drawn like substituents on the ring.</p>
+        <p style="margin: 0">Built on an 8-unit grid, one stroke weight, works down to 16 px.</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="grid-column: span 5; display: grid; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 24px">
+    <div style="border-radius: 28px; border: 1px solid rgba(255,255,255,.08); background: rgba(10,11,13,.6); padding: 32px; display: flex; flex-direction: column; justify-content: space-between">
+      <div class="lbl">02 · Wordmark</div>
+      <div style="display: flex; align-items: center; gap: 16px">
+        <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><rect x="22.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><rect x="36.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path><path d="M10 41 L1 38 M10 46 L2 49 M54 41 L63 38 M54 46 L62 49" stroke="#FF7A2F" stroke-width="3" stroke-linecap="round"></path></svg>
+        <span style="font-size: 64px; font-weight: 600; letter-spacing: -0.045em; line-height: 1">catalyst</span>
+      </div>
+      <span style="font-size: 13px; color: #8A8C92">Geist Semibold, −4.5% tracking, lowercase. The mark sits on the x-height.</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+      <div style="border-radius: 24px; background: #F3F1EC; display: grid; place-items: center"><span style="display: flex; align-items: center; gap: 8px; color: #16171A"><svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#E8641C" stroke="#E8641C" stroke-width="4" stroke-linejoin="round"></path><rect x="22.5" y="31" width="5" height="10" rx="2.5" fill="#F3F1EC"></rect><rect x="36.5" y="31" width="5" height="10" rx="2.5" fill="#F3F1EC"></rect><path d="M10 41 L1 38 M10 46 L2 49 M54 41 L63 38 M54 46 L62 49" stroke="#E8641C" stroke-width="3" stroke-linecap="round"></path></svg><span style="font-size: 22px; font-weight: 600; letter-spacing: -0.04em">catalyst</span></span></div>
+      <div style="border-radius: 24px; border: 1px solid rgba(255,255,255,.08); display: grid; place-items: center; background: rgba(10,11,13,.6)">
+        <div style="width: 96px; height: 96px; border-radius: 24px; display: grid; place-items: center; background: linear-gradient(160deg, #2A2B30, #111215); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 16px 32px -12px rgba(0,0,0,.8)"><svg width="62" height="62" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><rect x="22.5" y="31" width="5" height="10" rx="2.5" fill="#111215"></rect><rect x="36.5" y="31" width="5" height="10" rx="2.5" fill="#111215"></rect><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#111215"></path></svg></div>
+      </div>
+      <div style="border-radius: 24px; border: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; gap: 18px; background: rgba(10,11,13,.6)">
+        <svg width="32" height="32" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="5" stroke-linejoin="round"></path><rect x="22" y="31" width="6" height="10" rx="3" fill="#0A0B0D"></rect><rect x="36" y="31" width="6" height="10" rx="3" fill="#0A0B0D"></rect></svg>
+        <svg width="16" height="16" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="6" stroke-linejoin="round"></path><rect x="21" y="31" width="8" height="11" rx="4" fill="#0A0B0D"></rect><rect x="35" y="31" width="8" height="11" rx="4" fill="#0A0B0D"></rect></svg>
+      </div>
+    </div>
+  </section>
+
+  <section style="grid-column: span 5; border-radius: 28px; border: 1px solid rgba(255,255,255,.08); background: rgba(10,11,13,.6); padding: 28px 32px; display: flex; flex-direction: column; gap: 20px">
+    <div class="lbl">03 · Moods · used in empty, working, sure and unsure states</div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px"><svg width="72" height="72" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><rect x="22.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><rect x="36.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path></svg><span style="font-size: 13px; color: #A3A4A9">Ready</span></div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px"><svg width="72" height="72" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><rect x="25" y="33" width="5" height="7" rx="2.5" fill="#0A0B0D"></rect><rect x="39" y="33" width="5" height="7" rx="2.5" fill="#0A0B0D"></rect><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path></svg><span style="font-size: 13px; color: #A3A4A9">Sniffing</span></div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px"><svg width="72" height="72" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><path d="M22 37 Q25 32 28 37 M36 37 Q39 32 42 37" stroke="#0A0B0D" stroke-width="3" fill="none" stroke-linecap="round"></path><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path></svg><span style="font-size: 13px; color: #A3A4A9">Sure</span></div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 10px"><svg width="72" height="72" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><rect x="22.5" y="30" width="6" height="12" rx="3" fill="#0A0B0D"></rect><rect x="37" y="33" width="4" height="7" rx="2" fill="#0A0B0D"></rect><path d="M28 47 Q32 44 36 47" stroke="#0A0B0D" stroke-width="2.5" fill="none" stroke-linecap="round"></path></svg><span style="font-size: 13px; color: #A3A4A9">Unsure</span></div>
+    </div>
+  </section>
+
+  <section style="grid-column: span 7; border-radius: 28px; border: 1px solid rgba(255,255,255,.08); background: rgba(10,11,13,.6); padding: 28px 32px; display: flex; flex-direction: column; gap: 18px">
+    <div class="lbl">04 · Colour · every colour means one thing</div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 12px; color: #8A8C92">Brand</span><div style="display: flex; gap: 6px"><span style="width: 44px; height: 44px; border-radius: 12px; background: #FF7A2F"></span><span style="width: 44px; height: 44px; border-radius: 12px; background: #0A0B0D; border: 1px solid rgba(255,255,255,.15)"></span><span style="width: 44px; height: 44px; border-radius: 12px; background: #EDECE8"></span></div><span class="mono" style="font-size: 11px; color: #A3A4A9">Cat · ground · ink</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 12px; color: #8A8C92">Batches</span><div style="display: flex; gap: 6px"><span style="width: 44px; height: 44px; border-radius: 12px; background: #2DD4BF"></span><span style="width: 44px; height: 44px; border-radius: 12px; background: #6EA8FF"></span><span style="width: 44px; height: 44px; border-radius: 12px; background: #B794FF"></span></div><span class="mono" style="font-size: 11px; color: #A3A4A9">B3 baseline · B1 · B2</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 12px; color: #8A8C92">Verdicts</span><div style="display: flex; gap: 6px"><span style="width: 44px; height: 44px; border-radius: 12px; background: #4ADE80"></span><span style="width: 44px; height: 44px; border-radius: 12px; background: #FACC15"></span><span style="width: 44px; height: 44px; border-radius: 12px; background: #F87171"></span></div><span class="mono" style="font-size: 11px; color: #A3A4A9">Accept · Investigate · Reject</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 12px; color: #8A8C92">Phases</span><div style="display: flex; gap: 6px"><span style="width: 44px; height: 44px; border-radius: 12px; background: #FF9A3C"></span><span style="width: 44px; height: 44px; border-radius: 12px; background: #38BDF8"></span><span style="width: 44px; height: 44px; border-radius: 12px; background: #C48CFF"></span></div><span class="mono" style="font-size: 11px; color: #A3A4A9">Silicon · pore · binder</span></div>
+    </div>
+  </section>
+
+  <section style="grid-column: span 12; position: relative; border-radius: 28px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); min-height: 290px">
+    <img src="/_blob/effa497b0fd734e7cec5e9943ee881d3" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(.75) saturate(0)">
+    <img src="/_blob/a770fa925452417aeb0005b5e356af39" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+    <img src="/_blob/cc62b2d9375e2b92971fccec440ac339" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .5">
+    <div style="position: relative; padding: 32px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px">
+      <div class="glass" style="border-radius: 22px; padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; background: rgba(20,21,25,.38); min-width: 280px">
+        <span class="lbl" style="color: #D4D4D8">05 · Glass over data</span>
+        <span style="font-size: 36px; font-weight: 600; letter-spacing: -0.035em">Batch 2 <span class="mono" style="font-size: 20px; color: #C9B3FF">81%</span></span>
+        <div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px"><span style="width: 81%; background: #B794FF"></span><span style="width: 14%; background: #6EA8FF"></span><span style="width: 5%; background: #2DD4BF"></span></div>
+      </div>
+      <div class="glass" style="display: flex; gap: 2px; padding: 4px; border-radius: 14px; background: rgba(20,21,25,.38)">
+        <span class="mono" style="min-height: 36px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 10px; background: rgba(255,255,255,.16); font-size: 12px; box-shadow: inset 0 1px 0 rgba(255,255,255,.2)">BSE</span>
+        <span class="mono" style="min-height: 36px; display: inline-flex; align-items: center; padding: 0 14px; font-size: 12px; color: #D4D4D8">ETD</span>
+        <span class="mono" style="min-height: 36px; display: inline-flex; align-items: center; padding: 0 14px; font-size: 12px; color: #D4D4D8">InLens</span>
+      </div>
+      <span style="display: inline-flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 14px; border-radius: 999px; background: rgba(250,204,21,.18); border: 1px solid rgba(250,204,21,.45); color: #FDE68A; font: 600 12px 'Geist Mono', monospace; letter-spacing: .08em; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px)">INVESTIGATE</span>
+      <span class="btn pri">Choose files</span>
+      <span class="btn" style="-webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px)">Open in viewer</span>
+      <div class="glass" style="margin-left: auto; border-radius: 22px; padding: 20px 24px; display: flex; flex-direction: column; gap: 6px; background: rgba(20,21,25,.38); max-width: 300px">
+        <span class="lbl" style="color: #D4D4D8">06 · Type</span>
+        <span style="font-size: 28px; font-weight: 600; letter-spacing: -0.03em">Geist for words</span>
+        <span class="mono" style="font-size: 16px; color: #E4E4E7">Geist Mono 0.105 → 4.41 µm</span>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

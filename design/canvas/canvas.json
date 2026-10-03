@@ -1,0 +1,24 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-03T19:05:00Z"},
+  "title": "Catalyst — App Redesign",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Brand.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1180, "title": "Identity & components"},
+    "Main.dc.html": {"x": 0, "y": 1600, "w": 1440, "h": 1000, "title": "1 · Identify — drop a tile", "expand": "fill", "is_interactive": true},
+    "Identify-Analyzing.dc.html": {"x": 1520, "y": 1600, "w": 1440, "h": 1000, "title": "2 · Identify — analysing", "expand": "fill", "is_interactive": true},
+    "Identify-Result.dc.html": {"x": 3040, "y": 1600, "w": 1440, "h": 1560, "title": "3 · Identify — result", "expand": "fill", "is_interactive": true},
+    "Compare.dc.html": {"x": 0, "y": 3600, "w": 1440, "h": 1880, "title": "Compare a batch to baseline", "expand": "fill", "is_interactive": true},
+    "Viewer.dc.html": {"x": 1520, "y": 3600, "w": 1440, "h": 1180, "title": "Tile viewer + segmentation", "expand": "fill", "is_interactive": true},
+    "Audit.dc.html": {"x": 3040, "y": 3600, "w": 1440, "h": 1320, "title": "Audit log + batch passport", "expand": "fill", "is_interactive": true}
+  },
+  "order": ["Brand.dc.html", "Main.dc.html", "Identify-Analyzing.dc.html", "Identify-Result.dc.html", "Compare.dc.html", "Viewer.dc.html", "Audit.dc.html"],
+  "notes": {
+    "rowCore": {"x": 0, "y": 1300, "text": "Core flow · Which batch is this tile from?", "kind": "title1", "maxW": 4480},
+    "rowMore": {"x": 0, "y": 3300, "text": "Batch vs baseline · Images · Audit", "kind": "title1", "maxW": 4480},
+    "lookNote": {"x": 1520, "y": 0, "w": 420, "text": "Look: a dark lab bench. 32 px grid underneath everything, frosted glass for anything that floats (verdicts, controls, toolbars over images).\n\nOrange belongs to the cat and to silicon. Batches keep their own colours everywhere: Batch 3 teal (baseline), Batch 1 blue, Batch 2 violet.\n\nVerdicts: Accept green, Investigate yellow, Reject red, always with a word, never colour alone.", "fill": "orange"},
+    "flowNote": {"x": 1520, "y": 560, "w": 420, "text": "Simplified IA: four places.\n\nIdentify: one tile in, a batch out.\nCompare: a whole batch against any baseline (Batch 3 by default).\nLibrary: every tile, with the segmentation viewer.\nAudit: what was decided, with which rules, and proof nothing moved.\n\nLabs (impact, sample size, 3D) sit in the sidebar as 'soon' so the roadmap is visible without cluttering the core.", "fill": "gray"}
+  },
+  "designSystems": []
+}
