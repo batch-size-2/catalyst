@@ -214,7 +214,7 @@ What that means at our sample sizes:
 | 0 / 17 | 0 – 16.2% | ACCEPT |
 | 2 / 17 | 2.1 – 32.6% | INVESTIGATE |
 
-PLAN_v1 §3.5 uses the same convention and the same numbers.
+**Superseded by the plan:** after the mentor feedback, PLAN_v1 §3.5 replaces this per-image rule with a batch-against-reference comparison, with Batch_3 as the reference. The code below is what runs today.
 
 **5. Next action**, computed rather than templated:
 - **REJECT:** "Quarantine the lot…".
