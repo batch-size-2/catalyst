@@ -139,7 +139,7 @@ def test_api_attribution_without_module_returns_501(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path("config").mkdir()
     Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
-    monkeypatch.delitem(sys.modules, "qc.attribute", raising=False)
+    monkeypatch.setitem(sys.modules, "qc.attribute", None)  # as if the module were absent
     response = TestClient(app).post("/api/attribution/drop")
     assert response.status_code == 501
     assert response.json()["detail"] == "batch attribution is not available yet (qc/attribute.py)"
@@ -187,7 +187,7 @@ def test_api_attribution_without_model_returns_error(tmp_path, monkeypatch):
 
 
 def test_attribution_module_detects_optional_module(monkeypatch):
-    monkeypatch.delitem(sys.modules, "qc.attribute", raising=False)
+    monkeypatch.setitem(sys.modules, "qc.attribute", None)  # as if the module were absent
     assert attribution_module() is None
     fake = ModuleType("qc.attribute")
     monkeypatch.setitem(sys.modules, "qc.attribute", fake)

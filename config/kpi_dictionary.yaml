@@ -1,0 +1,158 @@
+# DRAFT — causes need mentor review (PLAN §3.8)
+# Plain-language meaning, cell relevance, possible causes and supplier checks per descriptor.
+# `key` = counts towards the verdict (PLAN §3.2). Causes are worded "possible causes to check";
+# "different" is not "bad" — a customer tolerance decides what matters.
+
+si_area_frac:
+  name: silicon area fraction
+  unit: fraction
+  key: false
+  meaning: Share of the image that is silicon.
+  why_it_matters: More silicon means more capacity, but also more swelling and cycle-life risk.
+  if_higher: "Possible causes to check: more Si in the formulation, or lower apparent porosity inflating the share."
+  if_lower: "Possible causes to check: less Si in the formulation, or more porosity diluting it."
+  supplier_check: Confirm the Si:graphite recipe and the silicon powder lot.
+
+si_d50_um:
+  name: median silicon particle size
+  unit: um
+  key: true
+  meaning: Area-weighted median equivalent diameter of silicon particles away from the image edge.
+  why_it_matters: Larger silicon particles crack more on lithiation; size shifts change swelling and cycle life.
+  if_higher: "Possible causes to check: coarser silicon powder, particle growth during processing, or agglomeration read as single particles."
+  if_lower: "Possible causes to check: finer powder grade or extra milling breaking particles down."
+  supplier_check: Ask for the powder's own D50/D90 specification and lot record.
+
+si_d90_um:
+  name: coarse silicon particle size
+  unit: um
+  key: false
+  meaning: Area-weighted 90th percentile of silicon particle equivalent diameter.
+  why_it_matters: The coarse tail drives worst-case cracking and protrusion risk.
+  if_higher: "Possible causes to check: a coarse fraction in the powder or undispersed agglomerates."
+  if_lower: "Possible causes to check: tighter powder sizing or more dispersion work."
+  supplier_check: Ask for the powder's D90 and any sieving/classification step.
+
+si_internal_void_frac:
+  name: internal void fraction of silicon
+  unit: fraction
+  key: true
+  meaning: Share of dark pixels inside filled silicon particles — pores enclosed in the Si.
+  why_it_matters: Engineered internal porosity buffers swelling; unexpected voids change capacity and mechanical integrity.
+  if_higher: "Possible causes to check: a porous silicon grade (e.g. SiOx or etched Si), FIB damage, or corrosion of the Si."
+  if_lower: "Possible causes to check: a denser silicon grade than reference."
+  supplier_check: Ask whether the silicon is a porous or solid grade and for the powder datasheet.
+
+si_contrast_ratio:
+  name: silicon-to-graphite brightness ratio
+  unit: ratio
+  key: true
+  meaning: Mode BSE brightness of silicon divided by mode brightness of graphite, black level removed.
+  why_it_matters: BSE brightness tracks composition; a shift suggests a different silicon chemistry (e.g. SiOx is dimmer).
+  if_higher: "Possible causes to check: purer Si or a changed detector/brightness setting (see the imaging check first)."
+  if_lower: "Possible causes to check: a suboxide-rich silicon (SiOx) or changed imaging conditions."
+  supplier_check: Ask for the silicon grade and chemistry (Si vs SiOx) and any EDS data.
+
+si_fragments_per_1e4um2:
+  name: silicon fragment density
+  unit: count
+  key: false
+  meaning: Number of sub-1 um silicon objects per 10^4 um^2 of measured area.
+  why_it_matters: Fine fragments indicate milling damage or a fines fraction; they add surface area and SEI load.
+  if_higher: "Possible causes to check: more milling during electrode prep or a fines-rich powder lot."
+  if_lower: "Possible causes to check: coarser feed or better classification removing fines."
+  supplier_check: Ask about fines content and classification of the powder lot.
+
+si_dispersion_cv:
+  name: silicon dispersion uniformity
+  unit: ratio
+  key: false
+  meaning: Coefficient of variation of the local silicon fraction across ~20 um windows.
+  why_it_matters: Patchy silicon gives local hot spots for lithium uptake and uneven swelling.
+  if_higher: "Possible causes to check: poorer mixing or silicon settling/segregation during coating."
+  if_lower: "Possible causes to check: improved dispersion in the slurry."
+  supplier_check: Ask about mixing time, slurry rheology and any de-agglomeration step.
+
+porosity_apparent:
+  name: apparent porosity
+  unit: fraction
+  key: true
+  meaning: Share of the image segmented as pore (apparent in 2D — open pores show their back wall).
+  why_it_matters: Porosity sets ion transport (Bruggeman) and how much room there is for silicon swelling.
+  if_higher: "Possible causes to check: lower calendering pressure, different binder content, or a shinier cross-section (check the imaging metrics first)."
+  if_lower: "Possible causes to check: higher calendering/densification, which can starve ion transport."
+  supplier_check: Ask about calendering settings and target electrode density.
+
+si_graphite_ratio:
+  name: silicon-to-graphite ratio
+  unit: ratio
+  key: true
+  meaning: Silicon pixels divided by graphite pixels — the recipe ratio, independent of porosity.
+  why_it_matters: "Directly the Si loading of the anode: capacity and swelling scale with it."
+  if_higher: "Possible causes to check: more silicon dosed into the formulation."
+  if_lower: "Possible causes to check: less silicon dosed, or silicon lost in processing."
+  supplier_check: Confirm the Si:graphite formulation ratio for this lot.
+
+si_agglomerate_frac:
+  name: silicon agglomerate share
+  unit: fraction
+  key: false
+  meaning: Share of silicon area inside Si-rich domains larger than ~5 um.
+  why_it_matters: Agglomerates cause local swelling, protrusions and self-discharge hot spots.
+  if_higher: "Possible causes to check: poorer dispersion of the silicon powder before coating."
+  if_lower: "Possible causes to check: better dispersion or a less aggregation-prone powder."
+  supplier_check: Ask about powder de-agglomeration and slurry mixing.
+
+si_corr_length_um:
+  name: silicon correlation length
+  unit: um
+  key: false
+  meaning: Distance at which the silicon two-point correlation falls to 1/e — the typical Si cluster size scale.
+  why_it_matters: A longer correlation length means silicon is clustered at larger scales even at the same loading.
+  if_higher: "Possible causes to check: clustering or segregation of silicon during coating/drying."
+  if_lower: "Possible causes to check: finer, better-dispersed silicon."
+  supplier_check: Compare with dispersion metrics; ask about drying conditions.
+
+graphite_chord_um:
+  name: graphite chord length
+  unit: um
+  key: false
+  meaning: Mean horizontal run length of graphite pixels, runs touching the image edge excluded.
+  why_it_matters: A rough size measure for the ~30 um graphite particles, which set packing and pore structure.
+  if_higher: "Possible causes to check: coarser graphite grade or aligned flakes reading as longer runs."
+  if_lower: "Possible causes to check: finer graphite grade or more fracture during milling."
+  supplier_check: Ask for the graphite D50 and flake morphology.
+
+graphite_anisotropy:
+  name: graphite anisotropy
+  unit: ratio
+  key: false
+  meaning: Horizontal divided by vertical graphite run length — how flat the flakes lie.
+  why_it_matters: Flake alignment affects through-plane ion transport and swelling direction. Sensitive to curtaining.
+  if_higher: "Possible causes to check: stronger flake alignment from coating/calendering, or curtaining artefacts (check the imaging metrics)."
+  if_lower: "Possible causes to check: more isotropic packing."
+  supplier_check: Ask about coating and calendering conditions.
+
+pore_chord_um:
+  name: pore chord length
+  unit: um
+  key: false
+  meaning: Mean horizontal run length of pore pixels in the valid band.
+  why_it_matters: A size measure for the pore space between particles — relates to electrolyte pathways.
+  if_higher: "Possible causes to check: coarser packing or cracks reading as pores."
+  if_lower: "Possible causes to check: finer packing or densification."
+  supplier_check: Compare with porosity and calendering data.
+
+pore_connectivity:
+  name: pore connectivity
+  unit: fraction
+  key: false
+  meaning: Share of pore area in the largest connected pore cluster (apparent in 2D).
+  why_it_matters: A connected pore network means better electrolyte wetting and ion access.
+  if_higher: "Possible causes to check: a more open network — but note 2D sections exaggerate connectivity."
+  if_lower: "Possible causes to check: densification closing pore throats."
+  supplier_check: Compare with porosity; treat as indicative only.
+
+# Particle types: filled in by `uv run python -m qc.types` after the fit on particles.csv.
+# Per type: name, defining features in units, what it likely is, what to check at the supplier.
+particle_types: {}

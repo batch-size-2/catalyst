@@ -5,17 +5,18 @@
 
 ## What we're building
 
-A decision layer on top of SEM microstructure analysis. Drop in a folder of microscope images for an incoming batch and get **accept / investigate / reject** against an approved baseline. The verdict comes with its evidence:
-- which images look off;
-- which measured property moved, and by how much;
-- how sure we are;
-- what to do next.
+A decision layer on top of SEM microstructure analysis. Batch_3 is the material the supplier promised; Batch_1 and Batch_2 arrived later and show the kinds of variation the tool must pick up (they are *different*, not *worse*). Drop in a folder of microscope images and get, apart from each other:
 
-Measurements come from classic image processing, and the QC verdict from plain statistics. Pat builds a separate attribution model for sorting images into batches.
+- **what is different** from the Batch_3 baseline: which measured property moved, by how much, in which direction, how sure we are;
+- **which known batch it looks like** (attribution: Batch_1 / Batch_2 / Batch_3 with probabilities and the features that drove it);
+- **whether it is inside the baseline's distribution at all** (a two-sided z view and an *unfamiliar* flag for an unknown batch N);
+- **accept / investigate / reject**, from plain statistics and a customer tolerance, with the next action.
+
+Measurements come from classic image processing; the verdict from plain statistics on strip segments. The only trained piece is the attribution model (PLAN_v4 §3.15): a regularised logistic regression on named features, evaluated leave-one-strip-out, frozen as readable JSON, and never the verdict.
 
 ## Plan
 
-[docs/PLAN_v3.md](docs/PLAN_v3.md) is the source of truth for **what to build** (supersedes [PLAN_v2](docs/PLAN_v2.md), [PLAN_v1](docs/PLAN_v1.md) and [PLAN_v0](docs/PLAN_v0.md); §12 lists the evidence behind each decision). Section references to PLAN_v1 below describe the code as built. This README documents **what is built**. Where the code is still a stub, the sections below say so and point to the plan section that describes the target.
+[docs/PLAN_v3.md](docs/PLAN_v3.md) is the source of truth for **what to build** (supersedes [PLAN_v2](docs/PLAN_v2.md), [PLAN_v1](docs/PLAN_v1.md) and [PLAN_v0](docs/PLAN_v0.md); §12 lists the evidence behind each decision). [docs/PLAN_v4.md](docs/PLAN_v4.md) is the **draft delta** written after the task designer's clarification (Batch_3 baseline, attribute the held-back images, in/out of distribution); it becomes the plan once both owners have reviewed it. `qc/features.py` and `qc/attribute.py` below implement its §3.14–3.17. Section references to PLAN_v1 below describe the code as built. This README documents **what is built**. Where the code is still a stub, the sections below say so and point to the plan section that describes the target.
 
 ## Quickstart
 
@@ -27,9 +28,18 @@ uv run pytest            # contract tests, keep green
 # put the batches in data/ (gitignored), e.g.
 for b in Batch_1 Batch_2 Batch_3; do ln -s "../EXAMPLE BATCHES FOR LOCAL REFERENCE/$b" data/$b; done
 
-uv run python -m qc.measure                                               # ML: all of data/ -> out/kpis.csv + out/masks/
+uv run python -m qc.measure                                               # ML: all of data/ -> out/{kpis,particles,imaging}.csv + out/masks/
 uv run python -m qc.run --batch data/Batch_2 data/Batch_3                 # end to end -> out/evidence/<batch>.json
 uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline   # backend only, no images
+uv run python -m qc.types [--exclude Batch_2] [--porous-rule]             # fit particle types on out/particles.csv
+uv run python -m qc.controls --baseline data/Batch_3                      # controls -> out/controls/summary.csv
+uv run python -m qc.uncertainty --batch data/Batch_3                      # -> out/uncertainty/*.csv
+uv run python -m qc.features                                              # per-image feature table -> out/features.csv
+uv sync --extra deep && uv run --extra deep python -m qc.deep            # optional: DINOv2 deep_ columns merged into out/features.csv (CPU, local)
+uv run python -m qc.attribute --evaluate                                  # leave-one-strip-out + null per family -> out/attribution/evaluation.json
+uv run python -m qc.attribute --dry-run                                   # hold out 3 images per batch (whole strips), refit, predict
+uv run python -m qc.attribute --fit [--families deep]                     # freeze the model -> config/attribution_model.json
+uv run python -m qc.attribute --images data/<drop> --balanced 3           # attribute unseen images -> out/attribution/<drop>.json
 
 # Preview the UI with fixtures
 mkdir -p out/evidence out/attribution
@@ -61,12 +71,24 @@ flowchart LR
   end
 
   subgraph ML["ML · qc/measure.py"]
-    SEG["segment(channels, px_um) → mask<br/>pore · graphite · Si · binder · ignore"]
-    KPI["kpis(mask, px_um, channels) → dict<br/>names + units in schema.KPI_UNITS"]
+    SEG["segment(channels, px_um, thresholds) → mask<br/>pore · graphite · Si · binder · ignore"]
+    LBL["label_si(mask, px_um) → labels + filled<br/>hole fill + watershed at measure time"]
+    KPI["kpis(mask, px_um, channels) → dict<br/>15 descriptors, names + units in schema.KPI_UNITS"]
+    PAR["particles(mask, px_um, channels) → per-particle table<br/>d · contrast · inlens_ratio · voids · texture · solidity"]
+    IMG["imaging(channels) → per-channel dict<br/>black · percentiles · noise · sharpness · saturation · curtaining"]
   end
 
-  subgraph ATTRIB["ML · Pat's qc/attribute.py (pat/ml-v3)"]
-    PREDICT["attribute_images(image_dir, model, balanced) · --evaluate"]
+  subgraph TYPES["ML · qc/types.py · controls.py · uncertainty.py"]
+    TYP["fit_types / assign_types → particle types<br/>GMM + leave-one-strip-out k selection · frozen in config/particle_types.json"]
+    CTL["make_controls / shared_strip_controls → Control fields<br/>negative + positive batches with a known answer"]
+    UNC["threshold_variants · integral_range<br/>segmentation + sampling uncertainty"]
+  end
+
+  subgraph ATTR["ML · qc/features.py · qc/attribute.py (PLAN_v4)"]
+    FEAT["image_features(field, mask) → one row per image<br/>reg_ regional tiles · edge_ · tex_ LBP/GLCM · par_ · kpi_ · img_<br/>assert_no_leakage: no strip_id / size / px_um"]
+    EVAL["loso_cv · permutation_null · shared_strip_check · rank_features<br/>leave-one-strip-out, segment-shuffled null"]
+    FIT["fit_model → config/attribution_model.json<br/>standardised L2 logistic regression · nested C · baseline_stats"]
+    PRED["predict(model, features) → p_Batch_1/2/3 · reasons<br/>baseline_distance · unfamiliar · balanced_assignment"]
   end
 
   subgraph BE["Backend · qc/decide.py"]
@@ -76,23 +98,29 @@ flowchart LR
 
   subgraph OUT["out/ (gitignored)"]
     T["kpis.csv<br/>one row per image, incl. area_um2"]
-    PI["particles.csv · imaging.csv<br/>when Pat's tables are present"]
-    FT["features.csv<br/>Pat's per-image feature table"]
+    PT["particles.csv<br/>one row per Si particle"]
+    IT["imaging.csv<br/>one row per image and channel"]
     E["evidence/{batch}.json"]
-    A["attribution/{run}.json · evaluation.json"]
+    FT["features.csv<br/>one row per image, 6 feature families (+ optional deep_)"]
+    AT["attribution/evaluation.json · feature_ranking.csv<br/>attribution/{run}.json"]
     P["masks/{batch}/{id}.png"]
+    CR["crops/{type}/{n}.png<br/>example crops per particle type"]
   end
 
   API["qc/api.py · FastAPI :8000<br/>GET batches · evidence · masks · attribution · attribution-evaluation<br/>POST upload · run · attribution (NDJSON progress)"]
   WEB["web/ · Vite + React :5173<br/>sort images · what's different · batch verdict (four audiences, gallery with odd images and calls) · provenance"]
-  CLI["python -m qc.run / qc.measure"]
+  CLI["python -m qc.run / qc.measure / qc.features / qc.attribute"]
 
   D --> IO --> RUN
-  RUN --> SEG --> KPI --> RUN
-  RUN -. "attribute() wraps Pat" .-> PREDICT --> A
+  RUN --> SEG --> LBL --> KPI --> RUN
+  LBL --> PAR --> TYP
+  TYP -. "config/particle_types.json (frozen)" .-> RUN
+  RUN -. "attribute() → attribute_images()" .-> PRED
   RUN --> T --> J
-  PI --> J
-  FT --> PREDICT
+  RUN --> PT --> J
+  RUN --> IT --> J
+  CTL -. "out/controls/summary.csv" .-> RUN
+  UNC -. "out/uncertainty/*.csv" .-> RUN
   CFG --> J
   RUN --> EXPLAIN
   J --> EXPLAIN
@@ -100,9 +128,18 @@ flowchart LR
   EXPLAIN --> E
   RUN --> P
   RUN --> PROV --> E
+  TYP --> CR
   J --> E
+  SEG --> FEAT
+  PAR --> FEAT
+  KPI --> FEAT
+  IMG --> FEAT
+  FEAT --> FT --> EVAL --> AT
+  FT --> FIT
+  FIT -. "config/attribution_model.json (frozen)" .-> PRED
+  FT --> PRED --> AT
   E --> API
-  A --> API
+  AT --> API
   P --> API
   API -- "/api via Vite proxy" --> WEB
   WEB -- "upload + run" --> API
@@ -111,7 +148,7 @@ flowchart LR
   CLI --> RUN
 ```
 
-`qc/schema.py` is the contract every Python box imports: `Field`, the `Phase` labels, `KPI_UNITS`, `KPI_TABLE_COLUMNS` / `PARTICLE_COLUMNS` / `IMAGING_COLUMNS`, the `Tables`/`Segment`/`Evidence` models and the `out/` paths. `web/src/types.ts` mirrors `Evidence` for the UI.
+`qc/schema.py` is the contract every Python box imports: `Field`, the `Phase` labels, `KPI_UNITS`, `KPI_TABLE_COLUMNS` / `PARTICLE_COLUMNS` / `IMAGING_COLUMNS`, `Control`, the `Tables`/`Segment`/`Evidence` models and the `out/` paths (including `FEATURE_TABLE`, `ATTRIBUTION_DIR`, `ATTRIBUTION_MODEL_PATH`, `attribution_path()`). The attribution JSON is not part of `Evidence`: the API serves Pat's `out/attribution/<run>.json` as written. `web/src/types.ts` mirrors `Evidence` for the UI.
 
 ## Infrastructure
 
@@ -130,14 +167,20 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `data/<batch>/` | no | Input TIFFs (or symlinks to them). One folder per batch; the folder name is the batch name |
 | `EXAMPLE BATCHES FOR LOCAL REFERENCE/` | no | The 1.6 GB of Polaron images. Don't upload anywhere without Polaron's OK (PLAN_v1 §1, rule 5) |
 | `config/decision.yaml` | yes | Decision settings. Frozen with `git tag rules-frozen` before the unseen batch |
-| `config/kpi_dictionary.yaml` | yes | Pat's descriptor/particle-type content; read by `explain()` and hashed into provenance; arrives with `pat/ml-v3` |
-| `config/attribution_model.json` | yes | Pat's frozen attribution model; hashed into provenance when present |
+| `config/particle_types.json` | yes | Fitted particle-type model (GMM centres/covs, names, unassigned threshold). Frozen with `rules-frozen` |
+| `config/kpi_dictionary.yaml` | yes | Plain-language meaning/causes/checks per descriptor (draft; causes need mentor review); read by `explain()` and hashed into provenance |
+| `config/attribution_model.json` | yes, once fitted | Frozen attribution model: feature names, means, SDs, coefficients, `C`, training image ids, its own LOSO accuracy, and the Batch_3 baseline statistics for the unfamiliar flag. Frozen with `rules-frozen`; hashed into provenance when present |
 | `out/kpis.csv` | no | KPI table, one row per image (incl. `area_um2`, the analysed area), all batches measured so far |
-| `out/features.csv` | no | Pat's per-image feature table from `qc/features.py` |
-| `out/particles.csv`, `out/imaging.csv` | no | Written by Pat's measuring (`pat/ml-v3`); read by `compare()` and `python -m qc.decide` |
+| `out/particles.csv` | no | One row per Si particle: size, contrast, inlens ratio, voids, texture, solidity, type. Read by `compare()` |
+| `out/imaging.csv` | no | One row per image and channel: black level, percentiles, noise, sharpness, saturation, curtaining. Read by `compare()` |
 | `out/masks/<batch>/<image_id>.png` | no | BSE with phase overlay (4× downsampled), for eyeballing and the UI |
+| `out/crops/<type>/<n>.png` | no | Example particle crops per type, for the UI gallery |
+| `out/controls/summary.csv` | no | Measured KPI shifts for every control |
+| `out/uncertainty/` | no | `threshold_variants.csv` (KPIs at thresholds ±5) and `integral_range.csv` (per image and phase) |
 | `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads this, attribution output and masks |
-| `out/attribution/<run>.json`, `evaluation.json` | no | Pat's attribution and feature-evaluation outputs, exposed by the API |
+| `out/features.csv` | no | One row per image: `batch, image_id, strip_id` + `reg_`, `edge_`, `tex_`, `par_`, `kpi_`, `img_` features (`qc/features.py`), plus optional `deep_` columns (`qc/deep.py`). Never strip, size or pixel-size columns |
+| `out/attribution/evaluation.json`, `feature_ranking.csv` | no | Leave-one-strip-out balanced accuracy, confusion, permutation null and shared-strip check per feature family; univariate feature ranking on strip-segment means. Exposed by the API |
+| `out/attribution/<run>.json` | no | Per image: `p_Batch_*`, `predicted`, `confidence`, `reasons`, `baseline_distance`, `unfamiliar`, `deviations`, optional `assigned` (balanced). Exposed by the API |
 | `tests/fixtures/kpis_fake.csv` | yes | Synthetic KPI table (`tests/synth.py`), so the backend and UI can be built with no images |
 | `tests/fixtures/evidence_example.json` | yes | Hand-made, fully populated Evidence. To view it in the UI: `cp tests/fixtures/evidence_example.json out/evidence/example.json` and select `example` |
 | `tests/fixtures/attribution_example.json`, `attribution_evaluation_example.json` | yes | Fixtures mirroring Pat's output format |
@@ -172,12 +215,13 @@ One command, `qc.run`, does steps 1–6 for the baseline plus each requested bat
 |---|---|---|---|
 | 1 | **Find fields.** Group `img_<image_id>_<detector>.tif` by ID | `io.field_paths` | `{image_id: {detector: path}}` |
 | 2 | **Load.** Take one channel of the RGB TIFF, crop 8 px off left and right (stitch borders), read pixel size, strip ID and the per-channel black level | `io.load_field` | `Field(batch, image_id, strip_id, channels, px_um, black_level)` |
-| 3 | **Segment** | `measure.segment(channels, px_um)` | `uint8` mask with `Phase` codes |
-| 4 | **Measure KPIs** | `measure.kpis(mask, px_um, channels)` | `{kpi: value}` |
-| 5 | **Write.** One row per image into the KPI table (incl. `area_um2`, the analysed area), plus a mask overlay | `run.measure_field`, `run.save_overlay` | `out/kpis.csv`, `out/masks/` |
-| 6 | **Compare** each batch against the baseline and record provenance | `decide.read_tables`, `decide.evaluate`, `provenance.provenance` | `out/evidence/<batch>.json` |
-
-`compare()` consumes `out/particles.csv` and `out/imaging.csv` when present. Pat's `run.py` wiring on branch `pat/ml-v3` writes them; on `main`, `run()` still passes only the KPI table until her branch lands.
+| 3 | **Segment.** Black level off, 2× downsample, 3-class multi-Otsu, binder rims, small-Si cleanup, dim-object → BINDER rule (`SI_MIN_CONTRAST`), 5% IGNORE margins | `measure.segment(channels, px_um, thresholds)` | `uint8` mask with `Phase` codes |
+| 4 | **Measure KPIs.** Includes `label_si` (hole fill + watershed) and the two-point correlation | `measure.kpis(mask, px_um, channels)` | `{kpi: value}` |
+| 5 | **Particles.** Per-particle features at full res | `measure.particles(mask, px_um, channels)` | `particles.csv` rows |
+| 6 | **Types.** If `config/particle_types.json` exists, assign each particle a type | `types.assign_types` | `type` column |
+| 7 | **Imaging check.** Per-channel imaging descriptors | `measure.imaging(channels)` | `imaging.csv` rows |
+| 8 | **Write.** One row per image into the KPI table (incl. `area_um2`, the analysed area), the particle and imaging tables, plus a mask overlay | `run.measure_field`, `run.save_tables`, `run.save_overlay` | `out/kpis.csv`, `out/particles.csv`, `out/imaging.csv`, `out/masks/` |
+| 9 | **Compare** each batch against the baseline on all three tables and record provenance | `decide.split_tables`, `decide.evaluate`, `provenance.provenance` | `out/evidence/<batch>.json` |
 
 **Input details (step 2, from PLAN_v1 §2)**
 - **Detectors** are normalised to `BSE` / `ETD` / `InLens`; `SE` is an alias for `ETD`. The `img_` prefix is dropped from IDs.
@@ -196,23 +240,46 @@ One command, `qc.run`, does steps 1–6 for the baseline plus each requested bat
 | 255 | `IGNORE` | excluded pixels (e.g. top and bottom margins) |
 
 **Segmentation (step 3).**
-- **Now (stub):** Gaussian blur σ = 2 px on BSE, then 3-class multi-Otsu (thresholds fitted on a 4× subsample). The classes are pore / graphite / Si.
-- **Known gap:** bright binder fringes currently land in `SI`.
-- **Target (PLAN_v1 §5, Pat step 3):** black-level subtraction, Si mask clean-up (opening, ≥ 0.25 µm²), top and bottom 5% marked `IGNORE`, and optionally a scribble-trained random forest for cracks.
+- Per-channel black level (0.5th percentile) subtracted from BSE; 2× block-mean downsample; Gaussian σ = 1.
+- 3-class multi-Otsu per image on the valid rows → pore / graphite / Si (percentile fallback if Otsu fails, e.g. uniform images). `thresholds` is an optional argument so the uncertainty step can rerun with offsets.
+- Thin bright rims along graphite edges (removed by a 0.15 µm opening, adjacent to graphite) → `BINDER`; other opening losses → `GRAPHITE`. Si components < 0.25 µm² → `GRAPHITE`.
+- Top and bottom 5% of rows → `IGNORE` (edge rows may carry FIB damage). Mask upsampled to full resolution.
+- Hole filling and watershed splitting are **not** baked into the mask — they happen in `label_si` at measure time, so the mask stays pure phase codes and area fractions are unaffected by split lines.
 
-**KPIs (step 4, definitions in PLAN_v1 §3.2)**
+**KPIs (step 4, definitions in PLAN_v3 §3.2)** — all implemented:
 
 | KPI | Unit | Status |
 |---|---|---|
 | `si_area_frac` | fraction | **implemented**: Si px / non-ignored px |
 | `porosity_apparent` | fraction | **implemented**: pore px / non-ignored px. Biased: open pores show their back wall |
-| `si_d50_um`, `si_d90_um` | µm | planned: area-weighted equivalent diameter |
-| `si_internal_void_frac` | fraction | planned: dark px inside filled Si particles |
-| `si_contrast_ratio` | ratio | planned: (Si mode − black level) / (graphite mode − black level). Valid only after the imaging check |
-| `si_fragments_per_1e4um2` | count | planned: Si objects < 1 µm per 10⁴ µm² |
-| `si_dispersion_cv` | ratio | planned: CV of local Si fraction over 20 µm windows |
+| `si_graphite_ratio` | ratio | **implemented**: Si px / graphite px. The key descriptor — follows the recipe, porosity-invariant |
+| `si_d50_um`, `si_d90_um` | µm | **implemented**: area-weighted equivalent diameter, non-border particles |
+| `si_internal_void_frac` | fraction | **implemented**: non-Si px inside hole-filled Si / filled Si area |
+| `si_contrast_ratio` | ratio | **implemented**: smoothed BSE mode of Si / graphite. Dropped for the verdict if imaging changed |
+| `si_fragments_per_1e4um2` | count | **implemented**: 8-connected Si objects < 1 µm per 10⁴ µm² |
+| `si_dispersion_cv` | ratio | **implemented**: CV of local Si fraction over ~20 µm windows |
+| `si_agglomerate_frac` | fraction | **implemented**: share of Si px in domains > 5 µm (Si closed by 0.5 µm) |
+| `si_corr_length_um` | µm | **implemented**: first r where the Si two-point correlation ≤ 1/e |
+| `graphite_chord_um` | µm | **implemented**: mean horizontal graphite run length (edge runs excluded) |
+| `graphite_anisotropy` | ratio | **implemented**: horizontal / vertical graphite chord |
+| `pore_chord_um` | µm | **implemented**: mean horizontal pore run length |
+| `pore_connectivity` | fraction | **implemented**: largest 4-connected pore component / all pore area |
 
-A KPI that isn't computed, or an image whose segmentation crashes, is written as **NaN**: the run never stops on one bad image. Columns of `out/kpis.csv` are `batch, image_id, strip_id, px_um, area_um2, <KPIs>`.
+A KPI that isn't computed, or an image whose segmentation crashes, is written as **NaN**: the run never stops on one bad image. Columns of `out/kpis.csv` are `batch, image_id, strip_id, px_um, area_um2, <15 KPIs>`.
+
+**Particles (step 5).** `particles()` returns one row per watershed-labelled Si particle: `d_um`, `area_um2` (filled), `contrast_ratio` (median black-subtracted BSE over its Si px / image graphite mode), `inlens_ratio` (mean black-subtracted InLens over the particle, saturated px excluded, / same for graphite in a 1–3 µm ring — cancels the InLens shading), `void_frac`, `texture` (std/mean of BSE inside), `solidity`, `border`, `y_px`/`x_px` (full-res centroid). `run` adds `batch`, `image_id`, `strip_id`, `type`.
+
+**Particle types (step 6, `qc/types.py`).** `fit_types` standardises `log_d, contrast_ratio, inlens_ratio, void_frac, texture, solidity`, fits `GaussianMixture` for k = 2, 3, 4 and picks k by leave-one-strip-out stability (ARI against the full fit, preferring smaller k within 0.02), merges types that differ only in size (< 0.5 z on every feature but `log_d`), and names each type from its features in units. `assign_types` assigns the nearest type by Mahalanobis distance; beyond the 99th percentile of training distances → `unassigned`; with `--porous-rule`, `void_frac > 0.1` → `porous`. `uv run python -m qc.types` fits on `out/particles.csv` (optionally excluding batches), writes `config/particle_types.json`, rewrites the `type` column and saves example crops to `out/crops/`.
+
+**Controls (`qc/controls.py`, PLAN_v3 §3.7 + §3.13).** `make_controls` builds negative controls (brightness/contrast ±20%, black +20, noise σ5, synthetic curtaining) and positive controls (donor Si pasted to +50%/+100%, voids punched into 30% of particles, non-border Si scaled 1.5× with 1/2.25 thinning to hold Si amount constant) from a random choice of reference strips. `shared_strip_controls` splits reference strips between a test batch and the reference (`kept_in_reference` holds the image_ids that stay) to test both readings of shared strips. `uv run python -m qc.controls` measures every control against its untransformed originals and writes `out/controls/summary.csv`.
+
+**Features (`qc/features.py`, PLAN_v4 §3.14).** `image_features(field)` returns one row per image: regional descriptors per ~15 µm tile summarised over tiles (mean, SD, CV, p10/p50/p90, normalised depth slope, top/bottom ratio), the ignored top/bottom 5% bands measured separately, uniform-LBP histograms per channel (and BSE inside graphite and inside Si) plus GLCM statistics at 0.1 and 0.4 µm, image-level particle aggregates (incl. type shares if `config/particle_types.json` exists), the 15 KPIs, and the imaging descriptors. `assert_no_leakage()` refuses any column whose name mentions strip, height, width, px_um, xres or shape. `uv run python -m qc.features` writes `out/features.csv`.
+
+**Deep features (`qc/deep.py`, optional, PLAN_v4 §3.14).** `uv sync --extra deep` adds CPU torch + transformers (CPU wheel index on Linux/Windows, PyPI on macOS). `deep_features(field)` embeds the InLens channel with the public `facebook/dinov2-small` (pinned revision, no fine-tuning): valid rows, p1–p99 stretch, 2×2 binning, 224 px tiles, CLS + mean patch token per tile, mean and SD over tiles → 1,536 `deep_inlens_s2_*` columns. Weights download once to the Hugging Face cache; set `HF_HUB_OFFLINE=1` afterwards. Images never leave the machine. `python -m qc.deep` merges the columns into `out/features.csv` (re-run it after `qc.features` rewrites a batch). `qc.attribute --images` computes them automatically when the frozen model uses them.
+
+**Attribution and familiarity (`qc/attribute.py`, PLAN_v4 §3.15–3.17).** Material families only by default (`reg, edge, tex, par, kpi`; `img_` is reported apart because it is acquisition, not material). `loso_cv` holds out every image of one physical strip across all folders, standardises inside the fold and picks `C` from {0.01…1} by an inner leave-one-strip-out. `permutation_null` shuffles batch labels across strip segments (≥200×). `shared_strip_check` asks whether images of strips imaged in two folders were attributed to their own folder. `rank_features` scores each feature alone on strip-segment means. `fit_model` saves readable JSON; `predict` gives probabilities, the five largest `coef × z` reasons, the two-sided RMS-z distance to the Batch_3 strip segments with an `unfamiliar` flag (threshold = the baseline's own maximum held-out distance), and, with `--balanced k`, the Hungarian assignment of exactly *k* images per batch. `dry_run` rehearses the nine-image test holding out whole strips. `deep_` columns are replaced by 10 principal components (`Reducer`) fit on the training rows of each fold; the frozen JSON stores the PCA mean, SD and components next to the coefficients, and reasons name `deep_pc01…10`.
+
+**Uncertainty (`qc/uncertainty.py`, PLAN_v3 §3.6).** `threshold_variants` re-runs segment+kpis at thresholds ±5 grey levels; `integral_range` estimates the phase-fraction SD for a given imaged area (and the area for a target SD) from the two-point correlation — the "how many images are enough" number. CLI writes `out/uncertainty/`.
 
 ## Decision algorithm (`qc/decide.py`)
 
@@ -263,7 +330,7 @@ Decided by Patrik on 3 Oct after checking §3.5 against the real strip layout; i
 |---|---|---|
 | `version` | `v3-draft` | Written into every evidence file |
 | `data_dir` | `data` | Where batch folders live |
-| `baseline` | `Batch_3` | The approved reference batch |
+| `baseline` | `Batch_3` | The approved reference batch: the material the supplier promised (confirmed by the task designer, PLAN_v4 §1) |
 | `reference_exclude` | `[]` | Baseline `image_id`s to drop from the reference |
 | `unit` | `image` | Unit that drives the verdict: `image` or `strip`; the other is reported in `other_unit` |
 | `key_descriptors` | 5 items | Quantities that count towards the verdict |
@@ -358,10 +425,25 @@ The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution
 | `qc/schema.py` Evidence models | **Both.** The contract: changes need both of us |
 | `tests/test_contract.py`, `tests/fixtures/kpis_fake.csv`, `tests/fixtures/evidence_example.json` | **Both.** Evidence contract and fixture |
 | `tests/fixtures/attribution_example.json`, `tests/fixtures/attribution_evaluation_example.json` | Software (Patrik); mirror Pat's format |
-| `qc/measure.py` (`segment`, `kpis`) | ML (Pat) |
-| `qc/attribute.py`, `qc/features.py`, `config/attribution_model.json` | ML (Pat) |
-| `config/kpi_dictionary.yaml` | ML (Pat) |
+| `qc/measure.py` (`segment`, `kpis`, `particles`, `imaging`, `label_si`, `two_point`) | ML (Pat) |
+| `qc/types.py`, `qc/controls.py`, `qc/uncertainty.py`, `config/kpi_dictionary.yaml`, `tests/test_ml.py` | ML (Pat) |
+| `qc/features.py`, `qc/deep.py`, `qc/attribute.py`, `tests/test_attribute.py` | ML (Pat) |
+| `config/attribution_model.json` | ML (Pat), **frozen at `rules-frozen`** |
+| `config/particle_types.json` | ML (Pat), **frozen at `rules-frozen`** |
 | `qc/explain.py` | Software (Patrik) |
 | `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
 | `qc/api.py`, `web/` | Software (Patrik) |
 | `qc/io.py`, `qc/run.py` | Shared glue |
+
+## Deviations from PLAN_v3
+
+0. **A classifier trained on batch labels exists** (`qc/attribute.py`), against PLAN_v3 rule 2 and §3.12. It follows the task designer's clarification that the entry is judged on attributing held-back images to their batch; PLAN_v4 §2 narrows rule 2 to this track. The verdict path (`qc/decide.py`) stays statistical and does not use it. `config/decision.yaml` now says `baseline: Batch_3` on this branch too (same change as Patrik's `PtrkH/compare-v3`); `qc.attribute` reads it from the config.
+
+1. **Hole filling and watershed splitting happen in `label_si()` at measure time**, not baked into the mask. The mask stays pure phase codes, so area fractions aren't altered by split lines.
+2. **Black level is computed inside `qc/measure.py`** (0.5th percentile per channel, identical to the planned `Field.black_level`), so the ML side doesn't depend on `qc/io.py` changes.
+3. **`Control.kept_in_reference` holds image_ids**, not strip ids — with strip ids, a split strip's test images would be re-added to the reference.
+4. **`pos_si_scale150` thins scaled particles to 1/2.25** of the eligible set, so it tests *size*, not Si amount (otherwise `si_graphite_ratio` would be the top driver).
+5. **The "curtaining high → run-length descriptors NaN" rule is not applied in `kpis()`**: the threshold will be set from the real `curtaining_index` distribution; compare/run can apply it from `imaging.csv`.
+6. **`particles.csv` has extra `y_px, x_px` columns** (full-res centroid), used for example crops and the UI.
+7. **The integral range is computed as the angular integral** `2π·∫r·C̄(r)dr` of the count-weighted radial C(r) — mathematically identical to the 2D sum but far less noisy — and truncated at the first zero crossing. The literal uniform-weighted 2D sum is badly biased by the large-lag tail (it goes negative even for a random medium).
+8. **Si objects with median BSE < 1.5× the graphite mode are relabelled BINDER.** Not in PLAN_v3; added after the P2316 overlays showed carbon-binder and through-pore surfaces (1.3–1.5× graphite) labelled as Si. Real Si measured 1.6–2.4×. Knob: `SI_MIN_CONTRAST`.
