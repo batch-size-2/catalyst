@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Catalyst · Compare batch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400..600&amp;display=swap">
+<style>
+body{margin:0;background:#0A0B0D}
+.cx{font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#EDECE8;background-color:#0A0B0D;background-image:linear-gradient(rgba(255,255,255,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.032) 1px,transparent 1px);background-size:32px 32px;-webkit-font-smoothing:antialiased}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.glass{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.025));-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 48px -24px rgba(0,0,0,.7)}
+.lbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8A8C92}
+.nav{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:10px;color:#A3A4A9;font-size:14px;text-decoration:none}
+.nav:hover{background:rgba(255,255,255,.05);color:#EDECE8}
+.nav.on{background:rgba(255,255,255,.07);color:#F6F5F2;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;font:500 14px 'Geist',sans-serif;color:#EDECE8;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);cursor:pointer;text-decoration:none}
+.btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.btn.pri{background:#FF7A2F;border-color:#FF7A2F;color:#1A0A00;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 24px -8px rgba(255,122,47,.6)}
+.btn.pri:hover{background:#FF8C4A;color:#1A0A00}
+a{color:#FF9A5C}a:hover{color:#FFB98A}
+</style>
+</helmet>
+<div class="cx" style="min-height: 1560px; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<aside style="flex: 1 1 232px; max-width: 260px; box-sizing: border-box; padding: 20px 14px; display: flex; flex-direction: column; gap: 28px; border-right: 1px solid rgba(255,255,255,.07); background: rgba(8,9,11,.72)">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 4px 8px; text-decoration: none; color: #F6F5F2">
+    <svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><rect x="22.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><rect x="36.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path><path d="M10 41 L1 38 M10 46 L2 49 M54 41 L63 38 M54 46 L62 49" stroke="#FF7A2F" stroke-width="3" stroke-linecap="round"></path></svg>
+    <span style="font-size: 19px; font-weight: 600; letter-spacing: -0.02em">catalyst</span>
+  </a>
+  <nav aria-label="Main" style="display: flex; flex-direction: column; gap: 2px">
+    <div class="lbl" style="padding: 0 10px 8px">Analyse</div>
+    <a class="nav" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><circle cx="12" cy="12" r="3"></circle></svg>Identify tile</a>
+    <a class="nav on" href="Compare-Focus.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="16" rx="1.5"></rect><rect x="14" y="4" width="7" height="16" rx="1.5"></rect></svg>Compare batch</a>
+    <a class="nav" href="Viewer.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>Library<span class="mono" style="margin-left: auto; font-size: 11px; color: #8A8C92">31</span></a>
+    <div class="lbl" style="padding: 20px 10px 8px">Trust</div>
+    <a class="nav" href="Audit.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>Audit log</a>
+    <div class="lbl" style="padding: 20px 10px 8px">Labs</div>
+    <a class="nav" href="#" style="color: #8A8C92"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"></path></svg>Wear &amp; impact<span class="mono" style="margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">SOON</span></a>
+    <a class="nav" href="#" style="color: #8A8C92"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>Sample size<span class="mono" style="margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">SOON</span></a>
+  </nav>
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+    <a class="nav" href="Settings-Baseline.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg>Settings</a>
+    <a class="glass" href="Settings-Baseline.dc.html" style="border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; color: inherit; text-decoration: none">
+      <div class="lbl">Default baseline</div>
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500"><span style="width: 9px; height: 9px; border-radius: 3px; background: #2DD4BF"></span>Batch 3<span style="margin-left: auto; font-size: 12px; color: #8A8C92">17 tiles</span></div>
+      <div style="font-size: 12px; color: #A3A4A9; line-height: 1.45">What the supplier promised. <span style="color: #FF9A5C">Change</span></div>
+    </a>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; color: #A3A4A9"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Rules frozen · <span class="mono">f424aaf</span></div>
+  </div>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 64px; padding: 0 40px; border-bottom: 1px solid rgba(255,255,255,.07)">
+    <div style="font-size: 14px; color: #A3A4A9">Analyse <span style="color: #5F6166">/</span> <span style="color: #EDECE8">Compare batch</span></div>
+    <label style="margin-left: auto; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03); color: #8A8C92; font-size: 13px; min-width: 240px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" placeholder="Search tiles and batches" aria-label="Search tiles and batches" style="flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: #EDECE8; font: 13px 'Geist',sans-serif"><span class="mono" style="font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">⌘K</span></label>
+    <button type="button" aria-label="Account: Patrik" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); background: #1B1C20; color: #EDECE8; font: 600 12px 'Geist',sans-serif">PH</button>
+  </header>
+  <div style="width: 100%; max-width: 1180px; box-sizing: border-box; padding: 36px 40px 64px; display: flex; flex-direction: column; gap: 24px">
+
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+      <button type="button" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: #EDECE8; font: inherit; cursor: pointer">
+        <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px"><span class="lbl" style="font-size: 10px">Batch</span><span style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500"><span style="width: 10px; height: 10px; border-radius: 3px; background: #6EA8FF"></span>Batch 1 <span style="font-size: 13px; color: #8A8C92; font-weight: 400">7 tiles</span></span></span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+      </button>
+      <span class="mono" style="font-size: 13px; color: #8A8C92; padding: 0 2px">vs</span>
+      <div style="position: relative">
+        <button type="button" aria-haspopup="listbox" aria-expanded="{{pickerExpanded}}" onClick="{{togglePicker}}" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 14px; border-radius: 14px; color: #EDECE8; font: inherit; cursor: pointer; {{baseBtn}}">
+          <span style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px"><span class="lbl" style="font-size: 10px; color: #5EEAD4">Baseline</span><span style="display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500"><span style="{{baseDot}}"></span>{{baseName}} <span style="font-size: 13px; color: #8A8C92; font-weight: 400">{{baseSub}}</span></span></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+        </button>
+        <sc-if value="{{picker}}" hint-placeholder-val="{{false}}">
+          <div class="glass" role="listbox" aria-label="Baseline for this comparison" style="position: absolute; top: 60px; left: 0; z-index: 20; width: 300px; border-radius: 18px; padding: 8px; display: flex; flex-direction: column; gap: 2px; background: rgba(24,25,29,.86)">
+            <div class="lbl" style="padding: 8px 10px 6px">Compare against</div>
+            <sc-for list="{{baselines}}" as="b" hint-placeholder-count="3">
+              <button type="button" role="option" aria-selected="{{b.sel}}" onClick="{{b.pick}}" style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 10px; color: #EDECE8; font: 14px 'Geist', sans-serif; text-align: left; cursor: pointer; {{b.rowStyle}}">
+                <span style="{{b.dotStyle}}"></span><span style="flex: 1">{{b.name}}</span>
+                <sc-if value="{{b.isDefault}}" hint-placeholder-val="{{false}}"><span class="mono" style="font-size: 10px; padding: 2px 6px; border-radius: 5px; border: 1px solid rgba(45,212,191,.45); color: #5EEAD4">DEFAULT</span></sc-if>
+                <span style="font-size: 12px; color: #8A8C92">{{b.n}}</span>
+              </button>
+            </sc-for>
+            <a href="Settings-Baseline.dc.html" style="display: flex; align-items: center; justify-content: space-between; min-height: 40px; margin-top: 4px; padding: 0 10px; border-top: 1px solid rgba(255,255,255,.08); font-size: 13px">Change the default baseline<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+          </div>
+        </sc-if>
+      </div>
+      <sc-if value="{{oneOff}}" hint-placeholder-val="{{false}}">
+        <span style="display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: #C4C5C9">For this comparison only. <a href="Settings-Baseline.dc.html">Make default</a><button type="button" onClick="{{resetBase}}" style="border: 0; background: transparent; color: #A3A4A9; font: 13px 'Geist', sans-serif; cursor: pointer; text-decoration: underline">Back to Batch 3</button></span>
+      </sc-if>
+      <div style="margin-left: auto; display: flex; gap: 8px">
+        <button class="btn" type="button">Upload a new batch</button>
+      </div>
+    </div>
+
+    <section aria-label="Answer" class="glass" style="border-radius: 24px; padding: 24px 28px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px 28px; background: linear-gradient(180deg, rgba(250,204,21,.07), rgba(255,255,255,.02))">
+      <span style="display: inline-flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 14px; border-radius: 999px; background: rgba(250,204,21,.14); border: 1px solid rgba(250,204,21,.4); color: #FDE68A; font: 600 13px 'Geist Mono', monospace; letter-spacing: .08em"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l9 16H3l9-16z"></path><path d="M12 10v4M12 17h.01"></path></svg>INVESTIGATE</span>
+      <p style="flex: 1 1 480px; margin: 0; font-size: 22px; line-height: 1.35; font-weight: 500; letter-spacing: -0.015em">Batch 1 may carry more, and coarser, silicon. Not settled: two tiles drive it.</p>
+      <button class="btn pri" type="button">Hold batch</button>
+    </section>
+
+    <div role="note" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px; border: 1px solid rgba(250,204,21,.25); background: rgba(250,204,21,.05)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FACC15" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l9 16H3l9-16z"></path><path d="M12 10v4M12 17h.01"></path></svg>
+      <span style="font-size: 14px"><span style="font-weight: 500">Microscope settings changed.</span> <span style="color: #C4C5C9">Noise and sharpness differ on all three detectors, so brightness and porosity are paused.</span></span>
+      <span class="mono" style="margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 5px; border: 1px solid rgba(255,255,255,.16); color: #A3A4A9">PINNED CAVEAT</span>
+    </div>
+
+    <section aria-label="Look here first" style="display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em">Look here first</h2>
+          <span style="font-size: 13px; color: #8A8C92">{{srcNote}}</span>
+        </div>
+        <div role="group" aria-label="Who picks the highlights" class="glass" style="display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 14px">
+          <span class="lbl" style="padding: 0 8px 0 10px; font-size: 10px">Picked by</span>
+          <sc-for list="{{sources}}" as="x" hint-placeholder-count="3">
+            <button type="button" onClick="{{x.pick}}" style="min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; font: 500 13px 'Geist', sans-serif; cursor: pointer; {{x.style}}">{{x.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+        <sc-for list="{{cards}}" as="c" hint-placeholder-count="3">
+          <article style="border-radius: 22px; border: 1px solid rgba(255,255,255,.1); background: #15161A; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; box-shadow: 0 20px 40px -28px rgba(0,0,0,.9)">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span class="mono" style="flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: #F6F5F2; color: #0A0B0D; font-size: 13px; font-weight: 600">{{c.n}}</span>
+              <span style="font-size: 12px; color: #FDE68A">Not settled</span>
+              <span class="mono" style="margin-left: auto; font-size: 13px; color: #C4C5C9">{{c.shift}}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <h3 style="margin: 0; font-size: 19px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em">{{c.title}}</h3>
+              <span class="mono" style="font-size: 13px; color: #C4C5C9">{{c.nums}}</span>
+            </div>
+            <div style="position: relative; height: 26px">
+              <div style="position: absolute; top: 0; bottom: 0; left: 12.5%; width: 75%; background: rgba(45,212,191,.07)"></div>
+              <div style="position: absolute; top: 0; bottom: 0; left: 31.25%; width: 37.5%; background: rgba(45,212,191,.16); border-left: 1px dashed rgba(45,212,191,.5); border-right: 1px dashed rgba(45,212,191,.5)"></div>
+              <div style="position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(45,212,191,.7)"></div>
+              <div style="{{c.ciStyle}}"></div>
+              <div style="{{c.ptStyle}}"></div>
+            </div>
+            <div class="mono" style="display: flex; justify-content: space-between; margin-top: -8px; font-size: 10px; color: #8A8C92"><span>−4σ</span><span style="color: #5EEAD4">baseline · tolerance</span><span>+4σ</span></div>
+            <div style="display: flex; gap: 8px">
+              <sc-for list="{{c.tiles}}" as="t" hint-placeholder-count="2">
+                <a href="Viewer.dc.html" style="position: relative; flex: 1; display: block; border-radius: 12px; overflow: hidden; aspect-ratio: 4 / 3; box-shadow: 0 0 0 1.5px rgba(250,204,21,.7)"><img src="{{t.src}}" alt="Tile {{t.id}}" style="width: 100%; height: 100%; object-fit: cover; display: block"><span class="mono" style="position: absolute; left: 6px; bottom: 6px; right: 6px; display: flex; justify-content: space-between; font-size: 10px; padding: 3px 6px; border-radius: 6px; background: rgba(10,11,13,.78); color: #EDECE8"><span>{{t.id}}</span><span style="color: #FDE68A">{{t.v}}</span></span></a>
+              </sc-for>
+            </div>
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #C4C5C9">{{c.meaning}}</p>
+            <div style="margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.07); display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.45; color: #8A8C92">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>
+              <span>Why it’s here: {{c.whyText}}</span>
+            </div>
+          </article>
+        </sc-for>
+      </div>
+      <sc-if value="{{isClaude}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; border: 1px dashed rgba(255,154,92,.4); background: rgba(255,122,47,.05); font-size: 13px; line-height: 1.5; color: #C4C5C9">
+          <span class="mono" style="flex: none; font-size: 10px; padding: 2px 6px; border-radius: 5px; border: 1px solid rgba(255,154,92,.5); color: #FF9A5C">EXPERIMENTAL</span>
+          <span>Claude chose and ordered these three from the 22 findings Catalyst computed. It noticed the same two tiles behind all three. It can’t add findings or change numbers. Switch back to Statistics for the default order.</span>
+        </div>
+      </sc-if>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: #A3A4A9">
+      <span style="display: inline-flex; align-items: center; gap: 8px; margin-right: 6px; color: #86EFAC"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>12 properties within tolerance</span>
+      <span style="padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.1)">Coarse Si size</span>
+      <span style="padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.1)">Fragment density</span>
+      <span style="padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.1)">Dispersion</span>
+      <span style="padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.1)">Pore connectivity</span>
+      <span style="padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.1)">Graphite anisotropy</span>
+      <span style="color: #8A8C92">+7 more</span>
+    </div>
+
+    <section aria-label="Everything else" style="border-radius: 22px; border: 1px solid rgba(255,255,255,.08); background: rgba(14,15,18,.82); overflow: hidden">
+      <div class="lbl" style="padding: 16px 20px 10px">Everything else</div>
+      <sc-for list="{{sections}}" as="x" hint-placeholder-count="6">
+        <div style="border-top: 1px solid rgba(255,255,255,.06)">
+          <button type="button" aria-expanded="{{x.expanded}}" onClick="{{x.toggle}}" style="display: flex; align-items: center; gap: 16px; width: 100%; min-height: 56px; padding: 0 20px; border: 0; background: transparent; color: #EDECE8; font: 15px 'Geist', sans-serif; text-align: left; cursor: pointer">
+            <span style="flex: 1">{{x.title}}</span>
+            <span class="mono" style="font-size: 12px; color: #8A8C92">{{x.sum}}</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A3A4A9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="{{x.chev}}"><path d="M6 9l6 6 6-6"></path></svg>
+          </button>
+          <sc-if value="{{x.isOpen}}" hint-placeholder-val="{{false}}">
+            <div style="padding: 4px 20px 20px">
+              <sc-if value="{{x.isProps}}" hint-placeholder-val="{{false}}">
+                <div style="display: flex; flex-direction: column">
+                  <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+                    <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr) 150px 70px; gap: 16px; align-items: center; min-height: 40px; border-bottom: 1px solid rgba(255,255,255,.05); {{r.dim}}">
+                      <span style="font-size: 13px">{{r.name}}</span>
+                      <div style="position: relative; height: 22px"><div style="position: absolute; top: 0; bottom: 0; left: 31.25%; width: 37.5%; background: rgba(45,212,191,.12)"></div><div style="position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(45,212,191,.6)"></div><div style="{{r.ci}}"></div><div style="{{r.pt}}"></div></div>
+                      <span class="mono" style="font-size: 12px; text-align: right; color: #C4C5C9">{{r.v}}</span>
+                      <span style="font-size: 12px; text-align: right; color: #A3A4A9">{{r.st}}</span>
+                    </div>
+                  </sc-for>
+                  <span style="padding-top: 10px; font-size: 12px; color: #8A8C92">Showing 8 of 22 · <a href="Compare.dc.html">Show all</a></span>
+                </div>
+              </sc-if>
+              <sc-if value="{{x.isTiles}}" hint-placeholder-val="{{false}}"><p style="margin: 0; font-size: 13px; color: #A3A4A9">[Every tile on the baseline band, one row per property]</p></sc-if>
+              <sc-if value="{{x.isGallery}}" hint-placeholder-val="{{false}}"><p style="margin: 0; font-size: 13px; color: #A3A4A9">[Both galleries side by side, flagged tiles first]</p></sc-if>
+              <sc-if value="{{x.isExplain}}" hint-placeholder-val="{{false}}"><p style="margin: 0; font-size: 13px; color: #A3A4A9">[Operator · engineer · scientist · manager tabs]</p></sc-if>
+              <sc-if value="{{x.isModel}}" hint-placeholder-val="{{false}}"><p style="margin: 0; font-size: 13px; color: #A3A4A9">[Held-out accuracy per feature family against the shuffled-label null]</p></sc-if>
+              <sc-if value="{{x.isRun}}" hint-placeholder-val="{{false}}"><p class="mono" style="margin: 0; font-size: 12px; color: #A3A4A9">346,104 arrangements · smallest p 2.9e-06 · α 0.10 · tolerance 1.5σ · 72 input hashes</p></sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 1440, "height": 1560}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { source: 'stats', open: { props: false }, picker: false, baseline: 'Batch 3' };
+  }
+  renderVals() {
+    const s = this.state;
+    const sp = (v) => ((Math.max(-4, Math.min(4, v)) + 4) / 8) * 100;
+    const T = {
+      a: { id: '4ih2ggld', src: '/_blob/172da177d06619d71e815fd77bff0eab' },
+      b: { id: '5n1q8atc', src: '/_blob/99123e07bf0645b92047bfe4a6067597' },
+    };
+    const F = {
+      ratio: {
+        title: 'More silicon per graphite', nums: '0.075 → 0.105', shift: '+2.1σ', d: 2.13, lo: 0.44, hi: 3.81,
+        tiles: [{ ...T.a, v: '0.164' }, { ...T.b, v: '0.198' }],
+        meaning: 'Silicon loading sets capacity and swelling. Ask the supplier for this lot’s Si : graphite ratio.',
+        why: {
+          stats: 'Largest shift against its tolerance among the key properties.',
+          model: 'Top feature in Pat’s ranking for telling Batch 1 from Batch 3.',
+          claude: 'The biggest move, and the one the supplier can check straight from the recipe.',
+        },
+      },
+      size: {
+        title: 'Coarser silicon, more type T2', nums: 'D50 3.66 → 4.41 µm · T2 57% → 77%', shift: '+1.2σ', d: 1.19, lo: 0.39, hi: 1.98,
+        tiles: [{ ...T.a, v: '5.20 µm' }, { ...T.b, v: '5.00 µm' }],
+        meaning: 'Larger silicon particles crack more as they swell. Ask for the powder’s D50 / D90.',
+        why: {
+          stats: 'Second-largest shift; the T1 → T2 type shift moves with it.',
+          model: 'Particle features carry most of the model’s weight for Batch 1.',
+          claude: 'Size and particle type move together, so they read as one finding.',
+        },
+      },
+      voids: {
+        title: 'More voids inside silicon', nums: '0.26% → 0.48%', shift: '+1.5σ', d: 1.5, lo: -0.09, hi: 3.1,
+        tiles: [{ ...T.a, v: '1.36%' }, { ...T.b, v: '1.12%' }],
+        meaning: 'Could be a porous Si grade, or FIB damage. Ask whether the grade is porous or solid.',
+        why: {
+          stats: 'Third-largest shift, and wide: two tiles carry it.',
+          model: 'Third in Pat’s ranking.',
+          claude: 'The same two tiles again: worth re-imaging them before blaming the powder.',
+        },
+      },
+    };
+    const ORDER = { stats: ['ratio', 'size', 'voids'], model: ['size', 'ratio', 'voids'], claude: ['ratio', 'voids', 'size'] };
+    const cards = ORDER[s.source].map((k, i) => {
+      const f = F[k];
+      return {
+        ...f, n: i + 1, whyText: f.why[s.source],
+        ciStyle: `position: absolute; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; left: ${sp(f.lo)}%; width: ${sp(f.hi) - sp(f.lo)}%; background: #6EA8FF`,
+        ptStyle: `position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; left: ${sp(f.d)}%; background: #F6F5F2; box-shadow: 0 0 0 3px #15161A`,
+      };
+    });
+    const SRC = [
+      { id: 'stats', label: 'Statistics', note: 'Ranked by shift against tolerance, from compare(). Today’s default.' },
+      { id: 'model', label: 'Pat’s model', note: 'Ranked by Pat’s feature ranking. Available once her evaluation is final.' },
+      { id: 'claude', label: 'Claude', note: 'Experimental. Claude picks from the findings above; every number still comes from Catalyst.' },
+    ];
+    const sources = SRC.map((x) => ({
+      ...x,
+      pick: () => this.setState({ source: x.id }),
+      style: s.source === x.id
+        ? 'background: rgba(255,255,255,.14); color: #F6F5F2; box-shadow: inset 0 1px 0 rgba(255,255,255,.16)'
+        : 'background: transparent; color: #A3A4A9',
+    }));
+    const srcNote = SRC.find((x) => x.id === s.source).note;
+
+    const sections = [
+      { id: 'props', title: 'All 22 properties', sum: '5 unclear · 12 similar · 2 paused · 3 descriptive' },
+      { id: 'tiles', title: 'Every tile, property by property', sum: '2 of 7 tiles outside baseline ±3σ' },
+      { id: 'gallery', title: 'All tiles', sum: '7 Batch 1 · 17 Batch 3 · 2 flagged' },
+      { id: 'explain', title: 'Explain it to an operator, engineer, scientist or manager', sum: '4 versions' },
+      { id: 'model', title: 'How well can we tell the batches apart?', sum: 'Best family 55% · chance 33%' },
+      { id: 'run', title: 'Run details', sum: '7 vs 17 tiles · commit 5356d73 · not frozen' },
+    ].map((x) => {
+      const isOpen = !!s.open[x.id];
+      return {
+        ...x, isOpen, notOpen: !isOpen, expanded: isOpen ? 'true' : 'false',
+        toggle: () => this.setState({ open: { ...s.open, [x.id]: !isOpen } }),
+        chev: isOpen ? 'transform: rotate(180deg)' : 'transform: none',
+        isProps: x.id === 'props', isTiles: x.id === 'tiles', isGallery: x.id === 'gallery',
+        isExplain: x.id === 'explain', isModel: x.id === 'model', isRun: x.id === 'run',
+      };
+    });
+    const rows = [
+      ['Silicon : graphite ratio', 2.13, 0.44, 3.81, '0.075 → 0.105', 'Unclear'],
+      ['Particle type T2 share', 1.38, 0.48, 2.27, '57% → 77%', 'Unclear'],
+      ['Particle type T1 share', -1.35, -2.25, -0.47, '43% → 23%', 'Unclear'],
+      ['Median Si particle size', 1.19, 0.39, 1.98, '3.66 → 4.41 µm', 'Unclear'],
+      ['Voids inside silicon', 1.5, -0.09, 3.1, '0.26% → 0.48%', 'Unclear'],
+      ['Coarse Si particle size', 0.38, -0.47, 1.23, '6.59 → 6.99 µm', 'Similar'],
+      ['Silicon brightness', -1.37, -2.33, -0.42, '2.09 → 1.91', 'Paused'],
+      ['Apparent porosity', -1.08, -1.83, -0.33, '10.7% → 8.8%', 'Paused'],
+    ].map(([name, d, lo, hi, v, st]) => ({
+      name, v, st,
+      dim: st === 'Paused' ? 'opacity: .5' : '',
+      ci: `position: absolute; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; left: ${sp(lo)}%; width: ${sp(hi) - sp(lo)}%; background: ${st === 'Similar' ? '#86EFAC' : '#6EA8FF'}`,
+      pt: `position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; left: ${sp(d)}%; background: #F6F5F2`,
+    }));
+
+    const B = [
+      { name: 'Batch 3', n: '17 tiles', dot: '#2DD4BF', isDefault: true, disabled: false },
+      { name: 'Batch 2', n: '7 tiles', dot: '#B794FF', isDefault: false, disabled: false },
+      { name: 'Batch 1', n: 'being compared', dot: '#6EA8FF', isDefault: false, disabled: true },
+    ];
+    const baselines = B.map((b) => ({
+      ...b,
+      sel: s.baseline === b.name,
+      pick: b.disabled ? () => {} : () => this.setState({ baseline: b.name, picker: false }),
+      rowStyle: b.disabled ? 'opacity: .45; cursor: not-allowed' : (s.baseline === b.name ? 'background: rgba(255,255,255,.08)' : 'background: transparent'),
+      dotStyle: `width: 10px; height: 10px; border-radius: 3px; background: ${b.dot}`,
+    }));
+    const cur = B.find((b) => b.name === s.baseline);
+    const oneOff = s.baseline !== 'Batch 3';
+    return {
+      cards, sources, srcNote, sections, rows, baselines,
+      isClaude: s.source === 'claude',
+      picker: s.picker,
+      togglePicker: () => this.setState({ picker: !s.picker }),
+      pickerExpanded: s.picker ? 'true' : 'false',
+      baseName: s.baseline,
+      baseDot: `width: 10px; height: 10px; border-radius: 3px; background: ${cur.dot}`,
+      baseSub: oneOff ? `${cur.n} · one-off` : '17 tiles · default',
+      oneOff,
+      resetBase: () => this.setState({ baseline: 'Batch 3' }),
+      baseBtn: oneOff
+        ? 'border: 1px solid rgba(183,148,255,.4); background: rgba(183,148,255,.08)'
+        : 'border: 1px solid rgba(45,212,191,.35); background: rgba(45,212,191,.08)',
+    };
+  }
+}
+</script>
+</body>
+</html>
