@@ -1,0 +1,44 @@
+# AGENTS.md
+
+Instructions for any AI coding agent working in this repo (Devin, Claude, Cursor, Antigravity, ...).
+
+## Keep the README current
+
+`README.md` is the shared map of the system. Keep these sections in sync with the code **in the same PR**:
+
+- **Architecture** (mermaid diagram)
+- **Infrastructure** (processes, folders, HTTP API)
+- **Data pipeline** (steps, phases, KPIs and their status)
+- **Decision algorithm** (formulas, rules, config keys)
+- **Who owns what**
+
+Update them if your change adds, removes, renames or rewires any of the following:
+
+- a module in `qc/` or a top-level part of `web/`
+- a contract function (`segment`, `kpis`, `judge`, `run`, `load_field`) or an `/api` endpoint
+- a KPI, phase label, config key, or a file or folder under `data/`, `out/` or `config/`
+- the data flow between them, or a decision rule
+
+Check the diagram still matches the code before you open a PR. If you're unsure, update it.
+
+## Commands
+
+```bash
+uv sync                                                    # setup
+uv run pytest                                              # must pass before every PR
+uv run python -m qc.measure [data/<batch> ...]             # ML only: images -> out/kpis.csv + out/masks/
+uv run python -m qc.run --batch data/<batch>               # images -> kpis.csv -> evidence
+uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline   # backend only
+uv run uvicorn qc.api:app --reload                         # API on :8000
+cd web && npm install && npm run dev                       # UI on :5173 (Node >= 20.19)
+cd web && npm run build                                    # typecheck + build, must pass before every PR touching web/
+```
+
+## Rules
+
+- `docs/PLAN_v1.md` is the plan and is owned by the team; don't rewrite it from a code PR. If the code has to deviate from it, say so in the README and the PR.
+- `qc/schema.py` is the ML ↔ backend contract (PLAN_v1 §3.1). Adding a field or KPI is fine. Renaming, removing or changing a unit needs both owners. Update `tests/fixtures/kpis_fake.csv`, `tests/test_contract.py` and `web/src/types.ts` along with it.
+- `qc/api.py` stays a thin wrapper: no QC logic in the API or the UI.
+- Never commit `data/`, `out/` or `EXAMPLE BATCHES FOR LOCAL REFERENCE/`. The images cost £50k to collect: don't upload them to any external service without Polaron's OK (PLAN_v1 §1).
+- Don't edit `config/decision.yaml` after the `rules-frozen` git tag.
+- Install npm packages with `npm install --before=<date one week ago>` to avoid brand-new releases.
