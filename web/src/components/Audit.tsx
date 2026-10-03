@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { getEvidence, listBatches, verifyBatch } from "../api";
-import { batchLabel, shortHash, useApi } from "../lib";
-import type { Evidence, VerifyResult } from "../types";
+import { getEvidence, getKpiDictionary, getSettings, listDecisions, verifyBatch } from "../api";
+import { batchLabel, dropTwinShare, quantityLabel, shortHash, useApi, utc } from "../lib";
+import type { Evidence, KpiDictionary, VerifyResult } from "../types";
 import { BatchDot, CAT, Cat, IconCheck, IconWarn, Panel, Spinner, VerdictPill } from "./bits";
 
 interface Entry {
+  key: string;            // batch/baseline: one comparison
   batch: string;
   evidence: Evidence;
 }
@@ -16,14 +17,15 @@ const STAMP_CLASS: Record<string, string> = {
 };
 
 export default function Audit() {
+  const dict = useApi(getKpiDictionary);
+  const settings = useApi(getSettings);
+  const defaultBaseline = settings.data?.baseline;
   const entries = useApi(async () => {
-    const batches = await listBatches();
-    const results = await Promise.allSettled(
-      batches.filter((b) => b.verdict).map((b) => getEvidence(b.name)),
-    );
+    const decisions = await listDecisions();
+    const results = await Promise.allSettled(decisions.map((d) => getEvidence(d.batch, d.baseline)));
     return results
       .filter((r): r is PromiseFulfilledResult<Evidence> => r.status === "fulfilled")
-      .map((r) => ({ batch: r.value.batch, evidence: r.value }))
+      .map((r) => ({ key: `${r.value.batch}/${r.value.baseline}`, batch: r.value.batch, evidence: r.value }))
       .sort((a, b) =>
         (b.evidence.provenance?.created_at ?? "").localeCompare(a.evidence.provenance?.created_at ?? ""),
       );
@@ -40,9 +42,9 @@ export default function Audit() {
     const out: Record<string, VerifyResult | "error"> = {};
     for (const entry of list) {
       try {
-        out[entry.batch] = await verifyBatch(entry.batch);
+        out[entry.key] = await verifyBatch(entry.batch, entry.evidence.baseline);
       } catch {
-        out[entry.batch] = "error";
+        out[entry.key] = "error";
       }
     }
     setResults(out);
@@ -51,7 +53,7 @@ export default function Audit() {
 
   const verified = Object.keys(results).length > 0;
   const allOk = verified && list.every((e) => {
-    const result = results[e.batch];
+    const result = results[e.key];
     return typeof result === "object" && result.ok;
   });
 
@@ -85,7 +87,7 @@ export default function Audit() {
           <span className="mono text-xs text-cx-muted">
             {frozen ? (
               <>
-                rules-frozen · {frozen.rules_frozen_date?.slice(0, 16).replace("T", " ") ?? "?"} · commit{" "}
+                rules-frozen · {utc(frozen.rules_frozen_date)} · commit{" "}
                 {shortHash(frozen.rules_frozen_commit, 7)}
                 {Object.entries(frozen.config_sha256)
                   .filter(([k]) => k !== "decision")
@@ -127,10 +129,10 @@ export default function Audit() {
           {list.length ? (
             list.map((entry, i) => {
               const prov = entry.evidence.provenance;
-              const result = results[entry.batch];
+              const result = results[entry.key];
               return (
                 <button
-                  key={entry.batch}
+                  key={entry.key}
                   type="button"
                   onClick={() => setSel(i)}
                   className="grid w-full cursor-pointer grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-4 border-0 border-b border-cx-line-soft px-5 py-2.5 text-left text-cx-text"
@@ -146,9 +148,12 @@ export default function Audit() {
                     <span className="flex items-center gap-2 text-sm">
                       <BatchDot name={entry.batch} size={8} />
                       Compared {batchLabel(entry.batch)} with {batchLabel(entry.evidence.baseline)}
+                      {entry.evidence.baseline !== defaultBaseline && (
+                        <span className="mono rounded-[5px] border border-cx-batch-2/40 px-1.5 py-px text-[10px] text-cx-batch-2">ONE-OFF BASELINE</span>
+                      )}
                     </span>
                     <span className="text-xs text-cx-faint">
-                      {prov?.created_at.slice(0, 16).replace("T", " ") ?? "?"} ·{" "}
+                      {utc(prov?.created_at)} ·{" "}
                       <span className="mono">
                         {shortHash(prov?.git_commit, 7)}
                         {prov?.git_dirty ? " · dirty" : ""} · {prov?.inputs.length ?? 0} files
@@ -175,7 +180,7 @@ export default function Audit() {
 
         <div className="col-span-5 flex min-w-0 flex-col gap-4">
           {current ? (
-            <Passport entry={current} index={list.length - sel} result={results[current.batch]} />
+            <Passport entry={current} index={list.length - sel} result={results[current.key]} dict={dict.data} />
           ) : (
             <Panel className="print-hidden flex items-center gap-3 text-sm text-cx-muted">
               <Cat mood="ready" size={34} />
@@ -192,14 +197,20 @@ function Passport({
   entry,
   index,
   result,
+  dict,
 }: {
   entry: Entry;
   index: number;
   result: VerifyResult | "error" | undefined;
+  dict: KpiDictionary | null;
 }) {
   const ev = entry.evidence;
   const prov = ev.provenance;
-  const drivers = ev.drivers.slice(0, 4);
+  const byName = new Map(ev.differences.map((d) => [d.name, d]));
+  const drivers = dropTwinShare(ev.drivers.map((name) => ({ name })), ev)
+    .filter(({ name }) => byName.get(name)?.status !== "SIMILAR")
+    .slice(0, 4)
+    .map(({ name }, i) => (i ? quantityLabel(name, dict).toLowerCase() : quantityLabel(name, dict)));
   return (
     <section
       aria-label="Batch passport"
@@ -230,18 +241,20 @@ function Passport({
       <dl className="m-0 grid grid-cols-[112px_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-[13px]">
         <dt className="text-[#5A5C62]">Drivers</dt>
         <dd className="m-0">{drivers.join(", ") || "—"}</dd>
-        {ev.reasons.length > 0 && (
+        <dt className="text-[#5A5C62]">Summary</dt>
+        <dd className="m-0">{ev.explanations.summary}</dd>
+        {ev.explanations.rules.length > 0 && (
           <>
-            <dt className="text-[#5A5C62]">Reasons</dt>
+            <dt className="text-[#5A5C62]">Rules fired</dt>
             <dd className="m-0 flex flex-col gap-1">
-              {ev.reasons.slice(0, 3).map((r) => (
+              {ev.explanations.rules.map((r) => (
                 <span key={r}>{r}</span>
               ))}
             </dd>
           </>
         )}
         <dt className="text-[#5A5C62]">Created</dt>
-        <dd className="mono m-0">{prov?.created_at.replace("T", " ").replace("+00:00", " UTC") ?? "—"}</dd>
+        <dd className="mono m-0">{utc(prov?.created_at)}</dd>
         <dt className="text-[#5A5C62]">Code</dt>
         <dd className="mono m-0">
           {shortHash(prov?.git_commit, 12)}
@@ -251,7 +264,7 @@ function Passport({
         <dd className="mono m-0 flex flex-col gap-[3px] text-xs">
           {Object.entries(prov?.config_sha256 ?? {}).map(([name, hash]) => (
             <span key={name} title={hash}>
-              {shortHash(hash)} {name}
+              {shortHash(hash)} {name === "decision" ? `decision.yaml as run (baseline ${batchLabel(ev.baseline)})` : name}
             </span>
           ))}
         </dd>

@@ -171,7 +171,7 @@ export default function Identify() {
               <div className="flex flex-col gap-1">
                 <div className="text-lg font-medium">Drop images here</div>
                 <div className="mono text-xs text-cx-faint">
-                  img_&lt;id&gt;_BSE.tif · _ETD.tif · _InLens.tif, paired by ID
+                  img_&lt;id&gt;_BSE.tif · _ETD.tif (or _SE) · _InLens.tif, any case, paired by ID
                 </div>
               </div>
             </div>
@@ -216,25 +216,18 @@ export default function Identify() {
         <Panel className="col-span-2 overflow-hidden p-0">
           <div className="flex items-center justify-between border-b border-cx-line px-5 py-4">
             <h2 className="m-0 text-[15px] font-medium">Recent identifications</h2>
-            <a href={href.audit()} className="text-[13px]">
-              View all
-            </a>
           </div>
           {recent.data?.length ? (
             <table className="w-full min-w-[520px] border-collapse text-sm">
               <thead>
                 <tr className="lbl text-left">
                   <th className="px-5 py-3 font-normal">Drop</th>
-                  <th className="px-2 py-3 font-normal">Closest batch</th>
-                  <th className="px-2 py-3 font-normal">Confidence</th>
-                  <th className="px-2 py-3 font-normal">Baseline or not</th>
+                  <th className="px-2 py-3 font-normal">Closest batch per tile</th>
                   <th className="px-5 py-3 text-right font-normal">Tiles</th>
                 </tr>
               </thead>
               <tbody>
                 {recent.data.map(({ name, attribution: a }) => {
-                  const first = a.images[0];
-                  const unfamiliar = a.images.filter((i) => i.unfamiliar).length;
                   return (
                     <tr
                       key={name}
@@ -248,36 +241,21 @@ export default function Identify() {
                     >
                       <td className="mono px-5 py-3.5 text-cx-text">{name}</td>
                       <td className="px-2 py-3.5">
-                        {first && (
-                          <span className="inline-flex items-center gap-2">
-                            <BatchDot name={first.predicted} size={8} />
-                            {batchLabel(first.predicted)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-3.5">
-                        <span className="mono">
-                          {first?.confidence != null ? `${Math.round(first.confidence * 100)}%` : "—"}
+                        <span className="flex flex-wrap gap-x-4 gap-y-1">
+                          {a.images.slice(0, 4).map((img) => (
+                            <span key={img.image_id} className="inline-flex items-center gap-2" title={img.image_id}>
+                              <BatchDot name={img.predicted} size={8} />
+                              {batchLabel(img.predicted)}
+                              <span className="mono text-cx-muted">{img.confidence != null ? `${Math.round(img.confidence * 100)}%` : "—"}</span>
+                              {img.unfamiliar && (
+                                <span className="inline-flex items-center gap-1 text-cx-investigate" title="Outside the range of the batch it was assigned to">
+                                  <IconWarn /> unfamiliar
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                          {a.images.length > 4 && <span className="text-cx-faint">+{a.images.length - 4} more</span>}
                         </span>
-                        {first?.confidence_tier && (
-                          <span className="pl-2 text-cx-muted">{first.confidence_tier}</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-3.5">
-                        {first?.stage_baseline ? (
-                          <span className="text-cx-muted">
-                            {batchLabel(first.stage_baseline.call)}{" "}
-                            <span className="mono">{Math.round(first.stage_baseline.confidence * 100)}%</span>
-                          </span>
-                        ) : (
-                          <span className="text-cx-faint">—</span>
-                        )}
-                        {unfamiliar > 0 && (
-                          <span className="inline-flex items-center gap-1.5 pl-2 text-cx-investigate">
-                            <IconWarn />
-                            Unfamiliar
-                          </span>
-                        )}
                       </td>
                       <td className="px-5 py-3.5 text-right text-cx-faint">{a.images.length}</td>
                     </tr>
@@ -323,7 +301,7 @@ function ModelGauge({ model }: { model: ModelStatus }) {
         <>
           <div className="flex items-baseline gap-2.5">
             <span className="text-[40px] font-semibold tracking-[-0.03em]">{Math.round(acc * 100)}%</span>
-            <span className="text-[13px] text-cx-muted">right on held-out strips, all {model.classes.length} batches</span>
+            <span className="text-[13px] text-cx-muted">balanced accuracy on held-out strips, all {model.classes.length} batches</span>
           </div>
           <div className="relative h-2 rounded bg-white/[0.07]">
             <div className="absolute inset-y-0 left-0 rounded bg-cx-text" style={{ width: `${acc * 100}%` }} />

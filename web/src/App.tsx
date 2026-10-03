@@ -1,25 +1,28 @@
-import { getConfig, getModelStatus, getTiles } from "./api";
+import { getModelStatus, getSettings, getTiles } from "./api";
 import Audit from "./components/Audit";
 import Compare from "./components/Compare";
 import Identify from "./components/Identify";
 import Library from "./components/Library";
+import Settings from "./components/Settings";
 import Shell, { type ShellInfo } from "./components/Shell";
-import { batchLabel, isUploadBatch, useApi } from "./lib";
+import { batchLabel, useApi } from "./lib";
+import { useState } from "react";
 import { useHashRoute } from "./router";
 
 export default function App() {
   const route = useHashRoute();
   const page = route[0];
-  const config = useApi(getConfig);
+  const [saved, setSaved] = useState(0);
+  const settings = useApi(getSettings, [route.join("/"), saved]);
   const tiles = useApi(getTiles, [route.join("/")]);
-  const baseline = config.data?.baseline ?? null;
+  const baseline = settings.data?.baseline ?? null;
   const model = useApi(getModelStatus, [route.join("/")]);
 
   const info: ShellInfo = {
     baseline,
     baselineTiles: baseline ? (tiles.data?.filter((t) => t.batch === baseline).length ?? null) : null,
-    totalTiles: tiles.data?.filter((t) => !isUploadBatch(t.batch)).length ?? null,
-    frozen: model.data?.matches_frozen ? model.data.rules_frozen_commit : null,
+    totalTiles: tiles.data?.length ?? null,
+    frozen: settings.data?.rules_frozen_commit ?? null,
     modelChanged: model.data?.matches_frozen === false,
   };
 
@@ -31,14 +34,16 @@ export default function App() {
         ? ["Library", batchLabel(route[1]), <span key="id" className="mono">{route[2]}</span>]
         : ["Library"],
     audit: ["Trust", "Audit log"],
+    settings: ["Settings", "Baseline"],
   };
 
   return (
     <Shell page={page} crumbs={crumbs[page] ?? ["Catalyst"]} info={info}>
       {page === "identify" && <Identify />}
-      {page === "compare" && <Compare routeBatch={route[1]} />}
+      {page === "compare" && <Compare routeBatch={route[1]} routeBaseline={route[2]} />}
       {page === "library" && <Library routeBatch={route[1]} routeImage={route[2]} />}
       {page === "audit" && <Audit />}
+      {page === "settings" && <Settings onSaved={() => setSaved((n) => n + 1)} />}
     </Shell>
   );
 }

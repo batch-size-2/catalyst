@@ -57,6 +57,64 @@ a:hover {
   color: #ffb98a;
 }
 
+/* Numbers Catalyst filled into guide text (Compare-Guided): a value chip and a tile chip. */
+.chip-num,
+.chip-tile {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 1px;
+  border-radius: 7px;
+  font: 500 0.86em var(--cx-mono);
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+.chip-num {
+  padding: 1px 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: var(--cx-text-strong);
+  cursor: help;
+}
+.chip-tile {
+  padding: 1px 7px 1px 2px;
+  background: rgba(250, 204, 21, 0.08);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  color: var(--cx-investigate-text);
+  text-decoration: none;
+}
+.chip-tile:hover {
+  color: #fef3c7;
+}
+.chip-tile img {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  object-fit: cover;
+  display: block;
+}
+.tag-claude {
+  font: 500 10px var(--cx-mono);
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 154, 92, 0.45);
+  color: #ffb27f;
+}
+
+/* Walkthrough: the current section is ringed, the rest dimmed. */
+.tour-section {
+  border-radius: 22px;
+  transition: opacity 0.25s, box-shadow 0.25s, filter 0.25s;
+}
+.tour-on {
+  box-shadow: 0 0 0 2px rgba(246, 245, 242, 0.6), 0 0 0 10px rgba(246, 245, 242, 0.06);
+}
+.tour-off {
+  opacity: 0.25;
+  filter: saturate(0.3);
+}
+
 /* Working-state pulse (Identify "analyzing" scan line). */
 @keyframes cxpulse {
   0%,

@@ -135,10 +135,13 @@
   },
   "n_images": {"batch": 9, "baseline": 11},
   "explanations": {
-    "operator": "Batch differs from the reference on the silicon-to-graphite ratio, and strip ex_strip_d1 stands out. Hold it and call the process engineer.",
-    "engineer": "Silicon to graphite is 0.115 against 0.090 in the reference, and the interval crosses the similarity margin. Possible causes to check: the formulation ratio and the silicon powder lot.",
-    "scientist": "The silicon-to-graphite ratio is UNCLEAR at 0.115 vs 0.090 (90% interval -0.005 to 0.055 against a 0.030 margin); strip ex_strip_d1 sits outside the reference range. Particle size and apparent porosity look similar.",
-    "manager": "The batch differs from the reference, driven by the silicon additive: possibly more capacity, but more swelling. About 2 more images would settle it."
+    "summary": "Example batch has a higher silicon-to-graphite ratio and median silicon particle size than the baseline, but neither is settled.",
+    "rules": ["2 of 9 tiles outside the baseline range", "2 key properties not settled", "Known-answer controls not run"],
+    "next_steps": ["Check tile exb02: part of the batch may be different material.", "Also look at tile exb03: outside the baseline range on silicon-to-graphite ratio."],
+    "operator": ["The batch needs a closer look before release.", "Hold it and call the process engineer."],
+    "engineer": ["Silicon-to-graphite ratio is 0.115 against 0.09 in the reference: it is not settled.", "Possible causes to check: more silicon dosed into the formulation."],
+    "scientist": ["Unit: image, 9 vs 11; 167960 label arrangements, smallest possible p 6e-06.", "si_graphite_ratio: UNCLEAR, 0.115 vs 0.09, difference 0.025, interval -0.005 to 0.055 against a margin of ±0.03, family-wise p = 0.18."],
+    "manager": ["The batch needs a closer look before release.", "Main driver: silicon-to-graphite ratio."]
   },
   "provenance": {
     "inputs": [

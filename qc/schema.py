@@ -2,7 +2,7 @@
 
     ML side:      channels -> segment() -> mask -> kpis() -> one row  (qc/measure.py)
     Glue:         data/<batch>/*.tif -> out/kpis.csv -> evidence      (qc/run.py)
-    Backend side: KPI table -> evaluate()/compare() -> out/evidence/<batch>.json  (qc/decide.py)
+    Backend side: KPI table -> evaluate()/compare() -> out/evidence/<baseline>/<batch>.json  (qc/decide.py)
     UI:           reads evidence + mask overlays via the API          (qc/api.py, web/)
 
 Adding a KPI or a field is fine, just tell your partner.
@@ -186,10 +186,15 @@ class Fingerprint(BaseModel):
 
 
 class Explanations(BaseModel):
-    operator: str = ""
-    engineer: str = ""
-    scientist: str = ""
-    manager: str = ""
+    """Fixed-template texts (qc/explain.py). Each audience text is a list of sentences."""
+
+    summary: str = ""                    # one plain sentence for the answer, no code names
+    rules: list[str] = []                # the verdict rules that fired, one line each, in words
+    next_steps: list[str] = []           # plain-word next steps; each tile named once
+    operator: list[str] = []
+    engineer: list[str] = []
+    scientist: list[str] = []
+    manager: list[str] = []
 
 
 class InputFile(BaseModel):
@@ -247,8 +252,14 @@ def crop_path(type_id: str, n: int) -> Path:
     return OUT_DIR / "crops" / type_id / f"{n}.png"
 
 
-def evidence_path(batch: str) -> Path:
-    return EVIDENCE_DIR / f"{batch}.json"
+def evidence_path(batch: str, baseline: str) -> Path:
+    """One comparison: keyed by baseline too, so a one-off baseline never overwrites the default one."""
+    return EVIDENCE_DIR / baseline / f"{batch}.json"
+
+
+def guide_path(batch: str, baseline: str) -> Path:
+    """Claude's summary and walkthrough of one comparison (qc/guide.py), cached next to its evidence."""
+    return OUT_DIR / "guide" / baseline / f"{batch}.json"
 
 
 def attribution_path(name: str) -> Path:

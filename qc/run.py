@@ -6,6 +6,7 @@ Usage: uv run python -m qc.run --batch data/Batch_2 [data/Batch_3 ...]
 import argparse
 import importlib
 import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from qc.decide import evaluate, split_tables
 from qc.explain import explain, load_dictionary
 from qc.io import field_paths, load_field
 from qc.measure import imaging, kpis, particles, segment
-from qc.provenance import provenance
+from qc.provenance import provenance, rules_frozen
 from qc.schema import (
     ATTRIBUTION_MODEL_PATH, CONFIG_PATH, IMAGING_COLUMNS, IMAGING_TABLE, KPI_TABLE, KPI_TABLE_COLUMNS, KPI_UNITS,
     PARTICLE_COLUMNS, PARTICLE_TABLE, Evidence, Field, Phase, Tables, attribution_path, evidence_path,
@@ -74,10 +75,37 @@ def run(batch_dirs: list[Path], cfg: dict, progress: Progress | None = None) -> 
         tiffs = sorted({p for d in (baseline_dir, batch_dir) for p in d.iterdir()
                         if p.suffix.lower() in TIFF_SUFFIXES})
         evidence.provenance = provenance(tiffs, cfg, data_dir)
-        evidence_path(evidence.batch).parent.mkdir(parents=True, exist_ok=True)
-        evidence_path(evidence.batch).write_text(evidence.model_dump_json(indent=2))
+        path = evidence_path(evidence.batch, evidence.baseline)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(evidence.model_dump_json(indent=2))
         results.append(evidence)
     return results
+
+
+def measure_folder(image_dir: Path, progress: Progress | None = None) -> int:
+    """Measure one folder (e.g. an Identify drop) into out/ tables and masks, without comparing it."""
+    measured = measure([image_dir], progress)
+    save_tables(measured)
+    return len(measured.kpis)
+
+
+class RulesFrozen(Exception):
+    """The `rules-frozen` tag exists, so config/decision.yaml may not change (AGENTS.md)."""
+
+
+def set_baseline(baseline: str, path: Path = CONFIG_PATH) -> dict:
+    """Write the default `baseline` into config/decision.yaml, keeping the rest of the file as written."""
+    frozen, _ = rules_frozen()
+    if frozen:
+        raise RulesFrozen(f"rules are frozen at {frozen[:7]}: the default baseline can't change without a new freeze")
+    cfg = load_config(path)
+    if not (Path(cfg["data_dir"]) / baseline).is_dir():
+        raise FileNotFoundError(f"no folder {cfg['data_dir']}/{baseline}")
+    text, n = re.subn(r"(?m)^baseline:.*$", f"baseline: {baseline}", path.read_text(), count=1)
+    if not n:
+        text += f"\nbaseline: {baseline}\n"
+    path.write_text(text)
+    return load_config(path)
 
 
 def measure(batch_dirs: list[Path], progress: Progress | None = None) -> Tables:

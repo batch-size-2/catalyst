@@ -31,7 +31,7 @@ uv run pytest            # contract tests, keep green
 for b in Batch_1 Batch_2 Batch_3; do ln -s "../EXAMPLE BATCHES FOR LOCAL REFERENCE/$b" data/$b; done
 
 uv run python -m qc.measure                                               # ML: all of data/ -> out/{kpis,particles,imaging}.csv + out/masks/
-uv run python -m qc.run --batch data/Batch_2 data/Batch_3                 # end to end -> out/evidence/<batch>.json
+uv run python -m qc.run --batch data/Batch_2 data/Batch_3                 # end to end -> out/evidence/<baseline>/<batch>.json
 uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline   # backend only, no images
 uv run python -m qc.types [--exclude Batch_2] [--porous-rule]             # fit particle types on out/particles.csv
 uv run python -m qc.controls --baseline data/Batch_3                      # controls -> out/controls/summary.csv
@@ -44,14 +44,14 @@ uv run python -m qc.attribute --fit [--families deep | --staged tex:deep] # fit 
 uv run python -m qc.attribute --images data/<drop> [--balanced k]         # attribute unseen images -> out/attribution/<drop>.json
 
 # Preview the UI with fixtures
-mkdir -p out/evidence out/attribution
-cp tests/fixtures/evidence_example.json out/evidence/example.json
+mkdir -p out/evidence/Batch_3 out/attribution
+cp tests/fixtures/evidence_example.json out/evidence/Batch_3/example.json
 cp tests/fixtures/attribution_example.json out/attribution/example_drop.json
 cp tests/fixtures/attribution_evaluation_example.json out/attribution/evaluation.json
 
 # UI: two terminals
-uv run uvicorn qc.api:app --reload     # API on :8000
-cd web && npm install && npm run dev   # UI on :5173, proxies /api to :8000
+uv run uvicorn qc.api:app --reload     # API on :8000; export ANTHROPIC_API_KEY first for Claude's summary (optional)
+cd web && npm install && npm run dev   # UI on :5173, proxies /api to :8000 (CATALYST_API=http://localhost:<port> to change)
 ```
 
 ## Architecture
@@ -95,22 +95,28 @@ flowchart LR
 
   subgraph BE["Backend · qc/decide.py"]
     J["evaluate(tables, batch, cfg) → compare(ref, batch, cfg) → Evidence<br/>image + strip units → differences → verdict"]
-    EXPLAIN["qc/explain.py · explain(evidence, dictionary) → Explanations"]
+    EXPLAIN["qc/explain.py · explain(evidence, dictionary) → Explanations<br/>answer sentence · rules fired · next steps · 4 audiences"]
+  end
+
+  subgraph GUIDE["After the output · qc/guide.py (optional)"]
+    GD["guide(evidence) → summary + walkthrough<br/>fixed template, or Claude with {slots} Catalyst fills in<br/>house-rule checks · what-if: odd tiles left out"]
   end
 
   subgraph OUT["out/ (gitignored)"]
     T["kpis.csv<br/>one row per image, incl. area_um2"]
     PT["particles.csv<br/>one row per Si particle"]
     IT["imaging.csv<br/>one row per image and channel"]
-    E["evidence/{batch}.json"]
+    E["evidence/{baseline}/{batch}.json"]
+    GC["guide/{baseline}/{batch}.json<br/>Claude's checked output, cached"]
     FT["features.csv<br/>one row per image, 6 feature families (+ optional deep_)"]
     AT["attribution/evaluation.json · feature_ranking.csv<br/>attribution/{run}.json"]
     P["masks/{batch}/{id}.png"]
     CR["crops/{type}/{n}.png<br/>example crops per particle type"]
   end
 
-  API["qc/api.py · FastAPI :8000<br/>GET config · batches · evidence · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation<br/>POST upload · run · attribution · verify (NDJSON progress)"]
-  WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile · compare batch · library + viewer · audit log + batch passport"]
+  API["qc/api.py · FastAPI :8000<br/>GET config · settings · batches · evidence · guide · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation<br/>POST upload · run (?baseline one-off) · measure · attribution · verify (NDJSON progress) · PUT settings/baseline"]
+  CLAUDE["Claude API<br/>reads evidence + dictionary, never images"]
+  WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile · compare batch (focus + walkthrough) · library + viewer · audit log + batch passport · settings"]
   CLI["python -m qc.run / qc.measure / qc.features / qc.attribute"]
 
   D --> IO --> RUN
@@ -141,6 +147,13 @@ flowchart LR
   FIT -. "config/attribution_model.json (frozen)" .-> PRED
   FT --> PRED --> AT
   E --> API
+  E --> GD
+  DICT --> GD
+  T -. "what-if recompute" .-> GD
+  GD <-. "only with ANTHROPIC_API_KEY" .-> CLAUDE
+  GD --> GC
+  GD --> API
+  API -- "PUT settings/baseline (409 once frozen)" --> CFG
   AT --> API
   P --> API
   API -- "/api via Vite proxy" --> WEB
@@ -154,7 +167,7 @@ flowchart LR
 
 ## Infrastructure
 
-Everything runs **locally and offline**: no cloud, no database, no network calls in the verdict path (PLAN_v4 §2, Rule 4). There are three processes.
+Everything runs **locally and offline**: no cloud, no database, no network calls in the verdict path (PLAN_v4 §2, Rule 4). There are three processes. The one optional network call is Claude's summary on Compare (`qc/guide.py`, PLAN_v4 §3.10): it runs only when the API process has `ANTHROPIC_API_KEY`, after the evidence exists, and never feeds the verdict. Without a key the page shows the fixed template.
 
 | Process | Command | Port | Role |
 |---|---|---|---|
@@ -180,7 +193,8 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `out/crops/<type>/<n>.png` | no | Example particle crops per type, for the UI gallery |
 | `out/controls/summary.csv` | no | Measured KPI shifts for every control |
 | `out/uncertainty/` | no | `threshold_variants.csv` (KPIs at thresholds ±5) and `integral_range.csv` (per image and phase) |
-| `out/evidence/<batch>.json` | no | The verdict and everything behind it. The UI reads this, attribution output and masks |
+| `out/evidence/<baseline>/<batch>.json` | no | The verdict and everything behind it, one file per batch *and* baseline, so a one-off baseline never overwrites the default comparison. The UI reads this, attribution output and masks |
+| `out/guide/<baseline>/<batch>.json` | no | Claude's checked summary and walkthrough for one comparison, cached by a hash of model, prompt and input |
 | `out/features.csv` | no | One row per image: `batch, image_id, strip_id` + `reg_`, `edge_`, `tex_`, `par_`, `kpi_`, `img_` features (`qc/features.py`), plus optional `deep_` columns (`qc/deep.py`). Never strip, size or pixel-size columns |
 | `out/attribution/evaluation.json`, `feature_ranking.csv` | no | Leave-one-strip-out balanced accuracy, confusion, permutation null and shared-strip check per feature family; univariate feature ranking on strip-segment means. Exposed by the API |
 | `out/attribution/<run>.json` | no | Per image, always a batch: `p_Batch_*`, `predicted`, `confidence` (temperature-scaled; `confidence_raw`), `confidence_tier` with `confidence_record`, `stage_baseline`, `stage_variation`, `prediction_set`, `reasons` (with plain-language `text`), `baseline_distance`, `outside_baseline`, `deviations`, `predicted_distance`, `unfamiliar` (outside the batch it was assigned to), optional `assigned` (balanced). `model.calibration` holds the out-of-fold record behind the tiers. Exposed by the API |
@@ -196,8 +210,12 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | Endpoint | Returns |
 |---|---|
 | `GET /api/config` | `config/decision.yaml` as JSON |
-| `GET /api/batches` | `[{name, has_images, verdict}]`: folders in `data/` plus evidence in `out/` |
-| `GET /api/evidence/{batch}` | `Evidence` |
+| `GET /api/settings` | `{baseline, rules_frozen_commit, rules_frozen_date, claude: {available, model, reason}}` |
+| `PUT /api/settings/baseline` | Body `{baseline}`: writes the default `baseline` line of `config/decision.yaml`. 409 once the `rules-frozen` tag exists, 404 for a missing folder |
+| `GET /api/batches` | `[{name, has_images, verdict}]`: folders in `data/` plus evidence against the default baseline |
+| `GET /api/evidence` | `[{batch, baseline, verdict, created_at}]`: every comparison on disk, newest first (the audit log) |
+| `GET /api/evidence/{batch}?baseline=` | `Evidence`; `baseline` omitted = the default |
+| `GET /api/guide/{batch}?baseline=&source=claude\|template` | Summary and walkthrough (`qc/guide.py`): `{source, model, fallback_reason, summary, steps, slots, checks}`. Claude's version when configured and within the house rules, else the template |
 | `GET /api/attribution` | Sorted attribution run names |
 | `GET /api/attribution/{name}` | `Attribution` |
 | `GET /api/attribution-model` | The model `POST /api/attribution` will use: kind, families, fit time, held-out record, sha256, and `matches_frozen` (the file is the one under `rules-frozen`) |
@@ -206,9 +224,10 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `GET /api/tiles` | `[{batch, image_id, strip_id, detectors, kpis, has_mask}]`: every image in `data/` joined with `out/kpis.csv` |
 | `GET /api/images/{batch}/{image_id}/{detector}?size=512\|2048` | Percentile-stretched PNG preview, cached in `out/previews/` |
 | `GET /api/kpis` | `config/kpi_dictionary.yaml` as JSON |
-| `POST /api/verify/{batch}` | Re-hash the evidence's provenance inputs and config files → `{ok, files, config_ok}` |
+| `POST /api/verify/{batch}?baseline=` | Re-hash the evidence's provenance inputs and config files (with its own baseline) → `{ok, files, config_ok}` |
 | `POST /api/batches/{batch}/files` | Multipart upload of a folder's TIFFs into `data/{batch}/` |
-| `POST /api/runs/{batch}` | NDJSON stream: one `{"type":"progress","done","total","tile"}` per measured tile, then `{"type":"done","evidence"}` or `{"type":"error","message"}` |
+| `POST /api/runs/{batch}?baseline=` | NDJSON stream: one `{"type":"progress","done","total","tile"}` per measured tile, then `{"type":"done","evidence"}` or `{"type":"error","message"}`. `baseline` runs a one-off comparison with `cfg \| {baseline}`; the default doesn't move |
+| `POST /api/measure/{batch}` | NDJSON stream: measure one folder (e.g. an Identify drop) into `out/kpis.csv` and masks, without comparing it |
 | `POST /api/attribution/{name}?balanced={k}` | Run output from Pat's `attribute_images`; `balanced` is optional, 501 if `qc.attribute` is unavailable |
 
 **Dependencies.**
@@ -230,7 +249,7 @@ One command, `qc.run`, does steps 1–9 for the baseline plus each requested bat
 | 6 | **Types.** If `config/particle_types.json` exists, assign each particle a type | `types.assign_types` | `type` column |
 | 7 | **Imaging check.** Per-channel imaging descriptors | `measure.imaging(channels)` | `imaging.csv` rows |
 | 8 | **Write.** One row per image into the KPI table (incl. `area_um2`, the analysed area), the particle and imaging tables, plus a mask overlay | `run.measure_field`, `run.save_tables`, `run.save_overlay` | `out/kpis.csv`, `out/particles.csv`, `out/imaging.csv`, `out/masks/` |
-| 9 | **Compare** each batch against the baseline on all three tables and record provenance | `decide.split_tables`, `decide.evaluate`, `provenance.provenance` | `out/evidence/<batch>.json` |
+| 9 | **Compare** each batch against the baseline on all three tables and record provenance | `decide.split_tables`, `decide.evaluate`, `provenance.provenance` | `out/evidence/<baseline>/<batch>.json` |
 
 **Input details (step 2, PLAN_v4 §1.1)**
 - **Detectors** are normalised to `BSE` / `ETD` / `InLens`; `SE` is an alias for `ETD`. The `img_` prefix is dropped from IDs.
@@ -396,7 +415,7 @@ Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real s
 
 ## Explanations (`qc/explain.py`)
 
-`explain(evidence, dictionary)` produces four fixed-template texts from one `Evidence`, with no language model.
+`explain(evidence, dictionary)` fills `Evidence.explanations` from fixed templates, with no language model: `summary` (the answer in one plain sentence, no code names), `rules` (the verdict rules that fired, in words), `next_steps` (decide.py's next action in words, then the odd tiles not named yet, then the top driver's supplier check; each tile named once) and four audience texts, each a **list of sentences**. Reference ranges are clipped at 0 (every measured quantity is non-negative). Two complementary particle-type shares count once. Particle types without a dictionary entry are named from `config/particle_types.json` ("share of T2 particles", with the type's description as `meaning`).
 
 | Audience | Gets |
 |---|---|
@@ -405,7 +424,20 @@ Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real s
 | Scientist | Unit counts, p-values, intervals, other-unit statuses, unused quantities, imaging and controls |
 | Manager | Main driver, decision certainty, dictionary relevance and indicative consequences |
 
-All numbers come from the evidence or the stated formulas. Causes are worded "possible causes to check"; missing dictionary fields are left out. `config/kpi_dictionary.yaml` has one top-level entry per descriptor with `name`, `unit`, `key`, `meaning`, `why_it_matters`, `if_higher`, `if_lower` and `supplier_check`, plus `particle_types` entries keyed by type ID.
+All numbers come from the evidence or the stated formulas.
+
+### Summary and walkthrough (`qc/guide.py`)
+
+On Compare, "What stood out" and "Walk me through it" come from `guide(evidence)`, after the evidence is written. Catalyst decides; Claude only points and explains (design/README.md, "Claude as a guide"):
+
+- **In:** the evidence in plain fields, the dictionary entries it touches and a list of slots. Never images.
+- **Out:** JSON (structured output): `summary` (≤ 3 sentences) and `steps` (≤ 4, each targeting `verdict`, `moved`, `tiles` or `next`, ≤ 2 sentences).
+- **Numbers are slots** (`{diff:q}`, `{shift:q}`, `{interval:q}`, `{tile:id.q}`, `{range:q}`, `{whatif:n}`, `{count:…}`), filled by Catalyst from the evidence and rendered as chips with their source.
+- **Checks:** a sentence with an unknown slot, a digit or number word outside a slot, a banned word ("significant", "crucial", "notable", "defect…"), more than 28 words, or the verdict word in the summary is dropped. Two drops, no key or any error → the fixed template (same slots).
+- **What-if:** the batch re-compared without its odd tiles (`decide.compare` on `out/kpis.csv`), only when the table still matches the evidence.
+- **Config:** `ANTHROPIC_API_KEY` (off without it), `CATALYST_CLAUDE_MODEL` (default `claude-opus-5`). Results are cached in `out/guide/`.
+
+Deviation from PLAN_v4 §3.10 ("optional review … not in the demo"): the Claude part is a summary and walkthrough on Compare rather than a separate review command, and it is shown in the app. It stays after the output, off without a key, and can't change the verdict or any number. Causes are worded "possible causes to check"; missing dictionary fields are left out. `config/kpi_dictionary.yaml` has one top-level entry per descriptor with `name`, `unit`, `key`, `meaning`, `why_it_matters`, `if_higher`, `if_lower` and `supplier_check`, plus `particle_types` entries keyed by type ID.
 
 For `si_graphite_ratio` r, silicon share is `s = r / (1 + r)`. Theoretical capacity at silicon capacity C is `cap(s, C) = s·C + (1 − s)·372`, reported as a relative change over the SiOx-to-Si range C = 1,500 to 3,600 mAh/g. Silicon-driven swelling is reported as the ratio of the silicon shares (Si expands about 2.8× on full lithiation, graphite about 0.1×). For apparent porosity p, the indicative ion-transport change is `(p_batch / p_reference)^1.5 − 1` (Bruggeman). These are textbook ranges, not predictions.
 
@@ -413,7 +445,7 @@ For `si_graphite_ratio` r, silicon share is `s = r / (1 + r)`. Theoretical capac
 
 The software reads Pat's output as written; it defines no classifier or attribution schema. `load_model()` reads the model, and `attribute_images(image_dir, model, balanced=None)` writes `out/attribution/<folder>.json`. `qc.run.attribute()` calls those functions and sanitizes NaN/Infinity to JSON null.
 
-The per-run file contains the model summary and one record per image; the fields are listed under Folders above and explained in [docs/AGENT_HANDOVER.md](docs/AGENT_HANDOVER.md) §3.4. The Identify screen shows the bet and the class probabilities, the confidence tier with its held-out record, the two stages ("different from the baseline?" and "in what way?"), the prediction set, the reasons as plain-language sentences with the stage each belongs to, the distance to the assigned batch and to the baseline, and which model made the call (kind, fit time, frozen or not, and a warning if the result predates the current model). Its accuracy panel and the sidebar's freeze line read `GET /api/attribution-model`, so they describe the model file in use. `--evaluate` writes `out/attribution/evaluation.json` with family-set LOSO scores, confusion, permutation nulls, shared-strip checks and the feature ranking.
+The per-run file contains the model summary and one record per image; the fields are listed under Folders above and explained in [docs/AGENT_HANDOVER.md](docs/AGENT_HANDOVER.md) §3.4. The Identify result follows the design's focus layout: the answer (the bet, its probability bar, "when it's this sure, it was right n of m times" from `confidence_record`, "can't rule out …" from `prediction_set`, familiar or unfamiliar, the model's held-out accuracy next to chance), then "Look here first" (up to three reasons with Pat's `text`: the strongest two for the call and the strongest against it), then folded rows: all reasons with the named measurements each image pattern moves with, the tile's KPIs against the baseline (measured in the background with `POST /api/measure`, since attribution doesn't write `out/kpis.csv`), and "Model and run" (the stages, the distance to the baseline labelled as such, and Pat's family evaluation, flagged when it has no entry for a part of the model in use). "Unfamiliar" means outside the range of the *predicted* batch. Its accuracy panel and the sidebar's freeze line read `GET /api/attribution-model`, so they describe the model file in use. `--evaluate` writes `out/attribution/evaluation.json` with family-set LOSO scores, confusion, permutation nulls, shared-strip checks and the feature ranking.
 
 The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution/{name}`, `GET /api/attribution-model`, `GET /api/attribution-evaluation`, and `POST /api/attribution/{name}?balanced={k}`.
 
@@ -441,7 +473,7 @@ The model was frozen on 3 Oct at 22:10 (tag `rules-frozen`, staged `material > d
 | `docs/HANDOFF.md`, `docs/APP.md` | Software (Patrik) |
 | `docs/PLAN_v4.md` | **Both** |
 | `config/particle_types.json` | ML (Pat), **frozen at `rules-frozen`** |
-| `qc/explain.py` | Software (Patrik) |
+| `qc/explain.py`, `qc/guide.py`, `tests/test_explain.py`, `tests/test_guide.py` | Software (Patrik) |
 | `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
 | `qc/api.py`, `web/` | Software (Patrik) |
 | `qc/io.py`, `qc/run.py` | Shared glue |

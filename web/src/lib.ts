@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { KpiDictionary, KpiEntry, Status, Tile, Verdict } from "./types";
+import type { Difference, Evidence, KpiDictionary, KpiEntry, Odd, Status, Tile, Verdict } from "./types";
 
 /** Batch colours are design tokens; use the CSS var so styles stay in sync with tokens.css. */
 export const BATCH_COLORS: Record<string, string> = {
@@ -13,8 +13,14 @@ export function batchColor(name: string): string {
   return name.startsWith("drop") || name.startsWith("new") ? "var(--cx-new)" : "var(--cx-faint)";
 }
 
-/** "Batch_2" -> "Batch 2"; anything else stays as written. */
-export const batchLabel = (name: string) => name.replaceAll("_", " ");
+/** "Batch_2" -> "Batch 2"; upload folders (drop_*) keep the name they were written with. */
+export const batchLabel = (name: string) => (name.startsWith("drop") ? name : name.replaceAll("_", " "));
+
+/** A baseline needs a spread (SD) and an odd-tile range: decide.py's odd check wants at least 3 values. */
+export const MIN_BASELINE_TILES = 3;
+
+/** "1 tile", "7 tiles" */
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Folders created by UI uploads are named drop_*. */
 export const isUploadBatch = (name: string) => name.startsWith("drop");
@@ -56,11 +62,27 @@ export function dictEntry(name: string, dict: KpiDictionary | null): KpiEntry {
   return (dict[name] as KpiEntry | undefined) ?? {};
 }
 
+/** The dictionary name, capitalised; type shares read "Share of T2 particles". Code names are secondary. */
 export function quantityLabel(name: string, dict: KpiDictionary | null): string {
   const entry = dictEntry(name, dict);
-  if (entry.name) return entry.name[0].toUpperCase() + entry.name.slice(1);
-  if (name.startsWith("type_share:")) return `share of particle type ${name.slice(11)}`;
-  return humanize(name);
+  const text = entry.name ?? (name.startsWith("type_share:") ? `share of ${name.slice(11)} particles` : humanize(name));
+  return text[0].toUpperCase() + text.slice(1);
+}
+
+/** For a particle type, its description ("mid, grey: 1.7× graphite brightness, D50 2.2 µm"). */
+export function quantityNote(name: string, dict: KpiDictionary | null): string | null {
+  return name.startsWith("type_share:") ? prettyText(dictEntry(name, dict).meaning ?? "") || null : null;
+}
+
+/** Pat's sentences as people read them: Batch_3 -> Batch 3, um -> µm, 1.7x -> 1.7×, -0.85 -> −0.85. */
+export function prettyText(text: string): string {
+  return text
+    .replace(/Batch_(\w+)/g, "Batch $1")
+    .replace(/(\d)\s?um\b/g, "$1 µm")
+    .replace(/\bum\b/g, "µm")
+    .replace(/(\d)x\b/g, "$1×")
+    .replace(/(\d) SD\b/g, "$1σ")
+    .replace(/(^|[\s(=])-(\d)/g, "$1−$2");
 }
 
 /** qc.explain.fmt: fractions as %, µm with its unit, everything else bare. */
@@ -72,20 +94,105 @@ export function fmt(value: number | null | undefined, unit: string | undefined):
   return `${v}`;
 }
 
-const ACRONYMS = new Set([
-  "bse", "etd", "se", "inlens", "si", "lbp", "glcm", "cv", "sd", "um", "pc",
-]);
+/** "+2.1σ" */
+export const fmtSigma = (s: number | null | undefined) =>
+  s == null || !Number.isFinite(s) ? "—" : `${s > 0 ? "+" : s < 0 ? "−" : ""}${Math.abs(s).toFixed(1)}σ`;
 
+const ACRONYMS: Record<string, string> = {
+  bse: "BSE", etd: "ETD", se: "SE", inlens: "InLens", si: "Si", lbp: "LBP", glcm: "GLCM", cv: "CV",
+  sd: "SD", um: "µm", pc: "PC",
+};
+
+/** A code name in sentence case: "unassigned_share" -> "Unassigned share", "tex_bse_lbp8" -> "Tex BSE LBP8". */
 export function humanize(code: string): string {
   return code
     .split(/[_:\s]+/)
     .filter(Boolean)
-    .map((tok) =>
-      ACRONYMS.has(tok.toLowerCase()) || /^[ptd]\d/i.test(tok)
+    .map((tok, i) =>
+      ACRONYMS[tok.toLowerCase()] ??
+      (/^[ptd]\d/i.test(tok) || /^[a-z]+\d+$/i.test(tok) && ACRONYMS[tok.replace(/\d+$/, "").toLowerCase()]
         ? tok.toUpperCase()
-        : tok[0].toUpperCase() + tok.slice(1),
+        : i === 0 ? tok[0].toUpperCase() + tok.slice(1) : tok.toLowerCase()),
     )
     .join(" ");
+}
+
+/** A difference in baseline SDs: the margin is `similarMargin` SDs (the ±1.5σ tolerance). */
+export const sigmaOf = (d: Difference, value: number | null | undefined, similarMargin: number) =>
+  value == null || !d.margin ? null : (value / d.margin) * similarMargin;
+
+/** Odd entries (one per tile and quantity) grouped by tile, or by strip at the strip unit. */
+export function oddByTile(evidence: Evidence): Map<string, Odd[]> {
+  const units = new Map<string, Odd[]>();
+  for (const odd of evidence.unit === "image" ? evidence.odd_images : evidence.odd_strips) {
+    const key = evidence.unit === "image" ? odd.image_ids[0] : odd.strip_id;
+    units.set(key, [...(units.get(key) ?? []), odd]);
+  }
+  return units;
+}
+
+/** Of exactly two particle-type shares, the lower-ranked in evidence.drivers: it mirrors the other (qc.explain.twin_share). */
+export function twinShare(evidence: Evidence): string | null {
+  const shares = evidence.differences.filter((d) => d.name.startsWith("type_share:")).map((d) => d.name);
+  if (shares.length !== 2) return null;
+  const rank = (q: string) => {
+    const i = evidence.drivers.indexOf(q);
+    return i < 0 ? evidence.drivers.length + shares.indexOf(q) : i;
+  };
+  return rank(shares[0]) > rank(shares[1]) ? shares[0] : shares[1];
+}
+
+/** Drop the mirrored particle-type share, so the shift is shown once and everywhere the same one. */
+export function dropTwinShare<T extends { name: string }>(items: T[], evidence: Evidence): T[] {
+  const twin = twinShare(evidence);
+  return items.filter((d) => d.name !== twin);
+}
+
+/** The backend's ranking (evidence.drivers) of used key properties that aren't settled as similar. */
+export function rankedFindings(evidence: Evidence): Difference[] {
+  const byName = new Map(evidence.differences.map((d) => [d.name, d]));
+  const ranked = evidence.drivers
+    .map((q) => byName.get(q))
+    .filter((d): d is Difference => !!d && d.used && d.status !== "SIMILAR");
+  return dropTwinShare(ranked, evidence);
+}
+
+const METRIC_WORDS: Record<string, string> = {
+  noise: "noise", sharpness: "sharpness", p1: "brightness", p50: "brightness", p99: "brightness",
+  black_level: "black level", saturated_frac: "saturation", curtaining_index: "curtaining",
+};
+
+/** "Noise and brightness differ on all three detectors, sharpness on BSE and ETD" (qc.explain.imaging_words). */
+export function imagingWords(metrics: string[]): string {
+  const where = new Map<string, string[]>();
+  for (const m of metrics) {
+    const dot = m.lastIndexOf(".");
+    const kind = METRIC_WORDS[m.slice(dot + 1)] ?? m.slice(dot + 1);
+    const channels = where.get(kind) ?? [];
+    if (dot > 0 && !channels.includes(m.slice(0, dot))) channels.push(m.slice(0, dot));
+    where.set(kind, channels);
+  }
+  const groups = new Map<string, { channels: string[]; kinds: string[] }>();
+  const order = ["BSE", "ETD", "InLens"];
+  for (const [kind, unsorted] of where) {
+    const channels = [...unsorted].sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9) || a.localeCompare(b));
+    const key = channels.join("|");
+    groups.set(key, { channels, kinds: [...(groups.get(key)?.kinds ?? []), kind] });
+  }
+  const on = (c: string[]) => (!c.length ? "" : c.length === 3 ? " on all three detectors" : ` on ${joinAnd(c)}`);
+  const parts = [...groups.values()].sort((a, b) => b.channels.length - a.channels.length);
+  if (!parts.length) return "";
+  const [head, ...rest] = parts;
+  const text = [
+    `${joinAnd(head.kinds)} ${head.kinds.length === 1 ? "differs" : "differ"}${on(head.channels)}`,
+    ...rest.map((g) => `${joinAnd(g.kinds)}${on(g.channels)}`),
+  ].join(", ");
+  return text[0].toUpperCase() + text.slice(1);
+}
+
+export function joinAnd(items: string[]): string {
+  const xs = [...new Set(items)];
+  return xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 }
 
 /** Friendly name for an attribution feature code: kpi_ -> dictionary, others humanized per family. */
@@ -106,7 +213,6 @@ export function baselineBand(tiles: Tile[], baseline: string, kpi: string) {
   return { mean, sd, values };
 }
 
-/** Position of a z-like value in [-span, span] as a 0..100 percentage. */
 /** "9 of 9" for a held-out record. */
 export const record = (r: { right: number; n: number } | null | undefined) => (r ? `${r.right} of ${r.n}` : "—");
 
@@ -117,6 +223,14 @@ export function modelName(m: { kind?: string; families?: string[] | null; staged
   return m.families ? `Single model: ${side(m.families)}` : "Single model";
 }
 
+/** A timestamp as UTC, so times from git (local offset) and from runs (UTC) line up: "2026-10-03 21:10 UTC". */
+export function utc(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : `${d.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
+/** Position of a z-like value in [-span, span] as a 0..100 percentage. */
 export const sigmaPos = (z: number, span = 3) =>
   (Math.max(-span, Math.min(span, z)) + span) / (2 * span) * 100;
 
