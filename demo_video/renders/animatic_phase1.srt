@@ -1,0 +1,163 @@
+1
+00:00:00,600 --> 00:00:03,577
+In 2021, GM recalled every
+
+2
+00:00:03,677 --> 00:00:05,632
+Chevy Bolt it had ever sold.
+
+3
+00:00:05,732 --> 00:00:07,241
+The battery cells were faulty,
+
+4
+00:00:07,276 --> 00:00:10,160
+and fixing them cost nearly two billion dollars.
+
+5
+00:00:10,260 --> 00:00:11,688
+Hyundai had to swap the batteries
+
+6
+00:00:11,722 --> 00:00:14,582
+in eighty-two thousand cars.
+
+7
+00:00:14,882 --> 00:00:16,496
+I'm Catalyst, and I check battery
+
+8
+00:00:16,542 --> 00:00:18,927
+material long before it gets near a car.
+
+9
+00:00:19,027 --> 00:00:21,493
+This is an anode under a microscope.
+
+10
+00:00:21,593 --> 00:00:23,199
+Grey is graphite.
+
+11
+00:00:23,299 --> 00:00:24,604
+Orange is silicon:
+
+12
+00:00:24,704 --> 00:00:26,306
+it holds much more lithium,
+
+13
+00:00:26,387 --> 00:00:28,726
+but it swells every charge.
+
+14
+00:00:28,826 --> 00:00:31,009
+Blue is space for the lithium to move.
+
+15
+00:00:31,044 --> 00:00:33,912
+If the mix drifts, so does the battery.
+
+16
+00:00:34,012 --> 00:00:35,479
+When a new delivery comes in,
+
+17
+00:00:35,579 --> 00:00:37,453
+check it against what the supplier promised.
+
+18
+00:00:37,553 --> 00:00:38,865
+You'll see what's changed,
+
+19
+00:00:38,900 --> 00:00:41,048
+by how much, and how confident I am.
+
+20
+00:00:41,129 --> 00:00:42,329
+You get a clear call:
+
+21
+00:00:42,429 --> 00:00:45,088
+accept, investigate or reject.
+
+22
+00:00:45,123 --> 00:00:46,620
+And I'll explain it in the right
+
+23
+00:00:46,655 --> 00:00:48,327
+words for the operator, the engineer,
+
+24
+00:00:48,362 --> 00:00:50,455
+the scientist and the manager.
+
+25
+00:00:51,155 --> 00:00:53,400
+You can also drop in a single image.
+
+26
+00:00:53,500 --> 00:00:54,870
+I measure the silicon,
+
+27
+00:00:54,917 --> 00:00:56,438
+the particles and the pores,
+
+28
+00:00:56,484 --> 00:00:58,411
+then tell you which batch it looks like
+
+29
+00:00:58,446 --> 00:01:01,074
+and how sure I am, with the reasons.
+
+30
+00:01:01,174 --> 00:01:02,927
+If it doesn't look like anything
+
+31
+00:01:02,997 --> 00:01:05,680
+I've seen before, I'll say so.
+
+32
+00:01:05,780 --> 00:01:07,189
+Don't just take my word for it.
+
+33
+00:01:07,289 --> 00:01:09,344
+Open any image and see exactly
+
+34
+00:01:09,391 --> 00:01:11,899
+which pixels I counted as silicon.
+
+35
+00:01:11,999 --> 00:01:14,228
+Every decision is logged with a fingerprint
+
+36
+00:01:14,263 --> 00:01:14,960
+of its inputs,
+
+37
+00:01:14,994 --> 00:01:17,468
+so anyone can check it later.
+
+38
+00:01:17,568 --> 00:01:18,583
+Catalyst.
+
+39
+00:01:18,683 --> 00:01:20,285
+Catch the bad batch at the factory,
+
+40
+00:01:20,320 --> 00:01:21,799
+before it makes the news.
+
+41
+00:01:21,899 --> 00:01:25,373
+Made by Team Batch Size 2.
