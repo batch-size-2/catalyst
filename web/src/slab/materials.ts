@@ -37,7 +37,9 @@ export interface BoxUniforms {
 }
 
 /** Lit outer surface. Surfaces seen through a pore dim with their depth below the visible box faces, as signal
-    from deep pores does in the SEM, so open pores read dark instead of as solid. aInfo.w is silicon's stress glow. */
+    from deep pores does in the SEM, so open pores read dark instead of as solid. Per instance, aInfo.x is how
+    open the particle's surroundings are (contact shading) and aInfo.w silicon's stress glow. Graphite gets faint
+    bands along its c-axis, the layered look of a flake. */
 export function surfaceMaterial(kind: "graphite" | "silicon", planes: THREE.Plane[], box: BoxUniforms): THREE.MeshStandardMaterial {
   const material = new THREE.MeshStandardMaterial({
     flatShading: true,
@@ -47,16 +49,22 @@ export function surfaceMaterial(kind: "graphite" | "silicon", planes: THREE.Plan
   });
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, box);
-    shader.vertexShader = "attribute vec4 aInfo;\nvarying float vGlow;\nvarying vec3 vW;\n" + shader.vertexShader.replace(
+    shader.vertexShader = "attribute vec4 aInfo;\nvarying float vGlow;\nvarying float vOpen;\nvarying vec3 vW;\nvarying vec3 vCax;\n" + shader.vertexShader.replace(
       "#include <begin_vertex>",
       `#include <begin_vertex>
       vGlow = max(aInfo.w, 0.0);
+      vOpen = aInfo.x;
       #ifdef USE_INSTANCING
-        vW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+        mat4 placed = modelMatrix * instanceMatrix;
       #else
-        vW = (modelMatrix * vec4(transformed, 1.0)).xyz;
-      #endif`);
-    shader.fragmentShader = "uniform vec3 uBoxMin;\nuniform vec3 uBoxMax;\nvarying float vGlow;\nvarying vec3 vW;\n" + shader.fragmentShader
+        mat4 placed = modelMatrix;
+      #endif
+      vW = (placed * vec4(transformed, 1.0)).xyz;
+      vCax = normalize(mat3(placed) * vec3(0.0, 1.0, 0.0));`);
+    shader.fragmentShader = "uniform vec3 uBoxMin;\nuniform vec3 uBoxMax;\nvarying float vGlow;\nvarying float vOpen;\nvarying vec3 vW;\nvarying vec3 vCax;\n" + shader.fragmentShader
+      .replace("#include <color_fragment>",
+        `#include <color_fragment>
+        ${kind === "graphite" ? "diffuseColor.rgb *= 0.93 + 0.07 * sin(dot(vW, vCax) * 6.2831853 / 1.4);" : ""}`)
       .replace("#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
         totalEmissiveRadiance += vec3(1.0, 0.24, 0.03) * vGlow * ${kind === "silicon" ? "1.1" : "0.0"};`)
@@ -67,7 +75,7 @@ export function surfaceMaterial(kind: "graphite" | "silicon", planes: THREE.Plan
         if (cameraPosition.y > uBoxMax.y) depth = min(depth, uBoxMax.y - vW.y);
         if (cameraPosition.z > uBoxMax.z) depth = min(depth, uBoxMax.z - vW.z);
         if (cameraPosition.z < uBoxMin.z) depth = min(depth, vW.z - uBoxMin.z);
-        outgoingLight *= mix(0.08, 1.0, exp(-max(depth, 0.0) / 3.0));
+        outgoingLight *= mix(0.08, 1.0, exp(-max(depth, 0.0) / 3.0)) * mix(0.55, 1.0, clamp(vOpen * 2.5, 0.0, 1.0));
         #include <opaque_fragment>`);
   };
   return material;

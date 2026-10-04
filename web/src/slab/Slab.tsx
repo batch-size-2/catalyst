@@ -2,6 +2,7 @@ import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { COLORS, glowSprite, stagingColor, surfaceMaterial } from "./materials";
 import { FACE_RES_UM, ICO_SCALE, faceFrame, rasterise, type Face, type Flake, type Grain } from "./section";
 import { atDepth, interp, isPore, type Loaded, type State } from "./model";
@@ -26,6 +27,56 @@ function mulberry32(seed: number) {
 }
 
 const clamp = (x: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, x));
+
+/** An icosahedron with each corner pushed in or out by up to ±amount, so particles read as milled, not
+    as placeholders. Corners are keyed by position, so shared corners move together and the solid stays closed. */
+function roughIcosahedron(amount: number, seed: number): THREE.BufferGeometry {
+  const geometry = new THREE.IcosahedronGeometry(1, 0);
+  const pos = geometry.attributes.position as THREE.BufferAttribute;
+  const rnd = mulberry32(seed), offsets = new Map<string, number>(), v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const key = `${v.x.toFixed(3)},${v.y.toFixed(3)},${v.z.toFixed(3)}`;
+    if (!offsets.has(key)) offsets.set(key, 1 + amount * (rnd() * 2 - 1));
+    v.multiplyScalar(offsets.get(key)!);
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/** Mossy lithium: a trunk with two side branches, growing up from the surface toward the separator. */
+function dendriteGeometry(): THREE.BufferGeometry {
+  const trunk = new THREE.ConeGeometry(0.3, 1, 5).translate(0, 0.5, 0);
+  const branch = (h: number, at: number, tilt: number, yaw: number) =>
+    new THREE.ConeGeometry(0.18, h, 5).translate(0, h / 2, 0).rotateZ(tilt).rotateY(yaw).translate(0, at, 0);
+  return mergeGeometries([trunk, branch(0.55, 0.4, 0.7, 0), branch(0.45, 0.62, -0.75, 1.9)]);
+}
+
+let fibreTexture: THREE.Texture | null = null;
+
+/** A polyolefin separator is a mat of fine fibres: thin light strokes on a transparent canvas, made once. */
+function separatorTexture(): THREE.Texture {
+  if (fibreTexture) return fibreTexture;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 512;
+  const ctx = canvas.getContext("2d")!;
+  const rnd = mulberry32(42);
+  ctx.fillStyle = "rgba(232,236,242,0.10)";
+  ctx.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 900; i++) {
+    const x = rnd() * 512, y = rnd() * 512, a = (rnd() - 0.5) * 0.9, l = 30 + rnd() * 90;
+    ctx.strokeStyle = `rgba(232,236,242,${0.18 + rnd() * 0.3})`;
+    ctx.lineWidth = 0.6 + rnd() * 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(x + Math.cos(a) * l * 0.5, y + Math.sin(a) * l * 0.5 + (rnd() - 0.5) * 12, x + Math.cos(a) * l, y + Math.sin(a) * l);
+    ctx.stroke();
+  }
+  fibreTexture = new THREE.CanvasTexture(canvas);
+  fibreTexture.colorSpace = THREE.SRGBColorSpace;
+  return fibreTexture;
+}
 
 interface Props {
   model: Loaded;
@@ -59,7 +110,7 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
   const scene = useMemo(() => {
     const rnd = mulberry32(model.silicon.length * 7919 + model.graphite.length);
     const make = (kind: "graphite" | "silicon", count: number) => {
-      const geometry = new THREE.IcosahedronGeometry(1, 0);
+      const geometry = roughIcosahedron(kind === "graphite" ? 0.07 : 0.12, kind === "graphite" ? 11 : 23);
       const info = new THREE.InstancedBufferAttribute(new Float32Array(count * 4), 4);
       info.setUsage(THREE.DynamicDrawUsage);
       geometry.setAttribute("aInfo", info);
@@ -73,6 +124,24 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
     const silicon = make("silicon", model.silicon.length * 5);
     const siRotation = model.silicon.map(() =>
       new THREE.Quaternion().setFromEuler(new THREE.Euler(rnd() * 6.28, rnd() * 6.28, rnd() * 6.28)));
+
+    // Contact shading: how much of the space just outside each particle is pore. Wedged particles get darker,
+    // pore-lining ones stay bright, like ambient occlusion but from the packing itself (aInfo.x).
+    const dirs = [-1, 0, 1].flatMap((a) => [-1, 0, 1].flatMap((b) => [-1, 0, 1].map((c) => new THREE.Vector3(a, b, c))))
+      .filter((d) => d.lengthSq() > 0).map((d) => d.normalize());
+    const openness = (centre: THREE.Vector3, toWorld: (d: THREE.Vector3) => THREE.Vector3) =>
+      dirs.filter((d) => { const p = toWorld(d.clone()).add(centre); return isPore(model, p.x, p.y, p.z); }).length / dirs.length;
+    const gInfo = graphite.info.array as Float32Array;
+    model.graphite.forEach((row, i) => {
+      const q = new THREE.Quaternion(row[6], row[7], row[8], row[9]), s = new THREE.Vector3(row[3], row[4], row[5]).multiplyScalar(1.25);
+      gInfo[i * 4] = openness(new THREE.Vector3(row[0], row[1], row[2]), (d) => d.multiply(s).applyQuaternion(q));
+    });
+    const sInfo = silicon.info.array as Float32Array;
+    const nSi = model.silicon.length;
+    model.silicon.forEach((row, i) => {
+      const open = openness(new THREE.Vector3(row[0], row[1], row[2]), (d) => d.multiplyScalar(row[3] * 1.4));
+      for (const j of [i, nSi + 4 * i, nSi + 4 * i + 1, nSi + 4 * i + 2, nSi + 4 * i + 3]) sInfo[j * 4] = open;
+    });
 
     const faces = (["front", "top", "left", "right"] as Face[]).map((face) => {
       const { w, h } = faceFrame(face, W, H0, D);
@@ -125,9 +194,8 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
         }
       }
     }
-    const coneGeometry = new THREE.ConeGeometry(0.4, 1, 5).translate(0, 0.5, 0);
-    const lithium = new THREE.InstancedMesh(coneGeometry, new THREE.MeshStandardMaterial({
-      color: COLORS.lithium, metalness: 0.9, roughness: 0.2, emissive: "#9fb4c8", emissiveIntensity: 0.35,
+    const lithium = new THREE.InstancedMesh(dendriteGeometry(), new THREE.MeshStandardMaterial({
+      color: COLORS.lithium, metalness: 0.9, roughness: 0.25, emissive: "#9fb4c8", emissiveIntensity: 0.25,
       clippingPlanes: planes,
     }), N_SITES);
     lithium.frustumCulled = false;
@@ -344,19 +412,19 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
         <meshBasicMaterial color={COLORS.electrolyte} side={THREE.BackSide} />
       </mesh>
       <lineSegments geometry={edges} position={[offsetX, H / 2, zMid]} scale={[W, H, zFront]}>
-        <lineBasicMaterial color={color} transparent opacity={0.7} />
+        <lineBasicMaterial color={color} transparent opacity={0.35} />
       </lineSegments>
 
       <mesh position={[offsetX, H + SEPARATOR_UM / 2, zMid]} scale={[W, SEPARATOR_UM, zFront]}>
         <boxGeometry />
-        <meshStandardMaterial color={COLORS.separator} transparent opacity={0.1} depthWrite={false} roughness={0.9} />
+        <meshStandardMaterial map={separatorTexture()} transparent opacity={0.85} depthWrite={false} roughness={0.9} side={THREE.DoubleSide} />
       </mesh>
       <lineSegments geometry={edges} position={[offsetX, H + SEPARATOR_UM / 2, zMid]} scale={[W, SEPARATOR_UM, zFront]}>
-        <lineBasicMaterial color={COLORS.separator} transparent opacity={0.25} />
+        <lineBasicMaterial color={COLORS.separator} transparent opacity={0.12} />
       </lineSegments>
       <mesh position={[offsetX, -COPPER_UM / 2, zMid]} scale={[W, COPPER_UM, zFront]}>
         <boxGeometry />
-        <meshStandardMaterial color={COLORS.copper} metalness={0.75} roughness={0.32} />
+        <meshStandardMaterial color={COLORS.copper} metalness={0.9} roughness={0.28} />
       </mesh>
 
       {texture && drive.showSection && (
@@ -367,23 +435,14 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
       )}
 
       <Html portal={labelRoot} position={[offsetX, H + SEPARATOR_UM + 5, zMid]} center>
-        <div className="glass pointer-events-none whitespace-nowrap rounded-[10px] px-2.5 py-1 text-center">
-          <div className="flex items-center justify-center gap-1.5 text-[13px] font-medium text-cx-text">
-            <span className="h-2 w-2 rounded-[3px]" style={{ background: color }} />{title}
-          </div>
-          <div className="text-[11px] text-cx-faint">{subtitle}</div>
+        <div title={subtitle} className="glass flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-2.5 py-1 text-[13px] font-medium text-cx-text">
+          <span className="h-2 w-2 rounded-[3px]" style={{ background: color }} />{title}
         </div>
       </Html>
       {labels && (
         <>
-          <Html portal={labelRoot} position={[offsetX + W / 2 + 3, H + SEPARATOR_UM / 2, front]}>
-            <div className={labelStyle}>separator</div>
-          </Html>
           <Html portal={labelRoot} position={[offsetX + W / 2 + 3, H / 2, front]}>
-            <div className={labelStyle}>coating {H.toFixed(1)} µm</div>
-          </Html>
-          <Html portal={labelRoot} position={[offsetX + W / 2 + 3, -COPPER_UM / 2, front]}>
-            <div className={labelStyle}>Cu current collector</div>
+            <div className={labelStyle}>{H.toFixed(1)} µm</div>
           </Html>
         </>
       )}
@@ -392,9 +451,11 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
           <div className={labelStyle}>real SEM image · {section!.image_id}</div>
         </Html>
       )}
-      <Html portal={labelRoot} position={[offsetX + (drive.showSection && texture ? W / 4 : 0), -COPPER_UM - 3, front]} center>
-        <div className={labelStyle}>{drive.showSection && texture ? "illustration" : `${W} × ${H.toFixed(0)} × ${zFront.toFixed(0)} µm`}</div>
-      </Html>
+      {texture && drive.showSection && (
+        <Html portal={labelRoot} position={[offsetX + W / 4, -COPPER_UM - 3, front]} center>
+          <div className={labelStyle}>illustration</div>
+        </Html>
+      )}
     </group>
   );
 }
