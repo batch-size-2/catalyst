@@ -162,5 +162,7 @@
     "rules_frozen_date": null,
     "created_at": "2025-10-03T14:22:10+00:00"
   },
+  "image_uncertainty": [],
+  "sampling_check": {},
   "config_version": "v3-draft"
 }

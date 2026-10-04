@@ -815,6 +815,15 @@ function Explain({
   );
 }
 
+function samplingSpread(name: string, ratio: number): string {
+  if (ratio >= 1.5)
+    return `${name} varies ${ratio.toFixed(1)}× more between tiles than one tile's sampling explains.`;
+  if (ratio <= 0.75)
+    return `${name} varies less between tiles than one tile's sampling explains.`;
+  const label = name === "Silicon" ? "silicon" : "apparent porosity";
+  return `The spread in ${label} between tiles is about what one tile's sampling explains.`;
+}
+
 function RunDetails({ ctx }: { ctx: Ctx }) {
   const { evidence, config } = ctx;
   const prov = evidence.provenance;
@@ -831,6 +840,17 @@ function RunDetails({ ctx }: { ctx: Ctx }) {
   ];
   if (evidence.imaging.outliers_in_reference.length)
     facts.push(["Left out of the imaging range", evidence.imaging.outliers_in_reference.join(", ")]);
+  const silicon = evidence.sampling_check?.si_area_frac;
+  const porosity = evidence.sampling_check?.porosity_apparent;
+  if (silicon?.ratio != null)
+    facts.push(["Silicon, tile to tile", samplingSpread("Silicon", silicon.ratio)]);
+  if (porosity?.ratio != null)
+    facts.push(["Porosity, tile to tile", samplingSpread("Apparent porosity", porosity.ratio)]);
+  if (silicon?.area_for_half_point_um2) {
+    const mm2 = silicon.area_for_half_point_um2 / 1e6;
+    const digits = mm2 >= 10 ? 0 : mm2 >= 1 ? 1 : 2;
+    facts.push(["Area for ±0.5 pp silicon", `${mm2.toFixed(digits)} mm² of the baseline`]);
+  }
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <dl className="m-0 grid grid-cols-[220px_minmax(0,1fr)] gap-x-6 gap-y-2 text-[13px]">

@@ -15,12 +15,14 @@ from scipy.stats import t
 
 from qc.explain import explain, load_dictionary
 from qc.provenance import provenance
+from qc.uncertainty import sampling_bundle
 from qc.schema import (
-    IMAGING_COLUMNS, KPI_TABLE, KPI_UNITS, PARTICLE_COLUMNS, Controls, Descriptor, Difference, Evidence,
-    Fingerprint, ImagingCheck, Odd, Power, Segment, Status, Tables, Unit, UnitView, evidence_path, load_config,
+    IMAGING_COLUMNS, KPI_TABLE, KPI_UNITS, PARTICLE_COLUMNS, SAMPLING_COLUMNS, Controls, Descriptor, Difference,
+    Evidence, Fingerprint, ImagingCheck, Odd, Power, Segment, Status, Tables, Unit, UnitView, evidence_path,
+    load_config,
 )
 
-NON_QUANTITY = {"batch", "image_id", "strip_id", "px_um", "area_um2"}
+NON_QUANTITY = {"batch", "image_id", "strip_id", "px_um", "area_um2", *SAMPLING_COLUMNS}
 T_CLIP = 1e12
 # These can change the verdict. Other imaging metrics stay on ImagingCheck.report_metrics.
 ACQUISITION_METRICS = ("black_level", "p50", "noise")
@@ -462,6 +464,12 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
     verdict, reasons, next_action = verdict_of(differences, drivers, other_status, contra,
                                                odds, pow_, unit, imaging, controls,
                                                batch_new_type_share, stats, cfg)
+    image_uncertainty, sampling_check = sampling_bundle(batch_kpis)
+    _, baseline_check = sampling_bundle(ref_kpis)
+    silicon = sampling_check.get("si_area_frac")
+    baseline_silicon = baseline_check.get("si_area_frac")
+    if silicon is not None and baseline_silicon is not None and baseline_silicon.area_for_half_point_um2:
+        silicon.area_for_half_point_um2 = baseline_silicon.area_for_half_point_um2
 
     def describe(q: str, name: str | None = None) -> Descriptor:
         vals = values_of(batch_drive, q)
@@ -486,6 +494,7 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
                                 type_shares=[describe(q, q.removeprefix("type_share:"))
                                              for q in type_share_quantities]),
         n_images={"batch": len(batch_kpis), "baseline": len(ref_kpis)},
+        image_uncertainty=image_uncertainty, sampling_check=sampling_check,
         config_version=cfg["version"])
 
 
