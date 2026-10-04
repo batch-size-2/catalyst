@@ -29,6 +29,9 @@ A staged model (`staged=(families_1, families_2)`, CLI `--staged a,b:c`) fits "b
 
 Reasons carry a plain-language `text`: named features are stated against the baseline in SD; a
 deep_pcNN component is translated into the named material features it moves with on the training set.
+If config/reason_wording.yaml exists, a text-only layer adds `basis` ("imaging" | "material") and an
+optional `caveat` to each reason, rewrites the text of the deep PCs it lists, and adds a per-image
+`caveat`. It never touches a number (see apply_wording).
 
 Rule 2 of PLAN_v4 allows a classifier on batch labels for this track
 only: the accept/reject verdict is still the statistical comparison in qc/decide.py.
@@ -68,6 +71,8 @@ TRANSLATE_MIN_R = 0.5         # a deep component is "explained by" named feature
 TRANSLATE_TOP = 3
 SD_SAME = 0.5                 # |z| below this reads "about the same as the baseline"
 DICTIONARY_PATH = Path("config/kpi_dictionary.yaml")
+REASON_WORDING_PATH = Path("config/reason_wording.yaml")   # text-only wording layer (T4); absent = no change
+DARK_SHARE = "dark_graphite_share"   # optional per-image column on feats, read only by the wording layer
 
 
 # ---------------------------------------------------------------- groups and matrices
@@ -706,6 +711,41 @@ def _reasons(model: dict, role: str, part: dict, z: np.ndarray, contrib: np.ndar
     return out
 
 
+def load_wording(path: Path | None = REASON_WORDING_PATH) -> dict | None:
+    """config/reason_wording.yaml with its patterns compiled, or None when the file is absent."""
+    if path is None or not Path(path).exists():
+        return None
+    import re
+
+    cfg = yaml.safe_load(Path(path).read_text()) or {}
+    rules = [r | {"regex": re.compile(r["pattern"])} for r in cfg.get("imaging_features") or []]
+    return {"rules": rules, "call_caveat": cfg.get("call_caveat")}
+
+
+def apply_wording(reasons: list[dict], wording: dict, dark_share=None) -> list[dict]:
+    """Text only: `basis`, optional `caveat`, and the override text of the rules that have one.
+
+    `dark_share` is the image's InLens dark-graphite share (qc.measure.dark_graphite_share), or None
+    / NaN when it was not measured. Returns new dicts; numbers and order are kept as they are.
+    """
+    share = pd.to_numeric(dark_share, errors="coerce") if dark_share is not None else np.nan
+    out = []
+    for reason in reasons:
+        reason = dict(reason)
+        hits = [r for r in wording["rules"] if r["regex"].match(reason["feature"])]
+        if override := next((r for r in hits if r.get("text")), None):
+            if np.isfinite(share):
+                verb = "shows" if share >= override.get("shows_at", 0.10) else "does not show"
+                reason["text"] = override["text"].format(shows=verb, share=float(share))
+            else:
+                reason["text"] = override.get("text_unmeasured") or "InLens image: dark-graphite share not measured"
+        reason["basis"] = "imaging" if hits else "material"
+        if caveats := [r["caveat"] for r in hits if r.get("caveat")]:
+            reason["caveat"] = "; ".join(caveats)
+        out.append(reason)
+    return out
+
+
 def _stage_calls(p: np.ndarray, classes: list[str], baseline: str) -> dict:
     """"Different from the baseline?" and, if so, "in what way?": each with its own confidence."""
     if baseline not in classes:
@@ -720,7 +760,7 @@ def _stage_calls(p: np.ndarray, classes: list[str], baseline: str) -> dict:
     return {"stage_baseline": first, "stage_variation": {"call": best, "confidence": pbest / (1 - pb)}}
 
 
-def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd.DataFrame:
+def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None, wording_path: Path | None = REASON_WORDING_PATH) -> pd.DataFrame:
     """One row per image. Always a batch (`predicted`), and how far to trust it.
 
     p_<batch> and `confidence` are temperature-scaled (`confidence_raw` is the unscaled value);
@@ -730,7 +770,11 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
     (`predicted_distance`, `unfamiliar`: outside the range of the batch it was assigned to).
     `balanced=k` additionally reports `assigned`: the joint assignment with exactly k images per
     class that maximises the summed log-probability (for a designed k-per-batch test).
+    If `wording_path` exists (default config/reason_wording.yaml), apply_wording adds `basis` and
+    `caveat` to the reasons and a per-image `caveat`; the optional `dark_graphite_share` column of
+    `feats` fills the deep-PC text. Text only: every number is the same with or without it.
     """
+    wording = load_wording(wording_path)
     classes, baseline = model["classes"], str(model["baseline"])
     parts = model_parts(model)
     evals = {role: _eval_part(part, feats) for role, part in parts.items()}
@@ -760,6 +804,8 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
                 n1 = N_REASONS // 2
                 reasons = _reasons(model, "baseline", first, Z1[i], c1, row, n1)
                 reasons += _reasons(model, "variation", second, Z2[i], coef2[second["classes"].index(classes[k])] * Z2[i], row, N_REASONS - n1)
+        if wording:
+            reasons = apply_wording(reasons, wording, row.get(DARK_SHARE))
         confidence = float(probs[i, k])
         tier = tier_of(confidence)
         order = np.argsort(-probs[i])
@@ -784,6 +830,7 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
                 "predicted_distance": own["distance"],
                 "predicted_threshold": own["threshold"],
                 "unfamiliar": own["outside"],
+                **({"caveat": wording["call_caveat"]} if wording and wording.get("call_caveat") else {}),
             }
         )
     out = pd.DataFrame(rows)
@@ -901,6 +948,18 @@ def dry_runs(df: pd.DataFrame, baseline: str, families=MATERIAL_FAMILIES, per_ba
     }
 
 
+def dark_shares(image_dir: Path) -> dict[str, float]:
+    """{image_id: InLens dark-graphite share} for a flat folder (segment() + qc.measure.dark_graphite_share)."""
+    from qc.io import field_paths, load_field
+    from qc.measure import dark_graphite_share, segment
+
+    out = {}
+    for image_id, paths in field_paths(image_dir).items():
+        f = load_field(image_dir.name, image_id, paths)
+        out[image_id] = dark_graphite_share(segment(f.channels, f.px_um), f.channels)[DARK_SHARE]
+    return out
+
+
 def attribute_images(image_dir: Path, model: dict, balanced: int | None = None) -> dict:
     """Features + prediction for every field in a flat folder; writes out/attribution/<folder>.json."""
     from qc.features import build_features
@@ -910,6 +969,8 @@ def attribute_images(image_dir: Path, model: dict, balanced: int | None = None) 
         from qc.deep import build_deep, merge_deep
 
         feats = merge_deep(feats, build_deep([image_dir], lambda d, t, s: print(f"[{d}/{t}] deep {s}")))
+    if REASON_WORDING_PATH.exists():  # report-only, for the reason text; never a model column
+        feats = feats.assign(**{DARK_SHARE: feats["image_id"].map(dark_shares(image_dir))})
     pred = predict(model, feats, balanced=balanced)
     result = {
         "run": image_dir.name,

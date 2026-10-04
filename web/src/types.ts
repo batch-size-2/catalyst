@@ -153,6 +153,8 @@ export interface AttributionReason {
   baseline_z?: number;          // named features only: SD against the baseline
   closest_batch?: string | null;
   related?: ReasonClause[];     // deep components only: the named features they move with
+  basis?: "imaging" | "material";  // config/reason_wording.yaml (T4): does the reason follow the imaging?
+  caveat?: string;              // why an imaging reason is not a material property; keep it when rewording
 }
 
 export interface Deviation {
@@ -196,6 +198,7 @@ export interface AttributedImage {
   unfamiliar: boolean | null;             // outside the range of the batch it was assigned to
   n_deviating?: number | null;
   deviations: Deviation[];
+  caveat?: string;                        // config/reason_wording.yaml call_caveat (T4), one per call
   [key: `p_${string}`]: number | null;
 }
 

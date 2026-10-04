@@ -814,6 +814,7 @@ Reading: nothing tried closes the Batch_1 / Batch_2 gap. The honest product is a
 
 - **Disclosure:** the three samples were uploaded through the app's Identify screen at 21:51–21:53, before the tag, with the same model file (fitted 21:27, sha256 `c2baba7d…`). The model was not refitted or tuned afterwards, and the three probabilities per sample are identical in both runs. The pre-freeze list of §4 step 2 was dropped for this reason: any further model work would have been done after seeing test outputs.
 - **Reading:** two samples are clearly not the baseline and one clearly is. Between Batch_1 and Batch_2 the model has no real preference (0.51 each), as §12.2 predicts.
+- results/Hackathon-Polaron-test.reworded.json: same frozen model and numbers, reason text with imaging caveats (T4).
 
 ## 13. Evidence for each decision
 
