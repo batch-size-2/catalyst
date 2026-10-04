@@ -45,7 +45,7 @@ Every page starts the same way: the breadcrumb bar (parents are links), then a 4
 | `Identify-Result-Peek` | Region peek and pin: look closer at an image region without leaving the page |
 | `Compare-Clear` | v4: Compare rebuilt around three questions: the call and why, what moved, what to do. Replaces `Compare-Focus` |
 
-v2 and v3 are built (#33). v4 (`Compare-Clear`) is the next Compare layout.
+v2, v3 and v4 are built. v4 (`Compare-Clear`) is the Compare page.
 
 ## Focus: where the reviewer looks first (v2)
 

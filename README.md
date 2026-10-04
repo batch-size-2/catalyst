@@ -432,7 +432,7 @@ Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real s
 
 ## Explanations (`qc/explain.py`)
 
-`explain(evidence, dictionary)` fills `Evidence.explanations` from fixed templates, with no language model: `summary` (the answer in one plain sentence, no code names), `rules` (the verdict rules that fired, in words), `next_steps` (decide.py's next action in words, then the odd tiles not named yet, then the top driver's supplier check; each tile named once) and four audience texts, each a **list of sentences**. Reference ranges are clipped at 0 (every measured quantity is non-negative). Two complementary particle-type shares count once. Particle types without a dictionary entry are named from `config/particle_types.json` ("share of T2 particles", with the type's description as `meaning`).
+`explain(evidence, dictionary)` fills `Evidence.explanations` from fixed templates, with no language model: `summary` (the answer in one plain sentence, no code names), `rules` (the verdict rules that fired, in words), `next_steps` (decide.py's next action in words, then the odd tiles not named yet, then the top driver's supplier check; each tile named once) and four audience texts, each a **list of sentences**. Reference ranges are clipped at 0 (every measured quantity is non-negative). Two complementary particle-type shares count once. Fitted types named in the dictionary use that name (T1 "brighter mid-grey silicon share", T2 "mid-grey silicon share"). Any other type still falls back to "share of T2 particles", with the type's description from `config/particle_types.json` as `meaning`.
 
 | Audience | Gets |
 |---|---|
@@ -441,11 +441,11 @@ Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real s
 | Scientist | Unit counts, p-values, intervals, other-unit statuses, unused quantities, imaging and controls |
 | Manager | Main driver, decision certainty, dictionary relevance and indicative consequences |
 
-All numbers come from the evidence or the stated formulas. Causes are worded "possible causes to check"; missing dictionary fields are left out. `config/kpi_dictionary.yaml` has one top-level entry per descriptor with `name`, `unit`, `key`, `meaning`, `why_it_matters`, `if_higher`, `if_lower` and `supplier_check`, plus `particle_types` entries keyed by type ID. `explanations` also carries the lists the UI shows, so it doesn't re-derive them: `ranked` (the "Look here first" order), `twin` (a particle-type share that mirrors the other with the same status, shown once) and `within_tolerance`.
+All numbers come from the evidence or the stated formulas. Causes are worded "possible causes to check"; missing dictionary fields are left out. `config/kpi_dictionary.yaml` has one top-level entry per descriptor with `name`, `unit`, `key`, `meaning`, `why_it_matters`, `if_higher`, `if_lower` and `supplier_check`, plus `particle_types` entries keyed by type ID. `explanations` also carries the lists the UI shows, so it doesn't re-derive them: `ranked` (the "What moved" order, at most four rows), `twin` (a particle-type share that mirrors the other with the same status, shown once) and `within_tolerance`.
 
 ### Summary and walkthrough (`qc/guide.py`)
 
-On Compare, "What stood out" and "Walk me through it" come from `guide(evidence)`, after the evidence is written. Catalyst decides; Claude only points and explains (design/README.md, "Claude as a guide"):
+On Compare, the verdict card's "Walk me through it" opens `guide(evidence)` (the fixed template, or Claude's cached version when one exists). The leave-them-out line and whether the odd-tile block sits above "What moved" come from the template what-if only: the block moves up when a summary sentence says the shift comes from those tiles. Catalyst decides; Claude only points and explains (design/README.md, "Claude as a guide"):
 
 - **In:** the evidence in plain fields, the dictionary entries it touches and a list of slots. Never images.
 - **Out:** JSON (structured output): `summary` (≤ 3 sentences) and `steps` (≤ 4, each targeting `verdict`, `moved`, `tiles` or `next`, ≤ 2 sentences).
