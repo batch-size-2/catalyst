@@ -35,7 +35,8 @@ SI_RHO, GR_RHO = 2.33, 2.26
 SI_EXPANSION, GR_EXPANSION = 2.80, 0.10
 SI_CRITICAL_D_UM = 0.87
 D_ELECTROLYTE = 3e-10  # m^2/s
-D_SI = 1e-14  # m^2/s
+D_SI = 1e-15  # m^2/s, a-Si (literature ~1e-16 to 1e-14)
+STRESS_FULL_INDEX = 10.0  # the stress glow saturates at this index
 BRUGGEMAN = 1.5
 ETA_PER_C = 0.015  # V of kinetic overpotential per C
 POROSITY_FLOOR = 0.03
@@ -69,9 +70,9 @@ ASSUMPTIONS = [
     {"name": "Specific capacity", "value": f"Si {SI_Q_MAH_G:.0f} mAh/g (Li15Si4), SiOx ~{SIOX_Q_MAH_G:.0f}, graphite {GR_Q_MAH_G:.0f} (LiC6)",
      "source": "Obrovac & Chevrier, Chem. Rev. 2014"},
     {"name": "Volume expansion", "value": f"Si +{SI_EXPANSION:.0%} (radius x {(1 + SI_EXPANSION) ** (1 / 3):.2f}), graphite +{GR_EXPANSION:.0%} along c",
-     "source": "Obrovac & Christensen 2004; graphite interlayer 3.35 -> 3.70 A"},
+     "source": "Si to Li15Si4: Obrovac & Christensen 2004. Graphite: interlayer spacing 3.35 -> 3.70 A from LiC6 crystallography"},
     {"name": "Equilibrium potentials", "value": "a-Si sloping 0.6 -> 0 V; graphite staging plateaus ~0.21, 0.12, 0.085 V",
-     "source": "Textbook lithiation curves; blend shares one potential, so Si lithiates first"},
+     "source": "Textbook lithiation curves (a-Si from ~0.9 V); blend shares one potential, so Si lithiates first on charge"},
     {"name": "Graphite colour", "value": "grey -> blue (stage 3/4) -> red (LiC12) -> gold (LiC6), switching flake by flake",
      "source": "Operando optical microscopy, Harris et al., Chem. Phys. Lett. 2010. Two-phase plateaus: the share of flakes in the new stage follows the lever rule"},
     {"name": "Pore absorption", "value": f"{PORE_ABSORPTION[1]:.0%} of swelling fills pores ({PORE_ABSORPTION[0]:.0%}-{PORE_ABSORPTION[2]:.0%}), floor {POROSITY_FLOOR:.0%}",
@@ -87,9 +88,9 @@ ASSUMPTIONS = [
     {"name": "Lithium plating", "value": f"where local potential - {ETA_PER_C * 1000:.0f} mV per C < 0 V vs Li",
      "source": "Thermodynamic criterion with an assumed kinetic overpotential"},
     {"name": "Si fracture", "value": f"particles above {SI_CRITICAL_D_UM} um crack; sooner when larger, later when porous",
-     "source": "McDowell et al., Nano Lett. 2013 (a-Si critical size ~870 nm); onset cycles are a scenario"},
-    {"name": "Particle stress", "value": f"index = R^2 / (D_Si t_charge), D_Si = {D_SI:.0e} m2/s",
-     "source": "Diffusion-induced stress scales with particle diffusion time over charge time"},
+     "source": "Fracture-free only below ~0.15 um for c-Si (Liu et al., ACS Nano 2012) and up to ~0.87 um for a-Si (McDowell et al., Nano Lett. 2013), so all our micron Si cracks. Onset cycles are a scenario"},
+    {"name": "Particle stress", "value": f"index = R^2 / (D_Si t_charge), D_Si = {D_SI:.0e} m2/s; the glow saturates at {STRESS_FULL_INDEX:g}",
+     "source": "Diffusion-induced stress scales with particle diffusion time over charge time. A relative index, not a stress in MPa"},
     {"name": "Ageing", "value": "SEI ~ sqrt(cycles), faster on Si; cracked Si may lose contact",
      "source": "Scenario band, not a lifetime prediction: no cycling data exists for these batches"},
 ]
@@ -97,7 +98,7 @@ ASSUMPTIONS = [
 U_GRID = np.linspace(0.0005, 0.8, 4000)
 GR_OCV = (np.array([0, .03, .08, .2, .25, .5, .55, .95, .99, 1]),
           np.array([.8, .3, .22, .20, .13, .115, .09, .08, .04, .0]))
-SI_OCV = (np.array([0, .05, .2, .4, .6, .8, .95, 1]), np.array([.6, .4, .28, .22, .15, .09, .05, .0]))
+SI_OCV = (np.array([0, .05, .2, .4, .6, .8, .95, 1]), np.array([.9, .4, .28, .22, .15, .09, .05, .0]))
 SOC = np.linspace(0, 1, 41)  # cell state of charge
 FILL = np.linspace(0, 1, 41)  # anode lithiation, 0..1 of its own capacity
 DEPTH = np.linspace(0, 1, 11)  # 0 = separator side
@@ -456,7 +457,8 @@ def _build(batch: str, image_id: str | None, stamp: tuple) -> dict:
         "si_d50_um_2d": float(med["si_d50_um"]), "si_d50_um_3d_volume": float(np.interp(0.5, np.cumsum(np.sort(si_d) ** 3) / (si_d ** 3).sum(), np.sort(si_d))),
         "section": section(batch, rep, float(rep_row["px_um"])),
         "constants": {"si_expansion": SI_EXPANSION, "graphite_expansion": GR_EXPANSION,
-                      "si_critical_d_um": SI_CRITICAL_D_UM, "stress_reference_s": 3600.0, "d_si_m2_s": D_SI},
+                      "si_critical_d_um": SI_CRITICAL_D_UM, "stress_reference_s": 3600.0, "d_si_m2_s": D_SI,
+                      "stress_full_index": STRESS_FULL_INDEX},
         "graphite": np.round(flakes, 3).tolist(),
         "graphite_columns": ["x", "y", "z", "sx", "sy", "sz", "qx", "qy", "qz", "qw"],
         "silicon": np.column_stack([np.round(packed["si_pos"], 3), np.round(si_d / 2, 3), np.round(si_void, 4),

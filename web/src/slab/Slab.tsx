@@ -119,7 +119,7 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
       const x = rnd() * W, z = rnd() * D;
       for (let y = H0 - v / 2; y > H0 - 8; y -= v) {
         if (isPore(model, x, y, z) && !isPore(model, x, y - v, z)) {
-          const q = new THREE.Quaternion().setFromEuler(new THREE.Euler((rnd() - 0.5) * 0.9, rnd() * 6.28, (rnd() - 0.5) * 0.9));
+          const q = new THREE.Quaternion().setFromEuler(new THREE.Euler((rnd() - 0.5) * 0.3, rnd() * 6.28, (rnd() - 0.5) * 0.3));
           sites.push({ x, y: y - v / 2, z, q });
           break;
         }
@@ -168,7 +168,7 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
     const siPristine = new THREE.Color(COLORS.siPristine), siLith = new THREE.Color(COLORS.siLithiated);
     const siDead = new THREE.Color(COLORS.siDead);
     const { fill: fillGrid, x_gr, x_si } = model.anode;
-    const { graphite_expansion: ge, si_expansion: se, d_si_m2_s: dSi, stress_reference_s: tRef } = model.constants;
+    const { graphite_expansion: ge, si_expansion: se, d_si_m2_s: dSi, stress_reference_s: tRef, stress_full_index: sFull } = model.constants;
     const sy = 1 + st.strain;
     const localX = (y: number, curve: number[]) =>
       interp(fillGrid, curve, atDepth(model, st.localFill, clamp(1 - y / H0)));
@@ -212,7 +212,7 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
       const core = Math.cbrt(Math.max(0, (1 - xs) * (1 - vf)) / ratio);
       const voidR = vf > 0 ? Math.cbrt(vf / ratio) : 0;
       const tau = (r * 1e-6) ** 2 / (dSi * tRef);
-      const glow = dead ? 0 : clamp(st.current * tau * 4 * xs * (1 - xs) * (1 - 2 * vf));
+      const glow = dead ? 0 : clamp((st.current * tau / sFull) * 4 * xs * (1 - xs) * (1 - 2 * vf));
       const rim = N >= 1 ? clamp((st.seiNmSi * SEI_EXAGGERATION) / 1000 / rOut * (cracked ? 1.5 : 1), 0, 0.4) : 0;
       if (dead) c.copy(siDead);
       else c.copy(siPristine).lerp(siLith, xs);

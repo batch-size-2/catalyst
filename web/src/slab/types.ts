@@ -49,6 +49,7 @@ export interface SlabModel {
     si_critical_d_um: number;
     stress_reference_s: number;
     d_si_m2_s: number;
+    stress_full_index: number;
   };
   graphite: number[][];
   silicon: number[][];
