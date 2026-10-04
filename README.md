@@ -141,7 +141,7 @@ uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline
 
 ## Reproduce the results
 
-Needs steps 1–3 of the Quickstart. Everything runs on a laptop CPU; the timings are from an Apple-silicon laptop.
+Needs steps 1–3 of the Quickstart. Every command below was rerun from the raw TIFFs in clean checkouts on 4 Oct 2026, on an Apple-silicon laptop (CPU only), and gave the results stated here.
 
 ### A. The submitted answers (no fitting)
 
@@ -149,11 +149,11 @@ This scores the held-back folders with the committed model. Nothing is refit.
 
 ```bash
 export HF_HUB_OFFLINE=1
-uv run python -m qc.attribute --images data/Hackathon-Polaron-eval   # 6 samples, about 13 s each
+uv run python -m qc.attribute --images data/Hackathon-Polaron-eval   # 6 samples, 15 to 20 s each
 uv run python -m qc.attribute --images data/Hackathon-Polaron-test   # 3 samples
 ```
 
-Check against the committed outputs. `cmp` prints nothing when the files are identical:
+Check against the committed outputs. Both files come out byte-identical, so `cmp` prints nothing:
 
 ```bash
 cmp out/attribution/Hackathon-Polaron-eval.json results/Hackathon-Polaron-eval.json
@@ -177,28 +177,50 @@ Expected answers for the eval folder:
 export HF_HUB_OFFLINE=1
 uv run python -m qc.features data/Batch_1 data/Batch_2 data/Batch_3     # 180 named features + imaging, 31 images, about 6 min
 uv run python -m qc.deep data/Batch_1 data/Batch_2 data/Batch_3         # DINOv2 features on CPU, about 2 min
-uv run python -m qc.attribute --evaluate                                # each feature family against its null
-uv run python -m qc.attribute --dry-run --repeats 30 --staged reg,edge,tex,par,kpi:deep   # rehearsal on unseen draws
-uv run python -m qc.attribute --fit --staged reg,edge,tex,par,kpi:deep  # writes config/attribution_model.json
+uv run python -m qc.attribute --evaluate                                # each feature family against its null, about 35 min
+uv run python -m qc.attribute --dry-run --repeats 30 --staged reg,edge,tex,par,kpi:deep   # rehearsal on unseen draws, about 2.5 min
+uv run python -m qc.attribute --fit --staged reg,edge,tex,par,kpi:deep  # writes config/attribution_model.json, about 10 s
 ```
 
 - **Name the three batch folders.** Without arguments, `qc.features` and `qc.deep` take every folder in `data/`, and a held-back folder would become a training batch.
-- **Expected:**
-  - `out/features.csv`: 31 rows, 204 named columns and 1,536 `deep_` columns. A rebuild in a clean checkout matched the previous table exactly.
-  - `--evaluate`: the DINOv2 family is the only single family above its null (0.64 against 0.54).
-  - `--dry-run --repeats 30`: balanced accuracy 0.66 on average.
-  - `--fit` prints `LOSO balanced accuracy 0.66`.
-- **`--fit` rewrites the committed model file.** The coefficients come out identical; `fitted_at` and the stored tier record change (see [Known limits](#known-limits)). To go back to the committed file: `git checkout config/attribution_model.json`.
+- `--evaluate` is the slow step and nothing after it depends on it. It prints one line per feature set:
+
+  | Feature set | Balanced accuracy | Null, 95th percentile |
+  |---|---|---|
+  | `regional` | 0.31 | 0.47 |
+  | `edge` | 0.55 | 0.54 |
+  | `texture` | 0.45 | 0.51 |
+  | `particles` | 0.23 | 0.55 |
+  | `kpis` | 0.35 | 0.51 |
+  | `imaging` | 0.49 | 0.55 |
+  | `material` (the 180 named features) | 0.45 | 0.49 |
+  | `deep` (DINOv2) | 0.64 | 0.54 |
+  | `texture > deep` (staged) | 0.63 | 0.49 |
+  | **`material > deep` (staged): the model** | **0.66** | **0.51** |
+
+- **Other expected results:**
+  - `out/features.csv`: 31 rows, 204 named columns and 1,536 `deep_` columns. The rebuild is deterministic, and a fit on it gives the committed coefficients exactly.
+  - `--dry-run --repeats 30`: balanced accuracy 0.66 on average (0.33 to 0.89 over the draws); right per tier 56 of 58 (high), 25 of 52 (medium), 97 of 160 (low); the prediction set holds the true batch 95% of the time.
+  - `--fit` prints `1716 features, C={'baseline': 0.03, 'variation': 0.01}, LOSO balanced accuracy 0.66`.
+- **`--fit` rewrites the committed model file.** Every coefficient, scaler and calibration point comes out identical. Two things change: `fitted_at`, and the stored record of the medium and low tiers (7 of 11 and 6 of 11 become 5 of 7 and 8 of 15, see [Known limits](#known-limits)). The answers and probabilities for the eval folder stay the same. To go back to the committed file: `git checkout config/attribution_model.json`.
 
 ### C. The batch verdicts
 
 ```bash
-uv run python -m qc.run --batch data/Batch_1 data/Batch_2   # measures Batch_3 too; writes out/evidence/Batch_3/<batch>.json
-uv run python -m qc.control_check                           # known-answer controls -> out/controls.json
+uv run python -m qc.run --batch data/Batch_1 data/Batch_2   # measures Batch_3 too, 31 images, about 5 min
+uv run python -m qc.control_check                           # 11 known-answer controls, about 11 min
 uv run python -m qc.run --batch data/Batch_1 data/Batch_2   # again: ACCEPT is only possible once the controls passed
 ```
 
-Open the Compare page, or read `verdict`, `reasons` and `next_action` in the evidence file.
+Expected, in `out/evidence/Batch_3/<batch>.json` and on the Compare page:
+
+| | Verdict | Why |
+|---|---|---|
+| Controls | 11 of 11 pass | No negative control comes out DIFFERENT; every positive control does, with the expected top driver |
+| `Batch_1` | INVESTIGATE | Imaging differs from the baseline (noise on all three detectors). Two images of one strip are outside the baseline range on the silicon-to-graphite ratio and the internal void fraction. The silicon-to-graphite ratio is unclear |
+| `Batch_2` | INVESTIGATE | Imaging differs from the baseline (median brightness on BSE and InLens) |
+
+Before the controls have run, each verdict also carries the reason "Controls not run: ACCEPT needs passed controls."
 
 ### D. The experiments behind the model choices
 
