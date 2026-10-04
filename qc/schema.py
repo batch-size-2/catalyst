@@ -2,7 +2,7 @@
 
     ML side:      channels -> segment() -> mask -> kpis() -> one row  (qc/measure.py)
     Glue:         data/<batch>/*.tif -> out/kpis.csv -> evidence      (qc/run.py)
-    Backend side: KPI table -> evaluate()/compare() -> out/evidence/<batch>.json  (qc/decide.py)
+    Backend side: KPI table -> evaluate()/compare() -> out/evidence/<baseline>/<batch>.json  (qc/decide.py)
     UI:           reads evidence + mask overlays via the API          (qc/api.py, web/)
 
 Adding a KPI or a field is fine, just tell your partner.
@@ -17,7 +17,7 @@ from typing import Literal, NamedTuple
 import numpy as np
 import pandas as pd
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 DETECTORS = ("BSE", "ETD", "InLens")
 
@@ -186,10 +186,24 @@ class Fingerprint(BaseModel):
 
 
 class Explanations(BaseModel):
-    operator: str = ""
-    engineer: str = ""
-    scientist: str = ""
-    manager: str = ""
+    """Fixed-template texts (qc/explain.py). Each audience text is a list of sentences."""
+
+    summary: str = ""                    # one plain sentence for the answer, no code names
+    rules: list[str] = []                # the verdict rules that fired, one line each, in words
+    next_steps: list[str] = []           # plain-word next steps; each tile named once
+    ranked: list[str] = []               # used key quantities not settled as similar, in driver order, twin left out
+    twin: str | None = None              # a particle-type share that mirrors the other one, so it isn't shown
+    within_tolerance: list[str] = []     # quantities settled as similar, minus paused ones and the twin
+    operator: list[str] = []
+    engineer: list[str] = []
+    scientist: list[str] = []
+    manager: list[str] = []
+
+    @field_validator("operator", "engineer", "scientist", "manager", mode="before")
+    @classmethod
+    def sentences(cls, value):
+        """Evidence written before the texts became lists keeps loading: one string is one entry."""
+        return [value] if isinstance(value, str) else value
 
 
 class InputFile(BaseModel):
@@ -247,8 +261,19 @@ def crop_path(type_id: str, n: int) -> Path:
     return OUT_DIR / "crops" / type_id / f"{n}.png"
 
 
-def evidence_path(batch: str) -> Path:
+def evidence_path(batch: str, baseline: str) -> Path:
+    """One comparison: keyed by baseline too, so a one-off baseline never overwrites the default one."""
+    return EVIDENCE_DIR / baseline / f"{batch}.json"
+
+
+def legacy_evidence_path(batch: str) -> Path:
+    """Where evidence lived before it was keyed by baseline; still read, never written."""
     return EVIDENCE_DIR / f"{batch}.json"
+
+
+def guide_path(batch: str, baseline: str) -> Path:
+    """Claude's summary and walkthrough of one comparison (qc/guide.py), cached next to its evidence."""
+    return OUT_DIR / "guide" / baseline / f"{batch}.json"
 
 
 def attribution_path(name: str) -> Path:
@@ -259,6 +284,11 @@ def attribution_path(name: str) -> Path:
 def mask_path(batch: str, image_id: str) -> Path:
     """Mask overlay PNG (BSE + coloured phases) for eyeballing and the dashboard."""
     return OUT_DIR / "masks" / batch / f"{image_id}.png"
+
+
+def phases_path(batch: str, image_id: str) -> Path:
+    """The same mask as `Phase` labels (uint8, same 4× downsampling), so the UI can show one phase as a layer."""
+    return OUT_DIR / "masks" / batch / f"{image_id}.phases.png"
 
 
 def load_config(path: Path = CONFIG_PATH) -> dict:

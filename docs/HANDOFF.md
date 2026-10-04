@@ -72,6 +72,12 @@ Written 3 Oct 2026 at the end of a session. This is a working note for the next 
 - **Tests**: `tests/synth.py` (synthetic KPI tables, fixture generator), `tests/test_contract.py`, `tests/test_compare.py` (24 tests).
 - **Minimal UI**: verdict card, differences table, images grouped by strip, provenance panel.
 
+## Done (issue #19, branch `PtrkH/designs-in`)
+
+- Compare, Identify result and Settings follow the v2 boards; one-off baselines with evidence keyed by baseline; the default baseline is locked by `rules-frozen`.
+- Identify progress from Pat's stage events (`attribute_images(progress=)`), region peek and pin, cleanup (§7).
+- The Claude summary and walkthrough (`qc/guide.py`), off without `ANTHROPIC_API_KEY`; not yet checked against real Claude output.
+
 ## Next, in this order (one PR-sized piece each)
 
 ### 1. Simplify and make the image the unit

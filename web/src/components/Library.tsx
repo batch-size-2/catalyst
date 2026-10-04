@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { getConfig, getKpiDictionary, getTiles, imageUrl, maskUrl } from "../api";
-import {
-  batchColor, batchLabel, baselineBand, dictEntry, fmt, isUploadBatch, quantityLabel, useApi,
-} from "../lib";
+import { batchColor, batchLabel, isUploadBatch, libraryTiles, useApi } from "../lib";
 import { href } from "../router";
 import type { Tile } from "../types";
-import { BatchChip, BatchDot, Cat, Panel, Seg, SigmaBand } from "./bits";
+import { BatchChip, BatchDot, Cat, PHASE_LEGEND, Panel, Seg, TileKpiGrid } from "./bits";
 
 export default function Library({ routeBatch, routeImage }: { routeBatch?: string; routeImage?: string }) {
   const tiles = useApi(getTiles);
@@ -13,7 +11,8 @@ export default function Library({ routeBatch, routeImage }: { routeBatch?: strin
   const dict = useApi(getKpiDictionary);
   const [filter, setFilter] = useState<string>("all");
 
-  const all = tiles.data ?? [];
+  const everything = tiles.data ?? [];
+  const all = useMemo(() => libraryTiles(everything), [everything]);
   const batches = useMemo(() => [...new Set(all.map((t) => t.batch))].sort(), [all]);
   const knownBatches = batches.filter((b) => !isUploadBatch(b));
   const hasUploads = batches.some(isUploadBatch);
@@ -29,7 +28,7 @@ export default function Library({ routeBatch, routeImage }: { routeBatch?: strin
   if (routeBatch && routeImage)
     return (
       <Viewer
-        tiles={all}
+        tiles={everything}
         batches={batches}
         batch={routeBatch}
         imageId={routeImage}
@@ -135,6 +134,7 @@ function Viewer({
   const [detector, setDetector] = useState<string | null>(null);
   const [segmentation, setSegmentation] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const [aspect, setAspect] = useState<string | null>(null);
 
   const det = detector && tile?.detectors.includes(detector) ? detector : tile?.detectors.includes("BSE") ? "BSE" : tile?.detectors[0];
 
@@ -194,46 +194,55 @@ function Viewer({
         <div className="col-span-9 flex min-w-0 flex-col gap-4">
           <section
             aria-label="Micrograph"
-            className="relative aspect-[1800/700] overflow-auto rounded-3xl border border-cx-line bg-black"
+            className="relative overflow-hidden rounded-3xl border border-cx-line bg-black"
+            style={{ aspectRatio: aspect ?? "1800 / 536" }}
           >
-            {src && (
-              <img
-                src={src}
-                alt={`${segmentation ? "Segmentation" : det} of tile ${imageId}`}
-                className="block w-full object-cover"
-                style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
-              />
-            )}
-            <div className="sticky bottom-0 flex justify-between p-3.5">
-            <Seg
-              className="sticky left-3.5 bg-[rgba(14,15,18,.42)]"
-              options={tile.detectors.map((d) => ({ value: d, label: <span className="mono text-xs">{d}</span> }))}
-              value={det ?? ""}
-              onChange={(d) => {
-                setDetector(d);
-                setSegmentation(false);
-              }}
-            />
-            <div className="glass sticky right-3.5 flex items-center gap-0.5 rounded-[14px] bg-[rgba(14,15,18,.42)] p-1">
-              <button
-                type="button"
-                aria-label="Zoom out"
-                className="h-9 w-9 cursor-pointer rounded-[10px] border-0 bg-transparent text-lg text-cx-text"
-                onClick={() => setZoom((z) => Math.max(0.5, z / 1.4))}
-              >
-                −
-              </button>
-              <span className="mono px-1.5 text-xs text-cx-text-2">{Math.round(zoom * 100)}%</span>
-              <button
-                type="button"
-                aria-label="Zoom in"
-                className="h-9 w-9 cursor-pointer rounded-[10px] border-0 bg-transparent text-lg text-cx-text"
-                onClick={() => setZoom((z) => Math.min(6, z * 1.4))}
-              >
-                +
-              </button>
+            <div className="absolute inset-0 overflow-auto">
+              {src && (
+                <img
+                  src={src}
+                  alt={`${segmentation ? "Segmentation" : det} of tile ${imageId}`}
+                  className="block max-w-none"
+                  style={{ width: `${zoom * 100}%` }}
+                  onLoad={(e) => {
+                    const img = e.currentTarget;
+                    if (img.naturalWidth && img.naturalHeight) setAspect(`${img.naturalWidth} / ${img.naturalHeight}`);
+                  }}
+                />
+              )}
             </div>
-          </div>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-between p-3.5">
+              <Seg
+                className="pointer-events-auto"
+                style={{ background: "rgba(14,15,18,.82)", backdropFilter: "blur(12px)" }}
+                options={tile.detectors.map((d) => ({ value: d, label: <span className="mono text-xs">{d}</span> }))}
+                value={det ?? ""}
+                onChange={(d) => {
+                  setDetector(d);
+                  setSegmentation(false);
+                }}
+              />
+              <div className="glass pointer-events-auto flex items-center gap-0.5 rounded-[14px] p-1" style={{ background: "rgba(14,15,18,.82)", backdropFilter: "blur(12px)" }}>
+                <button
+                  type="button"
+                  aria-label="Zoom out"
+                  disabled={zoom <= 1}
+                  className="h-9 w-9 cursor-pointer rounded-[10px] border-0 bg-transparent text-lg text-cx-text disabled:opacity-40"
+                  onClick={() => setZoom((z) => Math.max(1, z / 1.4))}
+                >
+                  −
+                </button>
+                <span className="mono px-1.5 text-xs text-cx-text-2">{Math.round(zoom * 100)}%</span>
+                <button
+                  type="button"
+                  aria-label="Zoom in"
+                  className="h-9 w-9 cursor-pointer rounded-[10px] border-0 bg-transparent text-lg text-cx-text"
+                  onClick={() => setZoom((z) => Math.min(6, z * 1.4))}
+                >
+                  +
+                </button>
+              </div>
+            </div>
           </section>
 
           {ordered.length > 1 && (
@@ -266,39 +275,10 @@ function Viewer({
           )}
 
           <Panel className="flex flex-col gap-3.5 p-5">
-            <h2 className="m-0 text-[15px] font-medium">This tile vs baseline</h2>
-            {tile.kpis ? (
-              <div className="grid grid-cols-4 gap-3">
-                {Object.entries(tile.kpis)
-                  .filter(([, v]) => v != null)
-                  .map(([kpi, v]) => {
-                    const band = baseline ? baselineBand(tiles, baseline, kpi) : null;
-                    const z = band && band.sd > 0 ? (v! - band.mean) / band.sd : null;
-                    return (
-                      <div
-                        key={kpi}
-                        className="flex flex-col gap-2 rounded-[14px] border border-cx-line-soft bg-black/20 p-3"
-                      >
-                        <span className="truncate text-xs text-cx-muted" title={kpi}>
-                          {quantityLabel(kpi, dict)}
-                        </span>
-                        <span className="mono text-[14px] whitespace-nowrap">
-                          {fmt(v, dictEntry(kpi, dict).unit)}
-                          {z != null && (
-                            <span className="ml-1.5 text-[11px] text-cx-faint">
-                              {z > 0 ? "+" : ""}
-                              {z.toFixed(1)}σ
-                            </span>
-                          )}
-                        </span>
-                        {z != null && <SigmaBand z={z} height={3} />}
-                      </div>
-                    );
-                  })}
-              </div>
-            ) : (
-              <span className="text-[13px] text-cx-muted">Not measured yet.</span>
-            )}
+            <h2 className="m-0 text-[15px] font-medium">
+              This tile vs {baseline ? batchLabel(baseline) : "the baseline"}
+            </h2>
+            <TileKpiGrid tile={tile} tiles={tiles} baseline={baseline} dict={dict} />
           </Panel>
         </div>
 
@@ -333,11 +313,7 @@ function Viewer({
             </button>
             {segmentation && (
               <div className="flex flex-col gap-1.5 text-[13px]">
-                {[
-                  ["Silicon", "var(--cx-phase-si)"],
-                  ["Pore", "var(--cx-phase-pore)"],
-                  ["Binder", "var(--cx-phase-binder)"],
-                ].map(([label, color]) => (
+                {PHASE_LEGEND.map(([label, color]) => (
                   <span key={label} className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: color }} />
                     {label}

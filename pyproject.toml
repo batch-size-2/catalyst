@@ -3,6 +3,7 @@ name = "catalyst"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
+    "anthropic>=1.8.0",
     "fastapi>=0.141.1",
     "imagecodecs>=2026.3.6",
     "numpy>=2.4.6",

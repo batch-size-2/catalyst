@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { KpiDictionary, KpiEntry, Status, Tile, Verdict } from "./types";
+import type { Config, Difference, Evidence, KpiDictionary, KpiEntry, Odd, Status, Tile, Verdict } from "./types";
 
 /** Batch colours are design tokens; use the CSS var so styles stay in sync with tokens.css. */
 export const BATCH_COLORS: Record<string, string> = {
@@ -13,8 +13,33 @@ export function batchColor(name: string): string {
   return name.startsWith("drop") || name.startsWith("new") ? "var(--cx-new)" : "var(--cx-faint)";
 }
 
-/** "Batch_2" -> "Batch 2"; anything else stays as written. */
-export const batchLabel = (name: string) => name.replaceAll("_", " ");
+/** "Batch_2" -> "Batch 2"; upload folders (drop_*) keep the name they were written with. */
+export const batchLabel = (name: string) => (name.startsWith("drop") ? name : name.replaceAll("_", " "));
+
+/** A baseline needs a spread (SD) and an odd-tile range: decide.py's odd check wants at least 3 values. */
+export const MIN_BASELINE_TILES = 3;
+
+/** "1 tile", "7 tiles" */
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** Test data that ships with the repo (data/example, the example_drop fixture): kept out of the product. */
+export const isFixture = (name: string) => name.startsWith("example");
+
+/** drop_<YYYYMMDD>-<HHMMSS>, the stamp of an upload, or "" for other folder names. */
+const uploadStamp = (batch: string) => /^drop_(\d{8}-\d{6})$/.exec(batch)?.[1] ?? "";
+
+/** The tiles the Library shows: no test data, and a tile uploaded more than once only from its newest upload. */
+export function libraryTiles(tiles: Tile[]): Tile[] {
+  const real = tiles.filter((t) => !isFixture(t.batch));
+  const newest = new Map<string, Tile>();
+  for (const t of real)
+    if (isUploadBatch(t.batch) && (!newest.has(t.image_id) || uploadStamp(t.batch) > uploadStamp(newest.get(t.image_id)!.batch)))
+      newest.set(t.image_id, t);
+  return real.filter((t) => !isUploadBatch(t.batch) || newest.get(t.image_id) === t);
+}
+
+/** "2026-10-03 21:27 local time" for timestamps written without a time zone (the model's fitted_at). */
+export const localTime = (iso: string | null | undefined) => (iso ? `${iso.slice(0, 16).replace("T", " ")} local time` : "—");
 
 /** Folders created by UI uploads are named drop_*. */
 export const isUploadBatch = (name: string) => name.startsWith("drop");
@@ -56,11 +81,27 @@ export function dictEntry(name: string, dict: KpiDictionary | null): KpiEntry {
   return (dict[name] as KpiEntry | undefined) ?? {};
 }
 
+/** The dictionary name, capitalised; type shares read "Share of T2 particles". Code names are secondary. */
 export function quantityLabel(name: string, dict: KpiDictionary | null): string {
   const entry = dictEntry(name, dict);
-  if (entry.name) return entry.name[0].toUpperCase() + entry.name.slice(1);
-  if (name.startsWith("type_share:")) return `share of particle type ${name.slice(11)}`;
-  return humanize(name);
+  const text = entry.name ?? (name.startsWith("type_share:") ? `share of ${name.slice(11)} particles` : humanize(name));
+  return text[0].toUpperCase() + text.slice(1);
+}
+
+/** For a particle type, its description ("mid, grey: 1.7× graphite brightness, D50 2.2 µm"). */
+export function quantityNote(name: string, dict: KpiDictionary | null): string | null {
+  return name.startsWith("type_share:") ? prettyText(dictEntry(name, dict).meaning ?? "") || null : null;
+}
+
+/** Pat's sentences as people read them: Batch_3 -> Batch 3, um -> µm, 1.7x -> 1.7×, -0.85 -> −0.85. */
+export function prettyText(text: string): string {
+  return text
+    .replace(/Batch_(\w+)/g, "Batch $1")
+    .replace(/(\d)\s?um\b/g, "$1 µm")
+    .replace(/\bum\b/g, "µm")
+    .replace(/(\d)x\b/g, "$1×")
+    .replace(/(\d) SD\b/g, "$1σ")
+    .replace(/(^|[\s(=])-(\d)/g, "$1−$2");
 }
 
 /** qc.explain.fmt: fractions as %, µm with its unit, everything else bare. */
@@ -72,20 +113,111 @@ export function fmt(value: number | null | undefined, unit: string | undefined):
   return `${v}`;
 }
 
-const ACRONYMS = new Set([
-  "bse", "etd", "se", "inlens", "si", "lbp", "glcm", "cv", "sd", "um", "pc",
-]);
+/** "+2.1σ": rounded half away from zero (qc.explain.fmt_sigma), a real minus, never "−0.0σ". */
+export function fmtSigma(s: number | null | undefined): string {
+  if (s == null || !Number.isFinite(s)) return "—";
+  const r = Math.floor(Math.abs(s) * 10 + 0.5 + 1e-9) / 10;
+  return r ? `${s > 0 ? "+" : "−"}${r.toFixed(1)}σ` : "0.0σ";
+}
 
+/** "reference → batch" with the same number of decimals on both sides (3 significant figures of the larger). */
+export function fmtPair(a: number | null | undefined, b: number | null | undefined, unit: string | undefined, sep = " → "): string {
+  const f = unit === "fraction" ? 100 : 1;
+  const vals = [a, b].filter((v): v is number => v != null && Number.isFinite(v)).map((v) => Math.abs(v * f));
+  if (!vals.length) return `${fmt(a, unit)}${sep}${fmt(b, unit)}`;
+  const top = Math.max(...vals);
+  const dec = top ? Math.min(6, Math.max(0, 2 - Math.floor(Math.log10(top)))) : 0;
+  const one = (v: number | null | undefined) =>
+    v == null || !Number.isFinite(v) ? "—" : `${v === 0 ? "0" : (v * f).toFixed(dec)}${unit === "fraction" ? "%" : unit === "um" ? " µm" : ""}`;
+  return `${one(a)}${sep}${one(b)}`;
+}
+
+/** A baseline range, clipped at 0 (every measured quantity is non-negative), same decimals on both ends. */
+export const fmtRange = (lo: number, hi: number, unit: string | undefined) => fmtPair(Math.max(0, lo), hi, unit, " – ");
+
+const ACRONYMS: Record<string, string> = {
+  bse: "BSE", etd: "ETD", se: "SE", inlens: "InLens", si: "Si", lbp: "LBP", glcm: "GLCM", cv: "CV",
+  sd: "SD", um: "µm", pc: "PC",
+};
+
+/** A code name in sentence case: "unassigned_share" -> "Unassigned share", "tex_bse_lbp8" -> "Tex BSE LBP8". */
 export function humanize(code: string): string {
   return code
     .split(/[_:\s]+/)
     .filter(Boolean)
-    .map((tok) =>
-      ACRONYMS.has(tok.toLowerCase()) || /^[ptd]\d/i.test(tok)
+    .map((tok, i) =>
+      ACRONYMS[tok.toLowerCase()] ??
+      (/^[ptd]\d/i.test(tok) || /^[a-z]+\d+$/i.test(tok) && ACRONYMS[tok.replace(/\d+$/, "").toLowerCase()]
         ? tok.toUpperCase()
-        : tok[0].toUpperCase() + tok.slice(1),
+        : i === 0 ? tok[0].toUpperCase() + tok.slice(1) : tok.toLowerCase()),
     )
     .join(" ");
+}
+
+/** A difference in baseline SDs: the margin is similar_margin SDs (the ±1.5σ tolerance), unless the config
+ *  sets that quantity's margin by hand; then there's no SD and no σ (qc.guide.sigma). */
+export const sigmaOf = (d: Difference, value: number | null | undefined, config: Config) =>
+  value == null || !d.margin || (config.margins as Record<string, number> | undefined)?.[d.name] != null
+    ? null
+    : (value / d.margin) * config.similar_margin;
+
+/** Odd entries (one per tile and quantity) grouped by tile, or by strip at the strip unit. */
+export function oddByTile(evidence: Evidence): Map<string, Odd[]> {
+  const units = new Map<string, Odd[]>();
+  for (const odd of evidence.unit === "image" ? evidence.odd_images : evidence.odd_strips) {
+    const key = evidence.unit === "image" ? odd.image_ids[0] : odd.strip_id;
+    units.set(key, [...(units.get(key) ?? []), odd]);
+  }
+  return units;
+}
+
+/** Drop the mirrored particle-type share the backend marked (explanations.twin), so the shift shows once. */
+export function dropTwinShare<T extends { name: string }>(items: T[], evidence: Evidence): T[] {
+  return items.filter((d) => d.name !== evidence.explanations.twin);
+}
+
+/** The backend's "look here first" ranking (explanations.ranked), as differences. */
+export function rankedFindings(evidence: Evidence): Difference[] {
+  const byName = new Map(evidence.differences.map((d) => [d.name, d]));
+  return evidence.explanations.ranked.map((q) => byName.get(q)).filter((d): d is Difference => !!d);
+}
+
+const METRIC_WORDS: Record<string, string> = {
+  noise: "noise", sharpness: "sharpness", p1: "brightness", p50: "brightness", p99: "brightness",
+  black_level: "black level", saturated_frac: "saturation", curtaining_index: "curtaining",
+};
+
+/** "Noise and brightness differ on all three detectors, sharpness on BSE and ETD" (qc.explain.imaging_words). */
+export function imagingWords(metrics: string[]): string {
+  const where = new Map<string, string[]>();
+  for (const m of metrics) {
+    const dot = m.lastIndexOf(".");
+    const kind = METRIC_WORDS[m.slice(dot + 1)] ?? m.slice(dot + 1);
+    const channels = where.get(kind) ?? [];
+    if (dot > 0 && !channels.includes(m.slice(0, dot))) channels.push(m.slice(0, dot));
+    where.set(kind, channels);
+  }
+  const groups = new Map<string, { channels: string[]; kinds: string[] }>();
+  const order = ["BSE", "ETD", "InLens"];
+  for (const [kind, unsorted] of where) {
+    const channels = [...unsorted].sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9) || a.localeCompare(b));
+    const key = channels.join("|");
+    groups.set(key, { channels, kinds: [...(groups.get(key)?.kinds ?? []), kind] });
+  }
+  const on = (c: string[]) => (!c.length ? "" : c.length === 3 ? " on all three detectors" : ` on ${joinAnd(c)}`);
+  const parts = [...groups.values()].sort((a, b) => b.channels.length - a.channels.length);
+  if (!parts.length) return "";
+  const [head, ...rest] = parts;
+  const text = [
+    `${joinAnd(head.kinds)} ${head.kinds.length === 1 ? "differs" : "differ"}${on(head.channels)}`,
+    ...rest.map((g) => `${joinAnd(g.kinds)}${on(g.channels)}`),
+  ].join(", ");
+  return text[0].toUpperCase() + text.slice(1);
+}
+
+export function joinAnd(items: string[]): string {
+  const xs = [...new Set(items)];
+  return xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
 }
 
 /** Friendly name for an attribution feature code: kpi_ -> dictionary, others humanized per family. */
@@ -106,7 +238,6 @@ export function baselineBand(tiles: Tile[], baseline: string, kpi: string) {
   return { mean, sd, values };
 }
 
-/** Position of a z-like value in [-span, span] as a 0..100 percentage. */
 /** "9 of 9" for a held-out record. */
 export const record = (r: { right: number; n: number } | null | undefined) => (r ? `${r.right} of ${r.n}` : "—");
 
@@ -117,6 +248,14 @@ export function modelName(m: { kind?: string; families?: string[] | null; staged
   return m.families ? `Single model: ${side(m.families)}` : "Single model";
 }
 
+/** A timestamp as UTC, so times from git (local offset) and from runs (UTC) line up: "2026-10-03 21:10 UTC". */
+export function utc(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : `${d.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+}
+
+/** Position of a z-like value in [-span, span] as a 0..100 percentage. */
 export const sigmaPos = (z: number, span = 3) =>
   (Math.max(-span, Math.min(span, z)) + span) / (2 * span) * 100;
 
@@ -124,21 +263,37 @@ export function shortHash(hash: string | null | undefined, n = 8): string {
   return hash ? hash.slice(0, n) : "—";
 }
 
-/** GET helper: data starts null and errors surface as a string. */
-export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = []) {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<string | null>(null);
+/** GET helper: data starts null and errors surface as a string. Data and errors belong to the inputs that
+ *  produced them: after `deps` change, both read null until the new request settles (no stale answers). */
+export function useApi<T>(fn: () => Promise<T>, deps: unknown[] = [], { keep = false } = {}) {
+  const key = JSON.stringify(deps);
+  const [state, setState] = useState<{ key: string; data: T | null; error: string | null; status: number | null }>({
+    key: "", data: null, error: null, status: null,
+  });
   useEffect(() => {
     let live = true;
-    setError(null);
     fn().then(
-      (value) => live && setData(value),
-      (err) => live && setError(err instanceof Error ? err.message : String(err)),
+      (value) => live && setState({ key, data: value, error: null, status: null }),
+      (err) =>
+        live &&
+        setState({
+          key,
+          data: null,
+          error: err instanceof Error ? err.message : String(err),
+          status: typeof err === "object" && err && "status" in err ? Number((err as { status: unknown }).status) : null,
+        }),
     );
     return () => {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  return { data, error };
+  }, [key]);
+  const current = state.key === key;
+  // keep: show the previous answer while a refresh of the same thing loads (no flicker), e.g. after a reload counter
+  return {
+    data: current || keep ? state.data : null,
+    error: current ? state.error : null,
+    status: current ? state.status : null,
+    loading: !current,
+  };
 }

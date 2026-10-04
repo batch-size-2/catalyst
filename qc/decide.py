@@ -573,7 +573,8 @@ if __name__ == "__main__":
         evidence = evaluate(tables, name, cfg)
         evidence.explanations = explain(evidence, load_dictionary())
         evidence.provenance = provenance(input_tables, cfg, Path(cfg["data_dir"]))
-        evidence_path(name).parent.mkdir(parents=True, exist_ok=True)
-        evidence_path(name).write_text(evidence.model_dump_json(indent=2))
+        path = evidence_path(name, cfg["baseline"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(evidence.model_dump_json(indent=2))
         n1, n2 = evidence.power.n_segments
         print(f"{name:20s} {evidence.verdict:12s} {evidence.unit}s {n1} vs {n2}")
