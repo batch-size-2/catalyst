@@ -474,93 +474,34 @@
      "closest_batch": "Batch_1"
     },
     {
-     "feature": "deep_pc01",
-     "z": 1.84,
-     "contribution": 0.049,
-     "stage": "variation",
-     "label": "DINOv2 image pattern 01",
-     "text": "DINOv2 image pattern 01, which moves with graphite chord length: 6.5 SD below Batch_3 (r = -0.89); graphite chord length, average over regions: 9.0 SD below Batch_3 (r = -0.80); graphite fraction, typical region: 9.7 SD below Batch_3 (r = -0.79)",
-     "related": [
-      {
-       "feature": "kpi_graphite_chord_um",
-       "label": "graphite chord length",
-       "value": 1.7911046227740504,
-       "baseline_z": -6.49,
-       "direction": "below",
-       "closest_batch": "Batch_3",
-       "text": "graphite chord length: 6.5 SD below Batch_3",
-       "r": -0.89
-      },
-      {
-       "feature": "reg_graphite_chord_um_mean",
-       "label": "graphite chord length, average over regions",
-       "value": 1.007765135001589,
-       "baseline_z": -8.99,
-       "direction": "below",
-       "closest_batch": "Batch_1",
-       "text": "graphite chord length, average over regions: 9.0 SD below Batch_3",
-       "r": -0.8
-      },
-      {
-       "feature": "reg_graphite_frac_p50",
-       "label": "graphite fraction, typical region",
-       "value": 0.7586666666666667,
-       "baseline_z": -9.68,
-       "direction": "below",
-       "closest_batch": "Batch_3",
-       "text": "graphite fraction, typical region: 9.7 SD below Batch_3",
-       "r": -0.79
-      }
-     ]
+     "feature": "tex_bse_glcm_contrast_d4",
+     "z": 3.58,
+     "contribution": 0.138,
+     "stage": "baseline",
+     "label": "BSE texture local contrast at 0.2 um",
+     "text": "BSE texture local contrast at 0.2 um: 6.6 SD above Batch_3",
+     "baseline_z": 6.63,
+     "closest_batch": "Batch_1"
     },
     {
-     "feature": "deep_pc07",
-     "z": 0.36,
-     "contribution": 0.013,
-     "stage": "variation",
-     "label": "DINOv2 image pattern 07",
-     "text": "DINOv2 image pattern 07: an overall look of the InLens image that no single named measurement captures",
-     "related": []
+     "feature": "tex_bse_glcm_correlation_d1",
+     "z": -2.74,
+     "contribution": 0.133,
+     "stage": "baseline",
+     "label": "BSE texture pattern regularity at 0.05 um",
+     "text": "BSE texture pattern regularity at 0.05 um: 3.6 SD below Batch_3",
+     "baseline_z": -3.6,
+     "closest_batch": "Batch_1"
     },
     {
-     "feature": "deep_pc04",
-     "z": -0.41,
-     "contribution": -0.01,
-     "stage": "variation",
-     "label": "DINOv2 image pattern 04",
-     "text": "DINOv2 image pattern 04, which moves with BSE fine texture: share of flat areas and dark specks: 1.0 SD above Batch_3 (r = -0.60); InLens texture uniformity at 0.05 um: 0.7 SD below Batch_3 (r = +0.52); InLens texture uniformity at 0.2 um: 0.7 SD below Batch_3 (r = +0.52)",
-     "related": [
-      {
-       "feature": "tex_bse_lbp8",
-       "label": "BSE fine texture: share of flat areas and dark specks",
-       "value": 0.1824186460905576,
-       "baseline_z": 0.98,
-       "direction": "above",
-       "closest_batch": "Batch_1",
-       "text": "BSE fine texture: share of flat areas and dark specks: 1.0 SD above Batch_3",
-       "r": -0.6
-      },
-      {
-       "feature": "tex_inlens_glcm_energy_d1",
-       "label": "InLens texture uniformity at 0.05 um",
-       "value": 0.10784078626864868,
-       "baseline_z": -0.67,
-       "direction": "below",
-       "closest_batch": "Batch_1",
-       "text": "InLens texture uniformity at 0.05 um: 0.7 SD below Batch_3",
-       "r": 0.52
-      },
-      {
-       "feature": "tex_inlens_glcm_energy_d4",
-       "label": "InLens texture uniformity at 0.2 um",
-       "value": 0.09416451903157513,
-       "baseline_z": -0.66,
-       "direction": "below",
-       "closest_batch": "Batch_1",
-       "text": "InLens texture uniformity at 0.2 um: 0.7 SD below Batch_3",
-       "r": 0.52
-      }
-     ]
+     "feature": "tex_bse_glcm_homogeneity_d1",
+     "z": -2.52,
+     "contribution": 0.116,
+     "stage": "baseline",
+     "label": "BSE texture smoothness at 0.05 um",
+     "text": "BSE texture smoothness at 0.05 um: 3.3 SD below Batch_3",
+     "baseline_z": -3.32,
+     "closest_batch": "Batch_1"
     }
    ],
    "baseline_distance": 4.833625325855267,
@@ -671,62 +612,34 @@
      "closest_batch": "Batch_1"
     },
     {
-     "feature": "deep_pc07",
-     "z": -0.57,
-     "contribution": 0.021,
-     "stage": "variation",
-     "label": "DINOv2 image pattern 07",
-     "text": "DINOv2 image pattern 07: an overall look of the InLens image that no single named measurement captures",
-     "related": []
+     "feature": "tex_etd_lbp8",
+     "z": 1.2,
+     "contribution": 0.073,
+     "stage": "baseline",
+     "label": "ETD fine texture: share of flat areas and dark specks",
+     "text": "ETD fine texture: share of flat areas and dark specks: 1.4 SD above Batch_3",
+     "baseline_z": 1.44,
+     "closest_batch": "Batch_1"
     },
     {
-     "feature": "deep_pc03",
-     "z": -0.52,
-     "contribution": 0.014,
-     "stage": "variation",
-     "label": "DINOv2 image pattern 03",
-     "text": "DINOv2 image pattern 03, which moves with InLens fine texture: share of straight edges: about the same as Batch_3 (r = -0.72); InLens fine texture: share of irregular, noisy patterns: 0.6 SD below Batch_3 (r = +0.65); InLens fine texture: share of dark notches: 1.4 SD below Batch_3 (r = +0.63)",
-     "related": [
-      {
-       "feature": "tex_inlens_lbp4",
-       "label": "InLens fine texture: share of straight edges",
-       "value": 0.09431753521529222,
-       "baseline_z": 0.32,
-       "direction": "above",
-       "closest_batch": "Batch_3",
-       "text": "InLens fine texture: share of straight edges: about the same as Batch_3",
-       "r": -0.72
-      },
-      {
-       "feature": "tex_inlens_lbp9",
-       "label": "InLens fine texture: share of irregular, noisy patterns",
-       "value": 0.19561538862923125,
-       "baseline_z": -0.55,
-       "direction": "below",
-       "closest_batch": "Batch_3",
-       "text": "InLens fine texture: share of irregular, noisy patterns: 0.6 SD below Batch_3",
-       "r": 0.65
-      },
-      {
-       "feature": "tex_inlens_lbp7",
-       "label": "InLens fine texture: share of dark notches",
-       "value": 0.09333605414793777,
-       "baseline_z": -1.44,
-       "direction": "below",
-       "closest_batch": "Batch_3",
-       "text": "InLens fine texture: share of dark notches: 1.4 SD below Batch_3",
-       "r": 0.63
-      }
-     ]
+     "feature": "tex_etd_glcm_homogeneity_d1",
+     "z": -1.49,
+     "contribution": 0.073,
+     "stage": "baseline",
+     "label": "ETD texture smoothness at 0.05 um",
+     "text": "ETD texture smoothness at 0.05 um: 2.0 SD below Batch_3",
+     "baseline_z": -2.02,
+     "closest_batch": "Batch_1"
     },
     {
-     "feature": "deep_pc05",
-     "z": 1.12,
-     "contribution": -0.012,
-     "stage": "variation",
-     "label": "DINOv2 image pattern 05",
-     "text": "DINOv2 image pattern 05: an overall look of the InLens image that no single named measurement captures",
-     "related": []
+     "feature": "tex_bse_lbp7",
+     "z": -1.18,
+     "contribution": 0.07,
+     "stage": "baseline",
+     "label": "BSE fine texture: share of dark notches",
+     "text": "BSE fine texture: share of dark notches: 1.4 SD below Batch_3",
+     "baseline_z": -1.43,
+     "closest_batch": "Batch_1"
     }
    ],
    "baseline_distance": 1.316099171369273,

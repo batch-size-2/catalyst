@@ -515,7 +515,7 @@ def calibrate(per_image: pd.DataFrame, classes: list[str], baseline: str, alpha:
         width[test] = intervals[:, 1] - intervals[:, 0]
     pred = np.array([_call(q, classes, str(baseline)) for q in Q])
     right = pred == truth
-    tiers = np.array([tier_of(c) for c in Q[np.arange(n), pred]])
+    tiers = np.array([tier_of(c) for c in Q[np.arange(n), pred]], dtype=object)
     log_loss = lambda probs: float(-np.log(np.clip(probs[np.arange(n), truth], 1e-12, None)).mean())
     scores = 1 - Q[np.arange(n), truth]
     in_set = np.zeros_like(Q, bool)
@@ -527,6 +527,8 @@ def calibrate(per_image: pd.DataFrame, classes: list[str], baseline: str, alpha:
         s1 = (pred == b) == (truth == b)
         s2 = (pred != b) & (truth != b)
         stages = {"baseline": {"right": int(s1.sum()), "n": int(n)}, "variation": {"right": int(right[s2].sum()), "n": int(s2.sum())}}
+        if (rec := stage_record(stages["variation"], len(classes) - 1)) and not rec["established"]:
+            tiers[pred != b] = "low"  # as predict: a variation call the model cannot back is never more than low
     return {
         "method": "venn_abers" if points else "none",
         "n": int(n),
@@ -832,6 +834,8 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
     qhat = (calibration.get("conformal") or {}).get("qhat")
     space = "all" if "all" in parts else "baseline"
     pred_idx = [_call(p, classes, baseline) for p in probs]
+    variation_record = stage_record((calibration.get("stages") or {}).get("variation"), max(len(classes) - 1, 1))
+    explain_variation = variation_record is None or variation_record["established"]  # a coin flip gets a note, not reasons
     rows = []
     for i in range(len(feats)):
         k = pred_idx[i]
@@ -844,7 +848,7 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
             call = baseline if classes[k] == baseline else other_label(baseline)
             _, Z1, coef1, _ = evals["baseline"]
             c1 = coef1[first["classes"].index(call)] * Z1[i] if call in first["classes"] else np.zeros(Z1.shape[1])
-            if classes[k] == baseline or classes[k] not in second["classes"] or len(second["classes"]) < 2:
+            if classes[k] == baseline or classes[k] not in second["classes"] or len(second["classes"]) < 2 or not explain_variation:
                 reasons = _reasons(model, "baseline", first, Z1[i], c1, row, N_REASONS)
             else:
                 _, Z2, coef2, _ = evals["variation"]
@@ -852,12 +856,13 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
                 reasons = _reasons(model, "baseline", first, Z1[i], c1, row, n1)
                 reasons += _reasons(model, "variation", second, Z2[i], coef2[second["classes"].index(classes[k])] * Z2[i], row, N_REASONS - n1)
         confidence = float(probs[i, k])
-        tier = tier_of(confidence)
         order = np.argsort(-probs[i])
         stage = _stage_calls(probs[i], classes, baseline, None if intervals is None else intervals[i], calibration.get("stages"))
         pset = [classes[k]] + [classes[j] for j in order if j != k and qhat is not None and probs[i, j] >= 1 - qhat]
-        if ((stage["stage_variation"] or {}).get("record") or {}).get("established") is False:  # cannot rule out what it cannot tell apart
+        guess = ((stage["stage_variation"] or {}).get("record") or {}).get("established") is False
+        if guess:  # cannot rule out what it cannot tell apart
             pset += [c for c in classes if c != baseline and c not in pset]
+        tier = "low" if guess else tier_of(confidence)
         x = evals[space][3][i]
         own = _distance((model.get("batch_stats") or {}).get(classes[k]), model, x)
         base = baseline_distance(model, x)

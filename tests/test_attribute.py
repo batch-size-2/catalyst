@@ -256,6 +256,8 @@ def test_a_stage_no_better_than_guessing_is_marked_and_cannot_rule_out_its_optio
     out = A.predict(model, table)
     for _, row in out[out["stage_variation"].notna()].iterrows():
         assert {"Batch_1", "Batch_2"} <= set(row["prediction_set"]) and row["prediction_set"][0] == row["predicted"]
+        assert row["confidence_tier"] == "low"                                                # a guess is never shown as confident
+        assert {r["stage"] for r in row["reasons"]} <= {"baseline", "all"}                     # explained by the part that is established
 
 
 def test_unfamiliar_is_measured_against_the_assigned_batch(table):
