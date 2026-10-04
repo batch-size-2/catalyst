@@ -19,7 +19,7 @@ Written 4 Oct 2026 by the previous agent (Claude) at the end of its session. Rea
 | Three test samples rescored once; same bets | `results/Hackathon-Polaron-test.refit.json` (the 3 Oct file is kept) |
 | Docs | `docs/MODEL.md` (new), README, `docs/AGENT_HANDOVER.md` §3.4, `docs/MODEL_NEXT_STEPS.md` |
 
-Numbers to remember: 22 of 31 with strips held out (balanced 0.66, null 0.51); rehearsal 0.66 (was 0.57 with the frozen call rule); tiers 9/9, 7/11, 6/11.
+Numbers to remember: 22 of 31 with strips held out (balanced 0.66, null 0.51); rehearsal 0.66 (was 0.57 with the frozen call rule); tiers 9/9, 5/7, 8/15 (with the cap; 7/11, 6/11 as stored in the model file).
 
 ## 2b. Devin session, 4 Oct afternoon: ground truth of the test samples
 
@@ -32,7 +32,7 @@ Numbers to remember: 22 of 31 with strips held out (balanced 0.66, null 0.51); r
 
 1. **Move the `rules-frozen` tag, after Patrik agrees.** It also locks `config/decision.yaml` and the default baseline. Until it moves, the app says "model differs from the frozen one", which is correct. Command: `git tag -f rules-frozen <commit of config/attribution_model.json on main> && git push -f origin rules-frozen`. Do not move it on your own.
 2. **Done:** PR #36 (T14) and PR #21 (experiments base) are closed; their commits are on `main`. The other open ticket PRs (T1–T13) stack on `pat/experiments-base` and will need a rebase onto `main`. None of their scripts uses the removed temperature code; T4 and T8 touch `qc/attribute.py` and `tests/test_attribute.py` and will conflict there.
-3. **Last-minute images.** Same single command, nothing is refit: `uv run python -m qc.attribute --images data/<folder>`, then copy the output to `results/` and commit it unchanged. Through the app: Identify tile, drop the three TIFFs; about 17 s per sample.
+3. **Last-minute images.** Done for `Hackathon-Polaron-eval` (6 samples, 4 Oct evening): `results/Hackathon-Polaron-eval.json`, committed unchanged; write-up in `docs/SUBMISSION.md` §5.4. For any further folder: same single command, nothing is refit: `uv run python -m qc.attribute --images data/<folder>`, then copy the output to `results/` and commit it unchanged. Through the app: Identify tile, drop the three TIFFs; about 17 s per sample.
 4. **Explainability, still open** (MODEL.md §9.4):
    - Per-reason imaging caveat on the reason cards. PR #31 (T4) has a text-only wording layer; rebase it on this branch. The overall panel already shows which image patterns track imaging.
    - "Where in the image": no heatmap yet. T11 and T12 have tile-level maps and a tile gallery as report-only experiments.
@@ -58,7 +58,7 @@ On Pat's Mac the raw batches are in `/Users/pat/conductor/workspaces/catalyst/da
 
 - **Name the three batch folders** for `qc.features` and `qc.deep`. Without arguments they take every folder in `data/`, and the test folder would become a training batch.
 - **`tests/fixtures/attribution_example.json` predates the T18 stage records** (no `record`, `p_value`, `established`), so the UI preview never shows "Which variation: not established". Regenerate it from the raw TIFFs (fixture is Patrik's).
-- **The tier records (9/9, 7/11, 6/11) were computed before the low-confidence cap** on unestablished "which variation" calls. Recompute `calibration` in the model file from the out-of-fold probabilities; the classifier does not change. Unverified: needs the TIFFs.
+- **The tier records stored in the model file (9/9, 7/11, 6/11) were computed before the low-confidence cap** on unestablished "which variation" calls. Verified on 4 Oct: `calibrate` on the same out-of-fold probabilities gives 9/9, **5/7, 8/15**, with everything else identical. A rehearsal rerun with the cap is unchanged (56/58, 25/52, 97/160). The docs (MODEL.md §7.4, SUBMISSION.md §5.2) use the corrected numbers; the model file updates at its next fit, which needs Pat (and changes `fitted_at`, see below).
 - **A refit changes `fitted_at`**, so every saved run then shows "Made by an earlier model" in the app. After a refit, rescore and regenerate `tests/fixtures/attribution_example.json` (three known images: `0grcilhi`, `3806gxp0`, `4ih2ggld`, scored from a folder named `example_drop`).
 - **Do not judge a calibration by holding out one image.** Images of one strip share scores. T14's original comparison did this and looked better than it is; hold out the strip, and check on the rehearsal (`--dry-run --repeats 30`).
 - **Do not let the largest of three probabilities decide the call** once stage 1 is calibrated. With the Venn–Abers of T14 it lost 2 of 31 known images and 28 of 270 rehearsal calls against the staged rule.
