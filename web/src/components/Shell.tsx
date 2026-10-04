@@ -48,6 +48,12 @@ const ICONS = {
       <circle cx="17" cy="18" r="2" />
     </>
   ),
+  anode: (
+    <>
+      <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" />
+      <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+    </>
+  ),
   lock: (
     <>
       <rect x="5" y="11" width="14" height="9" rx="2" />
@@ -82,6 +88,10 @@ export default function Shell({
       {extra}
     </a>
   );
+  const experimental = (
+    <span className="mono ml-auto rounded-md border border-cx-orange/40 px-1.5 py-0.5 text-[10px] text-cx-orange-text"
+      title="Experimental feature: indicative, never part of the verdict">EXP</span>
+  );
   return (
     <div className="cx flex min-h-screen items-stretch">
       <div className="print-hidden w-[236px] shrink-0 border-r border-cx-line bg-cx-sidebar">
@@ -105,14 +115,9 @@ export default function Shell({
           )}
           <div className="lbl px-2.5 pt-5 pb-2">Trust</div>
           {navItem("audit", "Audit log", ICONS.audit, href.audit())}
-          {flagOn("impact") && (
-            <>
-              <div className="lbl px-2.5 pt-5 pb-2">Experimental</div>
-              {navItem("impact", "Wear & impact", ICONS.wear, href.impact(),
-                <span className="mono ml-auto rounded-md border border-cx-orange/40 px-1.5 py-0.5 text-[10px] text-cx-orange-text"
-                  title="Experimental feature: indicative, never part of the verdict">EXP</span>)}
-            </>
-          )}
+          {(flagOn("impact") || flagOn("anode")) && <div className="lbl px-2.5 pt-5 pb-2">Experimental</div>}
+          {flagOn("impact") && navItem("impact", "Wear & impact", ICONS.wear, href.impact(), experimental)}
+          {flagOn("anode") && navItem("anode", "Anode lab", ICONS.anode, href.anode(), experimental)}
         </nav>
         <div className="mt-auto flex flex-col gap-2.5">
           {navItem("settings", "Settings", ICONS.settings, href.settings())}

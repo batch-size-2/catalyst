@@ -102,6 +102,8 @@ flowchart LR
     GD["guide(evidence) → summary + walkthrough<br/>fixed template, or Claude with {slots} Catalyst fills in<br/>house-rule checks · what-if: odd tiles left out"]
   end
 
+  SLAB["qc/slab.py · build(batch) → indicative 3D slab<br/>packing at the measured fractions · textbook charge, plating, wear curves<br/>illustration only, never read by the verdict"]
+
   subgraph OUT["out/ (gitignored)"]
     T["kpis.csv<br/>one row per image, incl. area_um2"]
     PT["particles.csv<br/>one row per Si particle"]
@@ -114,9 +116,9 @@ flowchart LR
     CR["crops/{type}/{n}.png<br/>example crops per particle type"]
   end
 
-  API["qc/api.py · FastAPI :8000<br/>GET config · settings · batches · evidence · guide · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation<br/>GET particles · layers · POST upload · run (?baseline one-off) · measure · attribution · guide · verify (NDJSON progress) · PUT settings/baseline"]
+  API["qc/api.py · FastAPI :8000<br/>GET config · settings · batches · evidence · guide · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation · slab<br/>GET particles · layers · POST upload · run (?baseline one-off) · measure · attribution · guide · verify (NDJSON progress) · PUT settings/baseline"]
   CLAUDE["Claude API<br/>reads evidence + dictionary, never images"]
-  WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile (stage progress, region peek) · compare batch (focus + walkthrough) · library + viewer · audit log + batch passport + parody lawsuit button · settings"]
+  WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile (stage progress, region peek) · compare batch (focus + walkthrough) · library + viewer · audit log + batch passport + parody lawsuit button · settings<br/>anode lab (Experimental, three.js, lazy-loaded)"]
   CLI["python -m qc.run / qc.measure / qc.features / qc.attribute"]
   IMPACT["qc/impact.py · impact_report(kpis, particles, batch, baseline)<br/>Experimental: indicative cell impact + worst cases · config/impact.yaml<br/>never feeds the verdict"]
 
@@ -147,6 +149,9 @@ flowchart LR
   FT --> FIT
   FIT -. "config/attribution_model.json (frozen)" .-> PRED
   FT --> PRED --> AT
+  T --> SLAB
+  PT --> SLAB
+  SLAB --> API
   E --> API
   E --> GD
   DICT --> GD
@@ -232,6 +237,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `GET /api/tiles` | `[{batch, image_id, strip_id, detectors, kpis, has_mask, has_layers}]`: every image in `data/` joined with `out/kpis.csv` |
 | `GET /api/images/{batch}/{image_id}/{detector}?size=512\|2048` | Percentile-stretched PNG preview, cached in `out/previews/` |
 | `GET /api/kpis` | `config/kpi_dictionary.yaml` as JSON, plus a name for each fitted particle type it doesn't describe yet (from `config/particle_types.json`) |
+| `GET /api/slab/{batch}?image={id}` | Indicative 3D slab for the anode lab (`qc/slab.py`): particle packing, pore mask, charge / fast-charge / ageing curves, indicators with per-image ranges, assumptions. Batch median, or one image with `image`. Cached in memory |
 | `GET /api/layers/{batch}/{image_id}/{silicon\|pore\|binder}` | One segmentation phase as a transparent PNG, to lay over any detector in the peek and inspector; 404 until the tile is measured |
 | `GET /api/particles/{batch}/{image_id}?top=8` | `{width, height, px_um, particles: [{x, y, d_um, type}]}` from `qc.run.tile_particles`: the tile's size (cropped, full-res px) and its largest non-edge Si particles from `out/particles.csv`, for the region peek |
 | `POST /api/verify/{batch}?baseline=` | Re-hash the evidence's provenance inputs and config files (with its own baseline) → `{ok, files, config_ok}` |
@@ -479,6 +485,17 @@ Effect per property: "about the same" if the whole relative-change interval is w
 
 `web/src/impact.ts` holds the types and fetch for this endpoint, and `Report` lives in `qc/impact.py`, not `qc/schema.py`: it is not part of the ML ↔ backend contract and stays separate while it is experimental.
 
+## Anode lab (`qc/slab.py`, `web/src/slab/`)
+
+An experimental page (rail: Experimental → Anode lab, `#/anode`, flag `anode` in `web/src/flags.ts`, on by default; `?flags=-anode` hides it) that shows what one batch's measured microstructure means inside a cell: a rotatable 60 × 50 × 30 µm block of anode between a copper collector and a separator, Batch_3 beside a chosen batch, with sliders for state of charge, C-rate, cycles and a FIB slice that mills into the block. It is an illustration driven by measured statistics, not a 3D reconstruction and not a cell simulation, labelled as such on the page; nothing in it feeds `decide.py`.
+
+- **Packing.** Silicon sizes are drawn from the batch's measured particles (`out/particles.csv`) with a first-order Wicksell correction (× 4/π, weight 1/d), placed with the measured agglomerated share, and trimmed to the measured silicon share of the solid. Angular graphite flakes are added by random sequential addition with a growing overlap allowance until the pore fraction is reached. The page's "Packing check" lists achieved against target fractions (within about 0.3 points).
+- **True porosity.** The 2D apparent porosity (~10%) under-counts pores, so the baseline is anchored at 30% and each batch keeps its measured ratio to the baseline (`true_fractions`). This is the largest assumption and it is listed on the page.
+- **Physics (backend only; the page interpolates).** Si and graphite share one potential (textbook lithiation curves), so silicon lithiates first. Si swells 280% (internal voids absorb their share), graphite 10% along c. Half the swelling fills pores, the rest thickens the coating. Bruggeman sets ion transport. The through-thickness gradient scales with L² / (D_eff · t_charge), under CC-CV charging and an N/P ratio of 1.1. Plating is flagged where the local potential minus an overpotential falls below 0 V vs Li. Graphite takes its staging colours flake by flake (lever rule). Si above the 870 nm a-Si fracture size cracks over the cycles, and some fragments lose contact; capacity fade is a scenario band (SEI ~ √N plus lost Si).
+- **Faces.** The visible faces are true sections of the packing, rasterised on the CPU; the "real section" toggle puts the batch's most typical BSE image on half of the front face for comparison.
+
+PLAN_v4 §3.8 says "no cell simulation". This page has no electrochemical model fitted to data; its fast-charge and wear panels are qualitative relations with stated constants, shown as indicative ranges, as §3.8 allows for consequences. The page and three.js are lazy-loaded, so the main bundle does not grow. URL parameters before the hash set the start state, e.g. `/?soc=0.75&c=5#/anode` (`soc`, `c`, `cycles`, `milled`, `section=1`, `ions=0`).
+
 ## Batch attribution (Pat's `qc/attribute.py`)
 
 The software reads Pat's output as written; it defines no classifier or attribution schema. `load_model()` reads the model, and `attribute_images(image_dir, model, balanced=None)` writes `out/attribution/<folder>.json`. `qc.run.attribute()` calls those functions and sanitizes NaN/Infinity to JSON null.
@@ -515,6 +532,7 @@ The model was frozen on 3 Oct at 22:10 (tag `rules-frozen`, staged `material > d
 | `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
 | `qc/api.py`, `web/` | Software (Patrik) |
 | `qc/impact.py`, `config/impact.yaml`, `tests/test_impact.py` (experimental) | Software (Patrik) |
+| `qc/slab.py`, `tests/test_slab.py`, `web/src/slab/` | Software (Patrik). Experimental: deleting these, the `/api/slab` route and the `anode` flag, route and nav item removes the anode lab |
 | `qc/io.py`, `qc/run.py` | Shared glue |
 
 ## Changes from the v3 design (ML side)

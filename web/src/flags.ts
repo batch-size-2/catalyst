@@ -3,9 +3,9 @@
  * VITE_FLAGS (build time, comma-separated) or localStorage "catalyst.flags" add a feature with its name and
  * remove one with "-name". Visiting any page with ?flags=-impact stores the list; ?flags= clears it.
  */
-type Flag = "impact";
+type Flag = "impact" | "anode";
 const KEY = "catalyst.flags";
-const DEFAULT_ON: Flag[] = ["impact"];
+const DEFAULT_ON: Flag[] = ["impact", "anode"];
 const list = (value: string | null | undefined) =>
   (value ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 
