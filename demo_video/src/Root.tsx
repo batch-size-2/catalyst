@@ -3,8 +3,7 @@ import narration from "../narration.json";
 import script from "../script.json";
 import { Animatic } from "./Animatic";
 import { ContactSheet, sheetSize, sheetTimes } from "./ContactSheet";
-import { buildTimeline, type AudioJson, type Narration, type Script, type Timeline } from "./core";
-import { STANDINS } from "./state";
+import { buildTimeline, type AudioJson, type Manifest, type Narration, type Script, type Timeline } from "./core";
 import { FPS, H, W } from "./theme";
 
 export type Props = { tl: Timeline | null; assets: Record<string, boolean> };
@@ -32,15 +31,29 @@ const calculateMetadata: CalculateMetadataFunction<Props> = async () => {
     }
     mp3[id] = await exists(`audio/${id}.mp3`);
   }
+  // the capture manifest (npm run capture); without it the screens fall back to stand-ins / placeholders
+  let screens: Manifest | null = null;
+  try {
+    const r = await fetch(staticFile("screens/manifest.json"));
+    screens = r.ok ? ((await r.json()) as Manifest) : null;
+  } catch {
+    screens = null;
+  }
+  const shotFiles = screens ? [...Object.values(screens.shots), ...Object.values(screens.clips ?? {})].flatMap((x) => [x.file, ...(x.vp ? [x.vp] : [])]) : [];
   const files = [
     ...(s.music?.file ? [s.music.file] : []),
     ...Object.keys(s.sfxMix).map((id) => `sfx/${id}.mp3`),
-    ...Object.values(STANDINS.images).map((i) => i.file),
+    ...shotFiles,
     "bg/micro_grey.jpg", "bg/micro_color.jpg", "bg/mask_si.png", "bg/mask_pore.png",
   ];
   const assets: Record<string, boolean> = {};
   for (const f of files) assets[f] = await exists(f);
   const tl = buildTimeline(n, s, audio, mp3);
+  if (screens) {
+    // drop entries whose files are missing, so they render as placeholders instead of broken images
+    for (const group of [screens.shots, screens.clips ?? {}]) for (const [k, v] of Object.entries(group)) if (!assets[v.file]) delete group[k];
+  } else tl.warnings.push("no screens/manifest.json: app scenes use stand-ins and placeholders");
+  tl.screens = screens;
   for (const f of files) if (!assets[f]) tl.warnings.push(`missing ${f}, using a placeholder`);
   for (const w of tl.warnings) console.warn(`[catalyst] ${w}`);
   return { durationInFrames: Math.ceil(tl.total * FPS), props: { tl, assets } };
@@ -55,12 +68,12 @@ const sheetMetadata: CalculateMetadataFunction<Props> = async (opts) => {
 export const Root = () => (
   <>
     <Composition
-      id="Animatic"
+      id="Catalyst"
       component={Animatic}
       width={W}
       height={H}
       fps={FPS}
-      durationInFrames={FPS * 90}
+      durationInFrames={FPS * 118}
       defaultProps={{ tl: null, assets: {} } as Props}
       calculateMetadata={calculateMetadata}
     />

@@ -36,6 +36,20 @@ export const CONTENT = { x: WIN.x, y: WIN.y + WIN.title, w: WIN.w, h: WIN.h - WI
 // Caption band below the window.
 export const CAPTION_Y = 990;
 
+// The one motion language. UI and camera share SPRING; the window frame is softer; the cat bouncier.
+export const SPRING = { damping: 22, stiffness: 120, mass: 0.9 };
+export const SPRING_SOFT = { damping: 20, stiffness: 70, mass: 1 };
+export const SPRING_CAT = { damping: 14, stiffness: 90, mass: 1 };
+export const SPRING_POP = { damping: 12, stiffness: 180, mass: 0.7 };
+
+// Window layouts: centred, or slid aside so hero type owns the other side.
+export const FRAMES = {
+  center: { dx: 0, scale: 1 },
+  left: { dx: 96 + (WIN.w * 0.74) / 2 - W / 2, scale: 0.74 },
+  right: { dx: W - 96 - (WIN.w * 0.74) / 2 - W / 2, scale: 0.74 },
+} as const;
+export const SAFE = { x: 96, y: 54 }; // 5 % safe margin
+
 export const glass = {
   background: "linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025))",
   backdropFilter: "blur(24px) saturate(160%)",

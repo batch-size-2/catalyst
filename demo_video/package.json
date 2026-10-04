@@ -5,17 +5,25 @@
   "type": "module",
   "scripts": {
     "studio": "remotion studio",
-    "animatic": "remotion render Animatic out/animatic.mp4 --codec=h264 --crf=18 --audio-codec=aac && node scripts/captions.ts",
-    "sheet": "remotion still ContactSheet review/contact_sheet.png",
-    "stills": "node scripts/stills.mjs",
+    "render": "remotion render Catalyst out/catalyst.mp4 --codec=h264 --crf=18 --audio-codec=aac && ffmpeg -loglevel error -y -i out/catalyst.mp4 -vf scale=1280:720 -c:v libx264 -crf 20 -preset slow -c:a copy -movflags +faststart out/catalyst-720p.mp4 && node scripts/captions.ts",
+    "capture": "node capture/capture.mjs",
+    "stills": "node scripts/review.mjs stills",
+    "sheet": "node scripts/review.mjs sheet",
+    "strip": "node scripts/review.mjs strip",
+    "crop": "node scripts/review.mjs crop",
+    "contact": "remotion still ContactSheet review/contact_sheet.png",
+    "words": "node scripts/words.ts",
     "captions": "node scripts/captions.ts",
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@remotion/cli": "4.0.529",
     "@remotion/fonts": "4.0.529",
+    "@remotion/media-utils": "4.0.529",
+    "@remotion/motion-blur": "4.0.529",
     "@remotion/transitions": "4.0.529",
     "geist": "1.7.2",
+    "playwright-core": "1.63.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "remotion": "4.0.529"

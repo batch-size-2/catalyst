@@ -1,98 +1,188 @@
 {
-  "note": "Beats per scene, keyed by the scene ids in narration.json. A beat fires at the first occurrence of its `at` word(s) at or after the previous beat (case and punctuation ignored); `offset` shifts it in seconds. Scene length = lead + audio duration + voice.gap_seconds + hold.",
-  "music": { "file": "music/bed_v2_soft.mp3", "volume": 0.5, "fadeIn": 1.5, "fadeOut": 2.5 },
-  "sfxMix": { "click": 0.12, "done": 0.1, "drop": 0.28, "whoosh": 0.035, "stamp": 0.55, "mrrp": 0.14, "lawsuit": 1.0, "meow": 0.09 },
+  "note": "Beats per scene, keyed by the scene ids in narration.json. A beat fires at the first occurrence of its `at` word(s) at or after the previous beat (case and punctuation ignored); `offset` shifts it in seconds. Scene length = lead + audio duration + voice.gap_seconds + hold. Screen beats: shot/clip (manifest names), focus+zoom (camera), spot (spotlight), lift (2.5D), cursor (press on this beat; 'nav:<page>' = sidebar), hover, frame (center|left|right for hero type), hero (big type; each word lands on its `at` word). Run `node scripts/words.ts` to see every word's time.",
+  "music": {"file": "music/bed_v2_soft.mp3", "volume": 0.5, "fadeIn": 1.5, "fadeOut": 2.5},
+  "sfxMix": {"click": 0.12, "done": 0.1, "drop": 0.28, "whoosh": 0.035, "stamp": 0.55, "mrrp": 0.14, "lawsuit": 1.0, "meow": 0.09},
   "scenes": {
     "news": {
       "lead": 0.6,
       "hold": 0.4,
+      "banner": "BREAKING NEWS",
       "cards": [
-        { "kicker": "Recall · 2021", "fact": "Every Chevy Bolt recalled", "detail": "faulty battery cells", "figure": { "prefix": "$", "value": 1.9, "decimals": 1, "suffix": " billion", "label": "cost of the fix" }, "source": "NBC News / CNBC, Aug–Oct 2021" },
-        { "kicker": "Recall · 2021", "fact": "82,000 Hyundai EVs get new batteries", "detail": "fire risk · ≈ £640m", "source": "BBC News, 24 Feb 2021" },
-        { "kicker": "2016–17", "fact": "Samsung Galaxy Note 7", "detail": "battery faults · ≈ $17bn in lost sales", "source": "BBC News / NBC News, 2016–17" }
+        {"kicker": "Breaking news · 2021", "fact": "GM recalls every Chevy Bolt", "detail": "faulty battery cells", "figure": {"prefix": "$", "value": 1.9, "decimals": 1, "suffix": " billion", "label": "cost of the fix"}, "source": "CNBC, NBC News (2021)"},
+        {"kicker": "Breaking news · 2021", "fact": "Hyundai swaps the batteries in 82,000 EVs", "detail": "fire risk · ≈ £640m", "source": "BBC News, 24 Feb 2021"},
+        {"kicker": "2016–17", "fact": "Samsung Galaxy Note 7", "detail": "battery faults · ≈ $17bn in lost sales", "source": "BBC News, NBC News (2016–17)"}
       ],
       "beats": [
-        { "bg": "news", "fx": "cars", "offset": 0.2 },
-        { "at": "GM", "fx": "card1", "offset": -0.15 },
-        { "at": "billion", "fx": "count", "dur": 1.1 },
-        { "at": "Hyundai", "fx": "card2", "offset": -0.1 },
-        { "at": "cars", "fx": "card3", "offset": 0.3 }
+        {"bg": "news", "fx": "banner", "offset": 0},
+        {"fx": "cars", "offset": 0.35},
+        {"at": "2021", "fx": "year", "offset": -0.05},
+        {"at": "GM", "fx": "card1", "offset": -0.42, "hero": {"side": "left", "size": 124, "until": 3.05, "words": [{"text": "GM", "at": "GM"}, {"text": "RECALLED", "at": "recalled", "br": true}, {"text": "EVERY", "at": "every", "br": true, "mark": true}, {"text": "CHEVY", "at": "Chevy"}, {"text": "BOLT", "at": "Bolt"}]}},
+        {"at": "faulty", "fx": "faulty"},
+        {"at": "nearly", "fx": "count", "hero": {"side": "left", "size": 150, "until": 1.75, "words": [{"text": "$1.9", "at": "nearly", "count": {"to": 1.9, "decimals": 1, "prefix": "$"}, "color": "orange", "br": true}, {"text": "BILLION", "at": "billion"}, {"text": "", "at": "dollars"}]}},
+        {"at": "Hyundai", "fx": "card2", "offset": -0.1},
+        {"at": "eighty-two", "offset": -0.02, "hero": {"side": "left", "size": 150, "until": 2.4, "words": [{"text": "82,000", "at": "eighty-two", "count": {"to": 82000, "sep": true}, "color": "orange", "br": true}, {"text": "", "at": "thousand"}, {"text": "CARS", "at": "cars"}]}},
+        {"at": "cars", "fx": "card3", "offset": 0.3}
       ]
     },
     "science": {
+      "hold": 0.3,
       "beats": [
-        { "at": "I'm", "fx": "cards-out", "cat": { "anchor": "left-low", "pose": "wave", "expression": "happy", "item": "none" }, "sfx": "mrrp" },
-        { "at": "Catalyst", "fx": "mark" },
-        { "at": "check", "fx": "car" },
-        { "at": "long", "fx": "dive", "dur": 3.1, "cat": { "pose": "float", "expression": "curious" } },
-        { "at": "anode", "offset": 0.25, "bg": "hero-grey" },
-        { "at": "microscope", "cat": { "pose": "hold", "item": "magnifier" } },
-        { "at": "Grey", "bg": "graphite", "fx": "label-graphite" },
-        { "at": "Orange", "bg": "silicon", "fx": "label-silicon" },
-        { "at": "swells", "fx": "swell", "cat": { "expression": "surprised" } },
-        { "at": "Blue", "bg": "pore", "fx": "label-pore", "cat": { "expression": "curious" } },
-        { "at": "drifts", "bg": "color", "fx": "labels-out", "cat": { "expression": "happy", "pose": "float", "item": "none" } },
-        { "at": "battery", "offset": 0.3, "bg": "app", "fx": "mark-out" }
+        {"at": "I'm", "fx": "cards-out", "offset": -0.1, "cat": {"anchor": "left-low", "pose": "wave", "expression": "happy", "item": "none"}, "sfx": "mrrp"},
+        {"at": "Catalyst", "fx": "mark", "offset": -0.15},
+        {"at": "check", "fx": "car", "offset": -0.1},
+        {"at": "material", "fx": "dive", "dur": 2.75, "cat": {"pose": "float", "expression": "curious"}},
+        {"at": "anode", "offset": -0.45, "bg": "hero-grey", "dur": 0.55},
+        {"at": "microscope", "cat": {"pose": "hold", "item": "magnifier", "expression": "focused"}},
+        {"at": "Grey", "bg": "graphite", "fx": "label-graphite"},
+        {"at": "Orange", "bg": "silicon", "fx": "label-silicon"},
+        {"at": "swells", "fx": "swell", "cat": {"expression": "surprised", "emote": "!"}},
+        {"at": "Blue", "bg": "pore", "fx": "label-pore", "cat": {"expression": "curious"}},
+        {"at": "mix", "bg": "color", "fx": "labels-out", "cat": {"expression": "thinking", "pose": "float", "item": "none"}},
+        {"at": "plate", "fx": "needles", "dur": 2.3},
+        {"at": "short", "fx": "arc", "cat": {"expression": "wince", "emote": "sweat"}},
+        {"at": "short", "fx": "shake", "dur": 0.1},
+        {"at": "start", "fx": "fire", "bg": "ember", "dur": 0.5},
+        {"at": "fire", "offset": -0.05, "cat": {"expression": "scared", "emote": "!"}, "hero": {"side": "center", "size": 230, "until": 1.15, "tone": "#FF8A3D", "words": [{"text": "FIRE", "at": "fire"}]}},
+        {"at": "fire", "offset": 0.75, "bg": "app", "dur": 1.3, "fx": "burn-down"}
       ]
     },
     "compare": {
-      "hold": 0.8,
+      "hold": 1.0,
       "beats": [
-        { "at": "When", "cat": { "anchor": "left-low", "expression": "thinking", "pose": "float" } },
-        { "at": "delivery", "window": "in", "shot": "compare_verdict", "url": "#/compare/batch_1", "sfx": "whoosh" },
-        { "at": "supplier", "highlight": "verdict_head", "zoom": 1.15 },
-        { "at": "changed", "shot": "compare_moved", "highlight": "moved_row", "zoom": 1.2, "cat": { "anchor": "left", "pose": "point", "item": "pointer", "lookAt": "moved_row", "expression": "curious" }, "callout": "what moved" },
-        { "at": "confident", "callout": "how sure" },
-        { "at": "accept", "shot": "compare_verdict", "highlight": "verdict", "zoom": 1.1, "cat": { "lookAt": "verdict_pill" }, "sfx": "done" },
-        { "at": "investigate", "cat": { "pose": "shrug", "expression": "shrug", "item": "none" }, "callout": "investigate" },
-        { "at": "reject", "highlight": "next_steps", "zoom": 1.15, "cat": { "pose": "point", "item": "pointer", "lookAt": "next_steps", "expression": "proud" } },
-        { "at": "explain", "shot": "compare_explain", "highlight": "explain", "zoom": 1.05, "cat": { "lookAt": "explain", "expression": "happy" } },
-        { "at": "operator", "callout": "operator", "calloutFor": 0.6 },
-        { "at": "engineer", "callout": "engineer", "calloutFor": 0.55 },
-        { "at": "scientist", "callout": "scientist", "calloutFor": 0.7 },
-        { "at": "manager", "callout": "manager", "calloutFor": 1.2 }
+        {"at": "When", "offset": -0.2, "window": "in", "shot": "compare", "url": "#/compare/Batch_1", "sfx": "whoosh", "cat": {"anchor": "left-low", "expression": "thinking", "pose": "float"}},
+        {"at": "compare", "focus": "answer", "zoom": 1.2},
+        {"at": "supplier", "offset": -0.1, "spot": "baseline", "cat": {"anchor": "left-mid", "pose": "point", "item": "pointer", "lookAt": "baseline", "expression": "curious"}},
+        {"at": "Each", "offset": -0.1, "focus": "moved", "zoom": 1.15, "spot": null, "cat": {"lookAt": null, "pose": "float", "item": "none"}},
+        {"at": "row", "spot": "row1", "cat": {"anchor": "left", "pose": "point", "item": "pointer", "lookAt": "row1"}, "focus": "row1", "zoom": 1.3},
+        {"at": "far", "spot": "row2", "cat": {"lookAt": "row2"}, "focus": "row2", "zoom": 1.3},
+        {"at": "measurement", "spot": "row3", "cat": {"lookAt": "row3"}, "focus": "row3", "zoom": 1.3},
+        {"at": "This", "offset": -0.15, "spot": null, "focus": "answer", "zoom": 1.25, "cat": {"anchor": "left-low", "pose": "float", "item": "none", "lookAt": null}},
+        {"at": "investigate", "offset": -0.12, "frame": "left", "lift": "answer", "cat": {"anchor": "hero-right", "pose": "shrug", "expression": "shrug"}, "hero": {"side": "right", "size": 104, "until": 1.0, "tone": "investigate", "words": [{"text": "INVESTIGATE", "at": "investigate"}]}},
+        {"at": "held", "offset": -0.15, "frame": "center", "lift": null, "focus": "next", "zoom": 1.3, "spot": "next1", "cat": {"anchor": "left-low", "pose": "float", "expression": "happy"}},
+        {"at": "The", "offset": -0.3, "spot": null, "focus": "explain_fold", "zoom": 1.15},
+        {"at": "tabs", "cursor": "explain_fold", "sfx": "click"},
+        {"at": "tabs", "offset": 0.07, "shot": "compare@engineer"},
+        {"at": "tabs", "offset": 0.32, "focus": "explain", "zoom": 1.3},
+        {"at": "explain", "cursor": "seg_operator", "sfx": "click"},
+        {"at": "explain", "offset": 0.07, "shot": "compare@operator", "spot": "explain_text"},
+        {"at": "explain", "offset": 0.77, "cursor": "seg_engineer", "sfx": "click"},
+        {"at": "explain", "offset": 0.84, "shot": "compare@engineer"},
+        {"at": "explain", "offset": 1.54, "cursor": "seg_scientist", "sfx": "click"},
+        {"at": "explain", "offset": 1.61, "shot": "compare@scientist"},
+        {"at": "manager", "cursor": "seg_manager", "sfx": "click", "cat": {"expression": "proud"}},
+        {"at": "manager", "offset": 0.07, "shot": "compare@manager"},
+        {"at": "manager", "offset": 1.15, "spot": null, "focus": null}
       ]
     },
     "identify": {
+      "hold": 0.4,
       "beats": [
-        { "at": "You", "cat": { "anchor": "left-low", "pose": "point", "item": "tile", "expression": "curious", "lookAt": null } },
-        { "at": "drop", "shot": "identify_empty", "url": "#/identify", "highlight": "dropzone", "sfx": "whoosh" },
-        { "at": "image", "fx": "drop", "offset": -0.3, "dur": 0.65, "cat": { "pose": "float", "item": "none", "expression": "happy" } },
-        { "at": "image", "offset": 0.35, "sfx": "drop" },
-        { "at": "measure", "shot": "identify_analyzing", "highlight": "pipeline", "zoom": 1.15, "cat": { "expression": "focused" } },
-        { "at": "which", "shot": "identify_result", "highlight": "verdict", "zoom": 1.15, "sfx": "done", "cat": { "anchor": "right", "pose": "point", "item": "pointer", "lookAt": "bars", "expression": "proud" }, "callout": "closest: Batch 1" },
-        { "at": "reasons", "highlight": "why", "zoom": 1.2, "cat": { "lookAt": "why", "expression": "curious" }, "callout": "the reasons" },
-        { "at": "seen", "highlight": "unfamiliar", "zoom": 1.6, "cat": { "lookAt": "unfamiliar", "expression": "surprised" }, "callout": "never seen this" }
+        {"at": "You", "cursor": "nav:identify", "sfx": "click", "cat": {"anchor": "left-low", "pose": "hold", "item": "tile", "expression": "happy"}},
+        {"at": "You", "offset": 0.07, "shot": "identify", "url": "#/identify"},
+        {"at": "also", "focus": "dropzone", "zoom": 1.1},
+        {"at": "single", "offset": -0.3, "fx": "drop", "dur": 0.62, "cat": {"pose": "float", "item": "none", "expression": "proud"}},
+        {"at": "image", "offset": -0.15, "sfx": "drop"},
+        {"at": "tell", "offset": -0.1, "fx": "drop-out"},
+        {"at": "tell", "shot": "identify_result", "url": "#/identify/drop_demo/4ih2ggld", "focus": "answer", "zoom": 1.25},
+        {"at": "closest", "offset": -0.12, "lift": "answer", "cover": {"id": "bars", "color": "rgb(22,24,27)", "dur": 0.75, "delay": 0.12, "inset": [-2, -1, -2, 23]}, "sfx": "done", "cat": {"anchor": "left-mid", "pose": "point", "item": "pointer", "lookAt": "closest", "expression": "proud"}},
+        {"at": "how", "lift": null, "focus": "chips", "zoom": 1.9, "spot": "confidence_chip", "cat": {"lookAt": "confidence_chip"}},
+        {"at": "outside", "spot": "familiar", "focus": "familiar", "zoom": 2.2, "cat": {"lookAt": "familiar", "expression": "curious"}},
+        {"at": "unfamiliar", "cat": {"expression": "surprised", "emote": "?"}},
+        {"at": "unfamiliar", "offset": 0.8, "spot": null, "focus": "tile_image", "zoom": 1.2, "cat": {"anchor": "left-low", "pose": "float", "item": "none", "lookAt": null}}
       ]
     },
     "inspect": {
+      "hold": 0.4,
       "beats": [
-        { "at": "Don't", "cat": { "anchor": "right-mid", "pose": "hold", "item": "magnifier", "expression": "focused", "goggles": "down", "lookAt": null } },
-        { "at": "Open", "shot": "library_tile", "state": "off", "url": "#/library/batch_1/4ih2ggld", "highlight": "micrograph", "zoom": 1.1, "sfx": "whoosh" },
-        { "at": "pixels", "state": "on", "fx": "seg-on", "sfx": "click" },
-        { "at": "silicon", "highlight": "si_detail", "zoom": 3.2, "callout": "silicon", "cat": { "expression": "proud" } }
+        {"at": "You", "cat": {"anchor": "right-low", "pose": "hold", "item": "magnifier", "expression": "focused", "goggles": "down", "emote": "sparkle"}},
+        {"at": "check", "hover": "spot1"},
+        {"at": "my", "shot": "identify_result@hover", "focus": "tooltip", "zoom": 1.6, "lift": "tooltip"},
+        {"at": "Open", "cursor": "spot1", "sfx": "click", "lift": null},
+        {"at": "Open", "offset": 0.07, "shot": "identify_result@pinned", "focus": "inspector", "zoom": 1.5},
+        {"at": "overlay", "focus": "inspector_img", "zoom": 1.9},
+        {"at": "silicon", "cursor": "switch_silicon", "sfx": "click"},
+        {"at": "silicon", "offset": 0.07, "shot": "identify_result@silicon", "focus": "inspector_img", "zoom": 2.1, "cat": {"expression": "proud"}},
+        {"at": "pores", "cursor": "switch_pore", "sfx": "click"},
+        {"at": "pores", "offset": 0.07, "shot": "identify_result@pore"},
+        {"at": "pores", "offset": 0.95, "focus": null}
       ]
     },
     "audit": {
-      "hash": "sha256 17b8f934 · 8b1083c0 · 94eab635 …",
       "hold": 3.4,
       "beats": [
-        { "at": "Every", "shot": "audit", "url": "#/audit", "highlight": null, "sfx": "whoosh", "cat": { "anchor": "right-mid", "pose": "float", "item": "none", "expression": "curious", "goggles": "up" } },
-        { "at": "logged", "highlight": "log_row", "zoom": 1.5, "fx": "hash", "dur": 1.6 },
-        { "at": "check", "highlight": "verified", "zoom": 1.2, "fx": "verify", "cat": { "pose": "stamp", "item": "stamp", "expression": "proud" }, "callout": "nothing moved" },
-        { "at": "later", "offset": 0.1, "sfx": "stamp" },
-        { "at": "button", "offset": 0.75, "sfx": "lawsuit" }
+        {"at": "Every", "cursor": "nav:audit", "sfx": "click", "cat": {"anchor": "right-low", "pose": "float", "item": "none", "expression": "smug", "goggles": "up"}},
+        {"at": "Every", "offset": 0.07, "shot": "audit", "url": "#/audit", "focus": "log", "zoom": 1.3},
+        {"at": "saved", "spot": "row"},
+        {"at": "fingerprint", "offset": -0.1, "spot": null, "focus": "hashes", "zoom": 2.0, "lift": "hash_row", "fx": "type", "dur": 1.3, "liftBg": "rgb(243,241,236)"},
+        {"at": "Press", "offset": -0.1, "lift": null, "focus": null, "scroll": 0},
+        {"at": "verify", "cursor": "verify_btn", "sfx": "click"},
+        {"at": "verify", "offset": 0.07, "shot": "audit@verified", "reveal": {"id": "log", "dir": "down", "dur": 0.8, "steps": 4}},
+        {"at": "nothing", "offset": -0.15, "spot": "verify_result", "focus": "verify_result", "zoom": 1.4},
+        {"at": "bad", "offset": -0.2, "spot": null, "focus": "lawsuit", "zoom": 1.75, "fx": "pulse", "dur": 2.0, "cat": {"item": "gavel", "pose": "hold", "expression": "smug"}, "clip": "lawsuit", "rate": 0, "clipFrom": 0},
+        {"at": "button", "hover": "lawsuit_btn"},
+        {"at": "button", "offset": 0.75, "cursor": "lawsuit_btn", "sfx": "lawsuit", "clip": "lawsuit#go", "rate": 2.4, "clipFrom": 0.233, "cat": {"expression": "proud", "emote": "sparkle"}},
+        {"at": "button", "offset": 0.75, "fx": "shake", "dur": 0.067},
+        {"at": "button", "offset": 2.6, "focus": "counsel", "zoom": 1.7},
+        {"at": "button", "offset": 3.05, "shot": "audit@lawsuit_done", "focus": "counsel+disclaimer", "zoom": 1.9}
+      ]
+    },
+    "impact": {
+      "hold": 0,
+      "beats": [
+        {"at": "Last", "bg": "lab", "dur": 1.2, "focus": null, "cat": {"anchor": "left-low", "pose": "float", "item": "none", "expression": "thinking", "goggles": "up"}},
+        {"at": "experiments", "cursor": "nav:impact", "sfx": "click"},
+        {"at": "experiments", "offset": 0.07, "shot": "impact", "url": "#/impact/Batch_1/Batch_3"},
+        {"at": "differences", "focus": "cards", "zoom": 1.0},
+        {"at": "capacity", "offset": -0.1, "focus": "card_capacity", "zoom": 1.25, "spot": "card_capacity", "cat": {"expression": "curious"}},
+        {"at": "charge", "offset": -0.2, "focus": "card_charge", "zoom": 1.2, "spot": "card_charge"},
+        {"at": "worst", "offset": -0.15, "focus": "worst", "zoom": 1.6, "spot": "step1", "cat": {"expression": "focused"}},
+        {"at": "worst", "offset": 0.12, "spot": "step2"},
+        {"at": "worst", "offset": 0.36, "spot": "step3"},
+        {"at": "worst", "offset": 0.6, "spot": "step4"},
+        {"at": "worst", "offset": 0.84, "spot": "step5"},
+        {"at": "worst", "offset": 1.08, "spot": "step6"},
+        {"at": "rule", "offset": -0.1, "spot": "rules_out", "cat": {"expression": "smug"}}
+      ]
+    },
+    "lab": {
+      "hold": 1.3,
+      "beats": [
+        {"at": "The", "offset": 0.05, "spot": null, "focus": null, "cat": {"anchor": "left-low", "expression": "curious", "goggles": "down", "pose": "float", "item": "none"}},
+        {"at": "second", "cursor": "nav:anode", "sfx": "click"},
+        {"at": "second", "offset": 0.07, "shot": "anode", "url": "#/anode"},
+        {"at": "second", "offset": 0.25, "clip": "anode_rotate", "rate": 1.25},
+        {"at": "3D", "focus": "block", "zoom": 1.18, "force": true},
+        {"at": "Charge it", "offset": 0.0, "focus": null, "cursor": "rate_thumb", "cat": {"expression": "focused"}},
+        {"at": "too", "offset": 0.0, "clip": "anode_charge", "rate": 0},
+        {"at": "fast", "offset": 0.32, "hover": "rate:right", "drag": true},
+        {"at": "and", "offset": 0.06, "cursor": "charge_btn", "sfx": "click"},
+        {"at": "and", "offset": 0.06, "clip": "anode_charge#go", "rate": 1, "clipFrom": 0.3},
+        {"at": "plates", "focus": "block", "zoom": 1.55, "force": true, "cat": {"expression": "surprised", "emote": "!"}}
+      ]
+    },
+    "aged": {
+      "hold": 0.6,
+      "beats": [
+        {"at": "After", "offset": -0.1, "frame": "left", "focus": null, "cat": {"anchor": "hero-right", "expression": "thinking"}, "hero": {"side": "right", "size": 112, "until": 1.25, "words": [{"text": "800", "at": "eight", "count": {"to": 800}, "color": "orange", "br": true}, {"text": "", "at": "hundred"}, {"text": "CYCLES", "at": "cycles"}]}},
+        {"at": "After", "offset": 0.0, "clip": "anode_age", "rate": 3},
+        {"at": "After", "offset": 0.1, "cursor": "ageing_thumb"},
+        {"at": "cycles", "offset": 0.3, "hover": "ageing:right", "drag": true},
+        {"at": "the", "frame": "center", "cat": {"anchor": "left-low"}, "offset": 0.08},
+        {"at": "silicon", "focus": "block", "zoom": 1.6, "force": true},
+        {"at": "cracked", "offset": -0.05, "shot": "anode@800", "spot": "cracked", "focus": "cracked", "cat": {"expression": "wince", "emote": "sweat"}, "zoom": 2.0}
       ]
     },
     "outro": {
-      "hold": 2.2,
+      "hold": 1.6,
       "subtitle": "Batch QC for battery materials",
       "team": "Team Batch Size 2",
       "beats": [
-        { "at": "Catalyst", "window": "out", "bg": "outro", "fx": "logo", "cat": { "anchor": "outro", "pose": "float", "expression": "happy", "item": "none", "lookAt": null } },
-        { "at": "makes", "fx": "flicker", "dur": 1.6 },
-        { "at": "Made", "fx": "team" },
-        { "at": "2", "offset": 0.9, "sfx": "meow" }
+        {"at": "That's", "window": "out", "bg": "outro", "dur": 1.4, "cat": {"anchor": "outro", "pose": "float", "expression": "happy", "item": "none", "lookAt": null, "goggles": "up"}},
+        {"at": "Catalyst", "fx": "logo", "offset": -0.1, "hero": {"words": [{"text": "", "at": "Catalyst"}], "until": 0.1}},
+        {"at": "Send", "fx": "subtitle"},
+        {"at": "Made", "fx": "team", "hero": {"words": [{"text": "", "at": "Made"}, {"text": "", "at": "2"}], "until": 0.1}},
+        {"at": "2", "offset": 0.75, "fx": "blink"},
+        {"at": "2", "offset": 0.9, "sfx": "meow"}
       ]
     }
   }

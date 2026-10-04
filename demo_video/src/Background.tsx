@@ -52,7 +52,7 @@ export function Background({ tl, t, assets }: { tl: Timeline; t: number; assets:
         style={{
           ...fill,
           transform: `translate(${dx}px, ${dy}px) scale(${k})`,
-          filter: `brightness(${p.bright}) blur(${p.blur}px)`,
+          filter: `brightness(${p.bright}) saturate(${p.sat}) blur(${p.blur}px)`,
         }}
       >
         {grey ? <Img src={staticFile("bg/micro_grey.jpg")} style={{ ...fill, objectFit: "cover" }} /> : null}
@@ -68,6 +68,8 @@ export function Background({ tl, t, assets }: { tl: Timeline; t: number; assets:
         <Mask file="bg/mask_si.png" color={C.si} opacity={Math.min(1, p.si * (1 + pulse))} />
         <Mask file="bg/mask_pore.png" color={C.pore} opacity={p.pore} />
       </div>
+      {/* colour arc: a cold tint for the news, a cooler lab tint for the experiments */}
+      {p.cool > 0.005 ? <div style={{ ...fill, background: "#3B6E9E", mixBlendMode: "color", opacity: 0.32 * p.cool }} /> : null}
       {/* the app's faint 32 px grid */}
       <div
         style={{

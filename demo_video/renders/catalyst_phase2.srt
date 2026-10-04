@@ -1,0 +1,219 @@
+1
+00:00:00,600 --> 00:00:02,983
+In 2021,
+
+2
+00:00:04,304 --> 00:00:05,632
+it had ever sold.
+
+3
+00:00:05,732 --> 00:00:07,241
+The battery cells were faulty,
+
+4
+00:00:07,276 --> 00:00:08,997
+and fixing them cost
+
+5
+00:00:10,260 --> 00:00:12,492
+Hyundai had to swap the batteries in
+
+6
+00:00:14,582 --> 00:00:16,370
+I'm Catalyst, and I check battery
+
+7
+00:00:16,416 --> 00:00:18,429
+material before it's made into cells.
+
+8
+00:00:18,529 --> 00:00:20,984
+This is an anode under a microscope.
+
+9
+00:00:21,084 --> 00:00:22,458
+Grey is graphite.
+
+10
+00:00:22,558 --> 00:00:23,835
+Orange is silicon,
+
+11
+00:00:23,870 --> 00:00:25,523
+which holds far more lithium
+
+12
+00:00:25,623 --> 00:00:27,705
+but swells every charge.
+
+13
+00:00:27,805 --> 00:00:30,445
+Blue is the space the lithium moves through.
+
+14
+00:00:30,545 --> 00:00:31,815
+If the mix is off,
+
+15
+00:00:31,915 --> 00:00:33,541
+lithium can plate out as metal,
+
+16
+00:00:33,610 --> 00:00:34,846
+and in the worst case
+
+17
+00:00:34,946 --> 00:00:37,120
+short the cell and start a
+
+18
+00:00:37,752 --> 00:00:38,983
+When a batch arrives,
+
+19
+00:00:39,052 --> 00:00:41,646
+I compare it with what the supplier promised.
+
+20
+00:00:41,746 --> 00:00:43,132
+Each row shows how far
+
+21
+00:00:43,232 --> 00:00:44,897
+one measurement has moved.
+
+22
+00:00:44,997 --> 00:00:46,602
+This batch says
+
+23
+00:00:46,831 --> 00:00:48,658
+so it's held for a closer look.
+
+24
+00:00:48,758 --> 00:00:50,778
+The tabs explain it for each role,
+
+25
+00:00:50,837 --> 00:00:52,756
+from operator to manager.
+
+26
+00:00:53,355 --> 00:00:55,461
+You can also give me a single image.
+
+27
+00:00:55,561 --> 00:00:56,989
+I'll tell you which batch it looks
+
+28
+00:00:57,047 --> 00:00:59,327
+closest to, and how sure I am.
+
+29
+00:00:59,427 --> 00:01:01,273
+If it sits outside even that batch,
+
+30
+00:01:01,331 --> 00:01:03,429
+I flag it as unfamiliar.
+
+31
+00:01:03,529 --> 00:01:04,776
+You can check my work.
+
+32
+00:01:04,876 --> 00:01:07,058
+Open any image and turn on the overlay
+
+33
+00:01:07,105 --> 00:01:08,870
+to see which pixels I counted
+
+34
+00:01:08,916 --> 00:01:11,792
+as silicon and which as pores.
+
+35
+00:01:11,892 --> 00:01:14,435
+Every comparison is saved with a fingerprint
+
+36
+00:01:14,493 --> 00:01:15,983
+of its images and settings.
+
+37
+00:01:16,083 --> 00:01:17,743
+Press verify, and I check
+
+38
+00:01:17,813 --> 00:01:19,264
+that nothing has changed.
+
+39
+00:01:19,346 --> 00:01:21,180
+And if a batch turns out bad,
+
+40
+00:01:21,215 --> 00:01:23,320
+there's one more button.
+
+41
+00:01:26,320 --> 00:01:28,890
+Last, two experiments we're still testing.
+
+42
+00:01:28,990 --> 00:01:30,639
+The first estimates what the differences
+
+43
+00:01:30,709 --> 00:01:32,346
+I found could mean for the cell,
+
+44
+00:01:32,427 --> 00:01:33,790
+like its capacity or how
+
+45
+00:01:33,890 --> 00:01:35,229
+fast it can charge.
+
+46
+00:01:35,329 --> 00:01:37,006
+It also shows the worst case,
+
+47
+00:01:37,106 --> 00:01:39,245
+and what would rule it out.
+
+48
+00:01:39,345 --> 00:01:40,912
+The second turns the measurements
+
+49
+00:01:40,959 --> 00:01:43,007
+into a 3D anode you can charge.
+
+50
+00:01:43,107 --> 00:01:44,175
+Charge it too fast,
+
+51
+00:01:44,210 --> 00:01:46,872
+and lithium plates out as metal.
+
+52
+00:01:47,772 --> 00:01:48,809
+After
+
+53
+00:01:49,281 --> 00:01:51,444
+the silicon has cracked.
+
+54
+00:01:51,644 --> 00:01:52,914
+That's me,
+
+55
+00:01:53,014 --> 00:01:54,979
+Send me your next batch.

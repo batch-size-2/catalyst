@@ -1,0 +1,162 @@
+{
+  "_doc": "Declarative shot list for capture/capture.mjs. Routes use {B} {baseline} {drop} {image} {imageBatch} resolved at runtime. Highlight specs: a Playwright selector, or 'js:<expression>' returning an element (or array -> union box); a leading '?' makes it optional (no warning). Steps: [name, ...args] (functions in capture.mjs). Targets: highlight ids, or {id: spec}. data: literal values, '@<highlight>' = its text, '={var}' = a resolved id.",
+  "vars": { "spotIndex": 0 },
+  "shots": [
+    {
+      "name": "compare", "kind": "page", "route": "#/compare/{B}",
+      "highlights": {
+        "answer": "section[aria-label=\"Answer\"]",
+        "verdict": "js:__cap.smallest(document.querySelector('section[aria-label=\"Answer\"]'), '^(investigate|accept|reject)$')",
+        "baseline": "main button[aria-haspopup=\"listbox\"]:has-text(\"Baseline\")",
+        "moved": "section[aria-label=\"What moved\"]",
+        "moved_head": "js:document.querySelector('section[aria-label=\"What moved\"] h2')?.parentElement",
+        "row1": "section[aria-label=\"What moved\"] div[role=button] >> nth=0",
+        "row2": "section[aria-label=\"What moved\"] div[role=button] >> nth=1",
+        "row3": "section[aria-label=\"What moved\"] div[role=button] >> nth=2",
+        "tiles": "section[aria-label=\"The tiles behind it\"]",
+        "next": "section[aria-label=\"Next steps\"]",
+        "next1": "section[aria-label=\"Next steps\"] li >> nth=0",
+        "explain_fold": "button[aria-expanded]:has-text(\"Explain it for\")"
+      },
+      "targets": ["explain_fold"],
+      "data": { "batch": "={B}", "baseline": "={baseline}", "verdict": "@verdict", "baseline_text": "@baseline" }
+    },
+    { "name": "compare@engineer", "kind": "page", "route": "#/compare/{B}", "steps": [["openFold", "Explain it for"], ["seg", "Process engineer"]], "extends": "compare", "highlights": "@explain", "targets": ["explain_fold", "seg_operator", "seg_engineer", "seg_scientist", "seg_manager"], "data": { "segment": "Process engineer", "explain_text": "@explain_text" } },
+    { "name": "compare@operator", "kind": "page", "route": "#/compare/{B}", "steps": [["openFold", "Explain it for"], ["seg", "Operator"]], "extends": "compare", "highlights": "@explain", "targets": ["explain_fold", "seg_operator", "seg_engineer", "seg_scientist", "seg_manager"], "data": { "segment": "Operator", "explain_text": "@explain_text" } },
+    { "name": "compare@scientist", "kind": "page", "route": "#/compare/{B}", "steps": [["openFold", "Explain it for"], ["seg", "Materials scientist"]], "extends": "compare", "highlights": "@explain", "targets": ["explain_fold", "seg_operator", "seg_engineer", "seg_scientist", "seg_manager"], "data": { "segment": "Materials scientist", "explain_text": "@explain_text" } },
+    { "name": "compare@manager", "kind": "page", "route": "#/compare/{B}", "steps": [["openFold", "Explain it for"], ["seg", "Manager"]], "extends": "compare", "highlights": "@explain", "targets": ["explain_fold", "seg_operator", "seg_engineer", "seg_scientist", "seg_manager"], "data": { "segment": "Manager", "explain_text": "@explain_text" } },
+
+    {
+      "name": "identify", "kind": "page", "route": "#/identify",
+      "highlights": {
+        "dropzone": "[aria-label=\"Drop zone\"]",
+        "recent": "section.panel:has(h2:text-is(\"Recent identifications\"))",
+        "recent_row": "section.panel:has(h2:text-is(\"Recent identifications\")) a[href=\"#/identify/{drop}\"]"
+      },
+      "targets": ["recent_row"],
+      "data": { "drop": "={drop}", "recent_row": "@recent_row" }
+    },
+    {
+      "name": "identify_result", "kind": "page", "route": "#/identify/{drop}/{image}",
+      "highlights": "@identify_result",
+      "targets": ["spot1", "spot2", "spot3", "spot4", "spot5", { "tab1": "[role=tablist][aria-label=\"Tiles in this drop\"] [role=tab] >> nth=0", "tab2": "[role=tablist][aria-label=\"Tiles in this drop\"] [role=tab] >> nth=1" }],
+      "data": { "drop": "={drop}", "image_id": "={image}", "closest": "@closest", "confidence": "@confidence", "familiar": "@familiar", "chips": "@chips" }
+    },
+    { "name": "identify_result@hover", "kind": "viewport", "route": "#/identify/{drop}/{image}", "steps": [["peekSpot", "hover"]], "requires": "spot", "highlights": { "tooltip": "[role=tooltip]", "spot": "js:window.__capSpot", "tile_image": "js:document.querySelector('section[aria-label=\"Look here first\"] > div.relative')" }, "targets": ["spot"] },
+    { "name": "identify_result@pinned", "kind": "viewport", "route": "#/identify/{drop}/{image}", "steps": [["peekSpot", "pin"]], "requires": "spot", "highlights": "@inspector", "targets": ["switch_silicon", "switch_pore", "spot"] },
+    { "name": "identify_result@silicon", "kind": "viewport", "route": "#/identify/{drop}/{image}", "steps": [["peekSpot", "pin"], ["inspectorSwitch", "Silicon"]], "requires": "spot", "highlights": "@inspector", "targets": ["switch_silicon", "switch_pore", "spot"] },
+    { "name": "identify_result@pore", "kind": "viewport", "route": "#/identify/{drop}/{image}", "steps": [["peekSpot", "pin"], ["inspectorSwitch", "Silicon"], ["inspectorSwitch", "Pore"]], "requires": "spot", "highlights": "@inspector", "targets": ["switch_silicon", "switch_pore", "spot"] },
+
+    { "name": "compare@peek", "kind": "viewport", "route": "#/compare/{B}", "steps": [["peekTile", "hover"]], "highlights": { "tooltip": "[role=tooltip]", "spot": "js:window.__capSpot", "tiles": "section[aria-label=\"The tiles behind it\"]" }, "targets": ["spot"], "data": { "note": "Substitute for identify_result@hover: whole-tile peek of {image} from 'The tiles behind it'" } },
+    { "name": "compare@pinned", "kind": "viewport", "route": "#/compare/{B}", "steps": [["peekTile", "pin"]], "highlights": "@inspector", "targets": ["switch_silicon", "switch_pore", "spot"] },
+    { "name": "compare@pinned_silicon", "kind": "viewport", "route": "#/compare/{B}", "steps": [["peekTile", "pin"], ["inspectorSwitch", "Silicon"]], "highlights": "@inspector", "targets": ["switch_silicon", "switch_pore", "spot"] },
+    { "name": "compare@pinned_pore", "kind": "viewport", "route": "#/compare/{B}", "steps": [["peekTile", "pin"], ["inspectorSwitch", "Silicon"], ["inspectorSwitch", "Pore"]], "highlights": "@inspector", "targets": ["switch_silicon", "switch_pore", "spot"] },
+
+    { "name": "library@off", "kind": "page", "route": "#/library/{imageBatch}/{image}", "highlights": "@library", "targets": ["switch_silicon", "switch_pore"], "data": { "batch": "={imageBatch}", "image_id": "={image}" } },
+    { "name": "library@silicon", "kind": "page", "route": "#/library/{imageBatch}/{image}", "steps": [["click", "[role=switch]:has-text(\"Silicon\")"], ["settle"]], "highlights": "@library", "targets": ["switch_silicon", "switch_pore"], "data": { "batch": "={imageBatch}", "image_id": "={image}" } },
+    { "name": "library@pore", "kind": "page", "route": "#/library/{imageBatch}/{image}", "steps": [["click", "[role=switch]:has-text(\"Silicon\")"], ["click", "[role=switch]:has-text(\"Pore\")"], ["settle"]], "highlights": "@library", "targets": ["switch_silicon", "switch_pore"], "data": { "batch": "={imageBatch}", "image_id": "={image}" } },
+
+    { "name": "audit", "kind": "page", "route": "#/audit", "steps": [["auditSelect"]], "highlights": "@audit", "targets": ["row", "verify_btn", "lawsuit_btn"], "data": { "row": "@row", "hash_row": "@hash_row" } },
+    { "name": "audit@verified", "kind": "page", "route": "#/audit", "steps": [["auditSelect"], ["verifyAll"]], "extends": "audit", "highlights": "@audit_verified", "targets": ["row", "verify_btn", "lawsuit_btn"], "data": { "verify_banner": "@verify_result", "verify_passport": "@verify_passport", "tick1": "@tick1", "tick2": "@tick2", "tick3": "@tick3", "tick4": "@tick4", "hash_row": "@hash_row" } },
+    { "name": "audit@lawsuit_done", "kind": "viewport", "route": "#/audit", "steps": [["auditSelect"], ["verifyAll"], ["lawsuit"], ["scrollIntoView", "section[aria-label=\"Generate lawsuit\"]", "end", 24]], "highlights": { "lawsuit": "section[aria-label=\"Generate lawsuit\"]", "counsel": "section[aria-label=\"Generate lawsuit\"] div.animate-rise:has-text(\"READY FOR COUNSEL\")", "disclaimer": "section[aria-label=\"Generate lawsuit\"] > span:has-text(\"Parody\")", "steps": "section[aria-label=\"Generate lawsuit\"] ol", "verify_passport": "section[aria-label=\"Batch passport\"] dd span.font-semibold", "verify_result": "js:[...document.querySelectorAll('button')].find(b => /^Verify again/.test(b.innerText.trim()))?.previousElementSibling" }, "data": { "counsel": "@counsel", "disclaimer": "@disclaimer", "steps": "@steps", "verify_banner": "@verify_result", "verify_passport": "@verify_passport" } },
+
+    { "name": "impact", "kind": "page", "route": "#/impact/{B}/{baseline}", "highlights": "@impact", "targets": [], "data": { "worst": "@worst", "rules_out": "@rules_out" } },
+
+    { "name": "anode", "kind": "viewport", "route": "?soc=0&c=1&cycles=0#/anode", "steps": [["anodeReady"]], "highlights": "@anode", "targets": ["charge_btn", "measurements_fold", { "soc": "label:has-text(\"State of charge\") input[type=range]", "rate": "label:has-text(\"Charge rate\") input[type=range]", "ageing": "label:has-text(\"Ageing\") input[type=range]", "soc_thumb": "thumb:label:has-text(\"State of charge\") input[type=range]", "rate_thumb": "thumb:label:has-text(\"Charge rate\") input[type=range]", "ageing_thumb": "thumb:label:has-text(\"Ageing\") input[type=range]" }], "data": { "readouts": "@readouts" } },
+    { "name": "anode@fast", "kind": "viewport", "clock": true, "route": "?soc=0&c=8&cycles=0#/anode", "steps": [["anodeReady"], ["rotateLikeClip"], ["fastCharge"]], "highlights": { "block": "canvas", "plating": "tr:has(td:text-is(\"Plating margin\"))", "soc": "label:has-text(\"State of charge\")", "rate": "label:has-text(\"Charge rate\")", "readouts": "table:has(td:text-is(\"Plating margin\"))", "charge_btn": "aside button.pri" }, "targets": [{ "rate": "label:has-text(\"Charge rate\") input[type=range]", "rate_thumb": "thumb:label:has-text(\"Charge rate\") input[type=range]", "soc_thumb": "thumb:label:has-text(\"State of charge\") input[type=range]" }, "charge_btn"], "data": { "plating": "@plating", "rate": "@rate", "soc": "@soc" } },
+    { "name": "anode@800", "kind": "viewport", "clock": true, "route": "?soc=0&c=1&cycles=800#/anode", "steps": [["anodeReady"], ["rotateLikeClip"], ["openFold", "All measurements"], ["scrollIntoView", "tr:has(td:text-is(\"Silicon cracked / lost contact\"))", "center"], ["scrollTop"], ["wait", 400]], "highlights": { "block": "canvas", "cracked": "tr:has(td:text-is(\"Silicon cracked / lost contact\"))", "ageing": "label:has-text(\"Ageing\")", "measurements_fold": "button[aria-expanded]:has-text(\"All measurements\")" }, "targets": [{ "ageing": "label:has-text(\"Ageing\") input[type=range]", "ageing_thumb": "thumb:label:has-text(\"Ageing\") input[type=range]" }, "measurements_fold"], "data": { "cracked": "@cracked", "ageing": "@ageing" } }
+  ],
+
+  "groups": {
+    "explain": {
+      "explain": "js:__cap.foldBody('Explain it for')",
+      "seg": "js:__cap.foldBody('Explain it for')?.querySelector('[role=tablist]')",
+      "seg_operator": "[role=tab]:text-is(\"Operator\")",
+      "seg_engineer": "[role=tab]:text-is(\"Process engineer\")",
+      "seg_scientist": "[role=tab]:text-is(\"Materials scientist\")",
+      "seg_manager": "[role=tab]:text-is(\"Manager\")",
+      "explain_text": "js:__cap.foldBody('Explain it for')?.querySelector('ul, p')"
+    },
+    "identify_result": {
+      "answer": "section[aria-label=\"Answer\"]",
+      "closest": "js:document.querySelector('section[aria-label=\"Answer\"] .col-span-7')?.children[1]",
+      "bars": "js:[...(document.querySelector('section[aria-label=\"Answer\"] .col-span-5')?.children ?? [])].slice(0, 2)",
+      "bar1": "section[aria-label=\"Answer\"] .col-span-5 .mono > span >> nth=0",
+      "bar2": "section[aria-label=\"Answer\"] .col-span-5 .mono > span >> nth=1",
+      "bar3": "section[aria-label=\"Answer\"] .col-span-5 .mono > span >> nth=2",
+      "confidence": "section[aria-label=\"Answer\"] .col-span-7 > div:nth-child(2) span.mono",
+      "confidence_chip": "?section[aria-label=\"Answer\"] span:has-text(\"When it's this sure\")",
+      "chips": "js:document.querySelector('section[aria-label=\"Answer\"] .col-span-5')?.lastElementChild",
+      "familiar": "section[aria-label=\"Answer\"] span:text-matches(\"^(Unfamiliar|Familiar) tile\")",
+      "distance": "?js:[...document.querySelectorAll('[role=note]')].find(e => /distance/i.test(e.innerText))",
+      "look_here": "section[aria-label=\"Look here first\"]",
+      "tile_image": "js:document.querySelector('section[aria-label=\"Look here first\"] > div.relative')",
+      "spot1": "button[aria-label^=\"Silicon particle\"] >> nth=0",
+      "spot2": "button[aria-label^=\"Silicon particle\"] >> nth=1",
+      "spot3": "button[aria-label^=\"Silicon particle\"] >> nth=2",
+      "spot4": "button[aria-label^=\"Silicon particle\"] >> nth=3",
+      "spot5": "button[aria-label^=\"Silicon particle\"] >> nth=4",
+      "tabs": "[role=tablist][aria-label=\"Tiles in this drop\"]"
+    },
+    "inspector": {
+      "inspector": "aside[aria-label=\"Region inspector\"]",
+      "inspector_img": "aside[aria-label=\"Region inspector\"] div.relative.overflow-hidden.rounded-xl",
+      "switch_silicon": "aside[aria-label=\"Region inspector\"] [role=switch]:has-text(\"Silicon\")",
+      "switch_pore": "aside[aria-label=\"Region inspector\"] [role=switch]:has-text(\"Pore\")",
+      "spot": "js:window.__capSpot"
+    },
+    "library": {
+      "micrograph": "section[aria-label=\"Micrograph\"]",
+      "switch_silicon": "[role=switch]:has-text(\"Silicon\")",
+      "switch_pore": "[role=switch]:has-text(\"Pore\")",
+      "switch_binder": "?[role=switch]:has-text(\"Binder\")",
+      "switches": "js:document.querySelector('[role=switch]')?.parentElement"
+    },
+    "audit": {
+      "log": "section.panel:has(h2:text-is(\"Decision log\"))",
+      "row": "section.panel:has(h2:text-is(\"Decision log\")) button[aria-current=\"true\"]",
+      "passport": "section[aria-label=\"Batch passport\"]",
+      "hash_row": "js:[...document.querySelectorAll('section[aria-label=\"Batch passport\"] dt')].find(d => d.innerText.trim() === 'Inputs')?.nextElementSibling?.querySelector('span')",
+      "hashes": "js:[...document.querySelectorAll('section[aria-label=\"Batch passport\"] dt')].find(d => d.innerText.trim() === 'Inputs')?.nextElementSibling",
+      "verify_btn": "button:has-text(\"Verify everything\"), button:has-text(\"Verify again\")",
+      "verify_all": "button:has-text(\"Verify everything\"), button:has-text(\"Verify again\")",
+      "lawsuit": "section[aria-label=\"Generate lawsuit\"]",
+      "lawsuit_btn": "section[aria-label=\"Generate lawsuit\"] button"
+    },
+    "audit_verified": {
+      "verify_passport": "section[aria-label=\"Batch passport\"] dd span.font-semibold",
+      "verify_result": "js:[...document.querySelectorAll('button')].find(b => /^Verify (again|everything)/.test(b.innerText.trim()))?.previousElementSibling?.matches('span.min-h-11') ? [...document.querySelectorAll('button')].find(b => /^Verify (again|everything)/.test(b.innerText.trim())).previousElementSibling : null",
+      "tick1": "?section.panel:has(h2:text-is(\"Decision log\")) button span.shrink-0:text-matches(\"^(✓|✗ changed|couldn't check)$\") >> nth=0",
+      "tick2": "?section.panel:has(h2:text-is(\"Decision log\")) button span.shrink-0:text-matches(\"^(✓|✗ changed|couldn't check)$\") >> nth=1",
+      "tick3": "?section.panel:has(h2:text-is(\"Decision log\")) button span.shrink-0:text-matches(\"^(✓|✗ changed|couldn't check)$\") >> nth=2",
+      "tick4": "?section.panel:has(h2:text-is(\"Decision log\")) button span.shrink-0:text-matches(\"^(✓|✗ changed|couldn't check)$\") >> nth=3"
+    },
+    "impact": {
+      "cards": "js:[...document.querySelectorAll('h2')].find(h => h.innerText.trim() === 'What could change in the cell')?.nextElementSibling",
+      "card_capacity": "section.panel:has(h3:text-is(\"Capacity\"))",
+      "card_charge": "section.panel:has(h3:text-is(\"Fast charging\"))",
+      "worst": "js:[...document.querySelectorAll('div.flex.flex-col')].find(d => /worst case if ignored/i.test(d.firstElementChild?.innerText ?? '') && d.querySelector(':scope > ol'))",
+      "rules_out": "js:[...document.querySelectorAll('div')].find(d => d.firstElementChild?.innerText?.trim() === 'What rules it out:')",
+      "step1": "?js:__cap.worstSteps()[0]",
+      "step2": "?js:__cap.worstSteps()[1]",
+      "step3": "?js:__cap.worstSteps()[2]",
+      "step4": "?js:__cap.worstSteps()[3]",
+      "step5": "?js:__cap.worstSteps()[4]",
+      "step6": "?js:__cap.worstSteps()[5]",
+      "step7": "?js:__cap.worstSteps()[6]",
+      "step8": "?js:__cap.worstSteps()[7]"
+    },
+    "anode": {
+      "block": "canvas",
+      "charge_btn": "aside button.pri",
+      "soc": "label:has-text(\"State of charge\")",
+      "rate": "label:has-text(\"Charge rate\")",
+      "ageing": "label:has-text(\"Ageing\")",
+      "readouts": "table:has(td:text-is(\"Plating margin\"))",
+      "measurements_fold": "button[aria-expanded]:has-text(\"All measurements\")",
+      "takeaway": "?js:document.querySelector('canvas')?.closest('div.relative')?.querySelector('.glass.absolute')"
+    }
+  },
+
+  "clips": ["lawsuit", "anode_rotate", "anode_charge", "anode_age", "verify"]
+}

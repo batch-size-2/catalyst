@@ -12,7 +12,8 @@
  */
 import { useId, type CSSProperties } from "react";
 
-export type CatExpression = "happy" | "curious" | "surprised" | "proud" | "shrug";
+export type CatExpression = "happy" | "curious" | "surprised" | "proud" | "shrug"
+  | "focused" | "thinking" | "wince" | "smug" | "scared";   // opt-in extras (the video's acting)
 export type CatPose = "float" | "hold" | "point" | "wave" | "shrug" | "stamp";
 
 export type CatProps = {
@@ -24,6 +25,11 @@ export type CatProps = {
   idle?: boolean;                // false freezes float, blink, tail and ears
   outfit?: "none" | "labcoat";   // "labcoat": open lab coat, sleeves, pocket pens, ID badge, graphite goggle strap
   style?: CSSProperties;
+  // opt-in (all default to the original look)
+  goggles?: "up" | "down";       // "down": over the eyes, for focused moments
+  blink?: number;                // overrides the idle blink: 1 open, 0 shut (anticipation squints, slow blinks)
+  earsBack?: number;             // 0..1 flattens both ears (fright)
+  headTilt?: number;             // degrees; the head turns ahead of the body
 };
 
 export const CAT_COLORS = {
@@ -43,13 +49,15 @@ const INK = { stroke: C.ink, strokeWidth: 5, strokeLinejoin: "round" as const, s
 
 export function Cat({
   t = 0, expression = "happy", pose = "float", size = 260, lookAt = [0, 0], idle = true, style, outfit = "none",
+  goggles = "up", blink: blinkOverride, earsBack = 0, headTilt = 0,
 }: CatProps) {
   const coat = outfit === "labcoat";
   const id = useId().replace(/:/g, "");
   const float = idle ? Math.sin((t * 2 * Math.PI) / 3) * 8 : 0;
   const tail = idle ? Math.sin(t * 1.7) * 9 : 0;
   const bp = (t + 0.8) % 3.4;
-  const blink = idle && bp < 0.18 ? 1 - Math.sin((bp / 0.18) * Math.PI) * 0.92 : 1;
+  const blink = blinkOverride ?? (idle && bp < 0.18 ? 1 - Math.sin((bp / 0.18) * Math.PI) * 0.92 : 1);
+  const down = goggles === "down";
   const ep = (t + 2) % 5.3;
   const ear = idle && ep < 0.35 ? -Math.sin((ep / 0.35) * Math.PI) * 12 : 0;
   const [lx, ly] = [clamp(lookAt[0]) * 5, clamp(lookAt[1]) * 4];
@@ -93,13 +101,16 @@ export function Cat({
         <ellipse cx="126" cy="304" rx="22" ry="13" fill={C.cream} {...INK} />
         <ellipse cx="194" cy="304" rx="22" ry="13" fill={C.cream} {...INK} />
 
+        <g transform={`rotate(${headTilt} 160 214)`}>
         {/* ears */}
-        <g transform={`rotate(${ear} 104 84)`}>
+        <g transform={`rotate(${ear - earsBack * 28} 104 84)`}>
           <path d="M70,112 L80,40 Q84,28 96,34 L140,66 Z" fill={C.fur} {...INK} />
           <path d="M90,92 L94,54 L124,74 Z" fill={C.pink} />
         </g>
-        <path d="M250,112 L240,40 Q236,28 224,34 L180,66 Z" fill={C.fur} {...INK} />
-        <path d="M230,92 L226,54 L196,74 Z" fill={C.pink} />
+        <g transform={`rotate(${earsBack * 28} 216 84)`}>
+          <path d="M250,112 L240,40 Q236,28 224,34 L180,66 Z" fill={C.fur} {...INK} />
+          <path d="M230,92 L226,54 L196,74 Z" fill={C.pink} />
+        </g>
 
         {/* head */}
         <ellipse cx="160" cy="135" rx="100" ry="84" fill={C.fur} />
@@ -111,13 +122,15 @@ export function Cat({
             <line x1="262" y1="146" x2="240" y2="146" />
             <line x1="160" y1="56" x2="160" y2="70" />
           </g>
-          <path d="M58,116 Q160,60 262,116" fill="none" stroke={coat ? COAT.strap : C.strap} strokeWidth="9" />
+          {down
+            ? <path d="M58,134 Q160,118 262,134" fill="none" stroke={coat ? COAT.strap : C.strap} strokeWidth="10" />
+            : <path d="M58,116 Q160,60 262,116" fill="none" stroke={coat ? COAT.strap : C.strap} strokeWidth="9" />}
         </g>
         <ellipse cx="160" cy="135" rx="100" ry="84" fill="none" {...INK} />
 
         {/* goggles pushed up on the forehead */}
-        <line x1="148" y1="92" x2="172" y2="92" stroke={C.ink} strokeWidth="4" />
-        {[130, 190].map((x) => (
+        {!down && <line x1="148" y1="92" x2="172" y2="92" stroke={C.ink} strokeWidth="4" />}
+        {!down && [130, 190].map((x) => (
           <g key={x}>
             <circle cx={x} cy="92" r="18" fill={C.lens} stroke={C.ink} strokeWidth="4" />
             <path d={`M${x - 9},${86} Q${x - 5},${80} ${x + 1},${80}`} stroke="#fff" strokeWidth="3.5"
@@ -126,6 +139,7 @@ export function Cat({
         ))}
 
         <Eyes expression={expression} blink={blink} lx={lx} ly={ly} />
+        {down && <GogglesDown t={t} />}
 
         {/* muzzle, blush, nose, mouth, whiskers */}
         <ellipse cx="146" cy="172" rx="21" ry="15" fill={C.cream} />
@@ -141,6 +155,7 @@ export function Cat({
           <line x1="198" y1="170" x2="238" y2="162" />
           <line x1="198" y1="178" x2="240" y2="180" />
         </g>
+        </g>
 
         <Paws pose={pose} t={t} idle={idle} sleeve={coat ? COAT.cloth : C.fur} />
       </g>
@@ -154,7 +169,72 @@ function clamp(v: number) {
   return Math.max(-1, Math.min(1, v));
 }
 
+/** Goggles down over the eyes: graphite frames, tinted lenses, a glint that sweeps across now and then. */
+function GogglesDown({ t }: { t: number }) {
+  const g = ((t * 0.45) % 1) * 3 - 1;   // the glint sweeps once every ~2.2 s
+  return (
+    <g>
+      <path d="M146,140 Q160,132 174,140" stroke={COAT.strap} strokeWidth="7" fill="none" strokeLinecap="round" />
+      {[122, 198].map((x) => (
+        <g key={x}>
+          <circle cx={x} cy="140" r="29" fill="rgba(170,205,215,0.34)" stroke="#2A2C33" strokeWidth="8" />
+          <circle cx={x} cy="140" r="29" fill="none" stroke="#FF7A2F" strokeWidth="2" opacity="0.5" />
+          {g > -0.4 && g < 1.4 && (
+            <path d={`M${x - 16 + g * 20},${126} L${x - 4 + g * 20},${152}`} stroke="#fff" strokeWidth="5"
+                  strokeLinecap="round" opacity={0.55 * Math.sin(Math.min(1, Math.max(0, (g + 0.4) / 1.8)) * Math.PI)} />
+          )}
+          <path d={`M${x - 17},${130} Q${x - 11},${121} ${x - 1},${119}`} stroke="#fff" strokeWidth="3.5"
+                fill="none" strokeLinecap="round" opacity="0.7" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
 function Eyes({ expression, blink, lx, ly }: { expression: CatExpression; blink: number; lx: number; ly: number }) {
+  if (expression === "wince") {
+    return (
+      <g fill="none" stroke={C.ink} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M108,128 L132,140 L108,152" />
+        <path d="M212,128 L188,140 L212,152" />
+      </g>
+    );
+  }
+  if (expression === "focused" || expression === "smug") {
+    // narrowed eyes under a flat lid: the cool look
+    const ry = (expression === "smug" ? 11 : 9) * blink;
+    return (
+      <g>
+        {[122, 198].map((cx) => (
+          <g key={cx}>
+            <ellipse cx={cx + lx * 0.4} cy={143 + ly * 0.3} rx="15" ry={Math.max(1.5, ry)} fill={C.ink} />
+            {blink > 0.5 && <circle cx={cx + lx + 5} cy={140 + ly * 0.3} r="3.5" fill="#fff" />}
+            <path d={`M${cx - 18},${136 - (expression === "smug" ? 1 : 3)} L${cx + 18},${136 - (expression === "smug" ? 4 : 2)}`}
+                  stroke={C.ink} strokeWidth="5" strokeLinecap="round" />
+          </g>
+        ))}
+      </g>
+    );
+  }
+  if (expression === "scared") {
+    return (
+      <g>
+        {[122, 198].map((cx) => (
+          <g key={cx} transform={`translate(${cx} 140) scale(1 ${blink}) translate(${-cx} -140)`}>
+            <ellipse cx={cx} cy="140" rx="19" ry="24" fill="#fff" stroke={C.ink} strokeWidth="4.5" />
+            <circle cx={cx + lx * 0.8} cy={142 + ly * 0.6} r="7" fill={C.ink} />
+          </g>
+        ))}
+        <g fill="none" stroke={C.ink} strokeWidth="4" strokeLinecap="round">
+          <path d="M104,106 Q120,96 136,102" />
+          <path d="M216,106 Q200,96 184,102" />
+        </g>
+      </g>
+    );
+  }
+  if (expression === "thinking") {
+    return <Eyes expression="curious" blink={blink} lx={-4} ly={-4} />;
+  }
   if (expression === "proud") {
     return (
       <g fill="none" stroke={C.ink} strokeWidth="5" strokeLinecap="round">
@@ -194,6 +274,15 @@ function Eyes({ expression, blink, lx, ly }: { expression: CatExpression; blink:
 function Mouth({ expression }: { expression: CatExpression }) {
   const line = { fill: "none", stroke: C.ink, strokeWidth: 3.5, strokeLinecap: "round" as const };
   switch (expression) {
+    case "focused":
+    case "smug":
+      return <path d="M148,177 Q160,182 173,170" {...line} />;
+    case "thinking":
+      return <path d="M151,178 L167,176" {...line} />;
+    case "wince":
+      return <path d="M144,180 L150,175 L156,180 L162,175 L168,180 L174,175" {...line} strokeLinejoin="round" />;
+    case "scared":
+      return <ellipse cx="160" cy="184" rx="8" ry="11" fill={C.mouth} stroke={C.ink} strokeWidth="3" />;
     case "surprised":
       return <ellipse cx="160" cy="182" rx="7" ry="9" fill={C.mouth} stroke={C.ink} strokeWidth="3" />;
     case "proud":

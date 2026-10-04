@@ -1,26 +1,43 @@
+import type { CSSProperties } from "react";
 import { useId } from "react";
-import { staticFile } from "remotion";
+import { Img, staticFile } from "remotion";
 import type { Timeline } from "../core";
-import { clamp01, fxT, inOut, lerp, plateToScreen, plateXf, prog, springAt } from "../state";
-import { C, MONO, glass, lbl } from "../theme";
+import { clamp01, fxBeat, fxT, inOut, lerp, plateToScreen, plateXf, prog, sp, springAt, wobble } from "../state";
+import { C, MONO, SPRING, SPRING_POP, glass, lbl } from "../theme";
+import { Bloom, CatMark } from "./scienceMark";
+import { Fire } from "./scienceFire";
+import { Needles } from "./scienceMetal";
 
-// ---------- the hexagon mark, drawing itself ----------
-const HEX = "M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z";
-export function Mark({ t, t0, tOut, size = 60, x = 960, y = 70 }: { t: number; t0: number; tOut: number; size?: number; x?: number; y?: number }) {
-  const d = prog(t, t0, 1.1, inOut);
-  const f = prog(t, t0 + 0.8, 0.5);
-  const o = 1 - prog(t, tOut, 0.6);
-  if (t < t0 || o <= 0) return null;
+// ---------- "I'm Catalyst": the mark draws itself big and centred, then travels up and leaves ----------
+function IntroMark({ tl, t }: { tl: Timeline; t: number }) {
+  const t0 = fxT(tl, "mark");
+  if (t0 == null || t < t0) return null;
+  const tCar = fxT(tl, "car") ?? t0 + 1.05;
+  const hero = tl.beats.find((b) => b.bg === "hero-grey");
+  const tOut = (hero?.t ?? t0 + 4) - 0.32;
+  const out = prog(t, tOut, 0.42, inOut);
+  if (out >= 1) return null;
+  const draw = prog(t, t0, 0.58, inOut);
+  const tFill = t0 + 0.46;
+  const fill = sp(t, tFill, SPRING_POP);
+  const eyes = sp(t, t0 + 0.6, SPRING_POP);
+  const whisk = prog(t, t0 + 0.52, 0.32);
+  // it clicks into place when it fills: a small scale pop that rings out
+  const pop = 1 + 0.06 * wobble(t, tFill, 2.4, 6);
+  const mv = sp(t, tCar - 0.1, SPRING);
+  const size = lerp(300, 60, mv) * pop * (1 - 0.35 * out);
+  const x = 960;
+  const y = lerp(450, 96, mv) - 10 * out;
+  const bloom = clamp01(fill) * (0.45 + 0.55 * Math.exp(-Math.max(0, t - tFill) * 2.2)) * lerp(1, 0.55, mv) * (1 - out);
+  // a breath of drawing light before the fill (the pen glows as it travels)
+  const pen = 1 - prog(t, t0 + 0.5, 0.15);
   return (
-    <svg viewBox="0 0 64 64" width={size} height={size} style={{ position: "absolute", left: x - size / 2, top: y - size / 2, opacity: o, overflow: "visible" }}>
-      <path d={HEX} fill={C.orange} fillOpacity={f} stroke={C.orange} strokeWidth="3" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={1 - d} />
-      <g opacity={f}>
-        <rect x="22.5" y="31" width="5" height="10" rx="2.5" fill={C.bg} />
-        <rect x="36.5" y="31" width="5" height="10" rx="2.5" fill={C.bg} />
-        <path d="M29.5 45 L34.5 45 L32 48 Z" fill={C.bg} />
-      </g>
-      <path d="M10 41 L1 38 M10 46 L2 49 M54 41 L63 38 M54 46 L62 49" stroke={C.orange} strokeWidth="2.5" strokeLinecap="round" fill="none" opacity={f} />
-    </svg>
+    <>
+      <Bloom x={x} y={y + size * 0.05} r={size * 1.25} a={bloom} />
+      <div style={{ position: "absolute", left: x - size / 2, top: y - size / 2, width: size, height: size, opacity: 1 - out, filter: out > 0.02 ? `blur(${out * 4}px)` : undefined }}>
+        <CatMark size={size} s={{ draw, fill, eyes, whisk, pen }} stroke={2.6} />
+      </div>
+    </>
   );
 }
 
@@ -28,11 +45,35 @@ export function Mark({ t, t0, tOut, size = 60, x = 960, y = 70 }: { t: number; t
 const P: [number, number] = [963.1, 595];
 const ZMAX = 620;
 const NS = { vectorEffect: "non-scaling-stroke" as const };
+const fill: CSSProperties = { position: "absolute", left: 0, top: 0, width: 1920, height: 1080 };
 
-function Dive({ tl, t, tCar, tDive, dur, tOut }: { tl: Timeline; t: number; tCar: number; tDive: number; dur: number; tOut: number }) {
+// The bright grey plate exactly as Background draws it in "hero-grey" (same Ken Burns, filter, grid,
+// vignette and caption scrim), so when the anode window fills the frame it *is* the next background.
+function PlateReplica({ tl, t }: { tl: Timeline; t: number }) {
+  const { k, dx, dy } = plateXf(tl, t);
+  return (
+    <>
+      <div style={{ ...fill, transform: `translate(${dx}px, ${dy}px) scale(${k})`, filter: "brightness(0.92)" }}>
+        <Img src={staticFile("bg/micro_grey.jpg")} style={{ ...fill, objectFit: "cover" }} onError={() => undefined} />
+      </div>
+      <div style={{ ...fill, backgroundImage: `linear-gradient(${C.grid} 1px, transparent 1px), linear-gradient(90deg, ${C.grid} 1px, transparent 1px)`, backgroundSize: "32px 32px" }} />
+      <div style={{ ...fill, background: "radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(5,6,8,0.78) 100%)" }} />
+      <div style={{ ...fill, background: "linear-gradient(0deg, rgba(10,11,13,0.82) 0px, rgba(10,11,13,0.55) 150px, transparent 300px)" }} />
+    </>
+  );
+}
+
+function Dive({ tl, t }: { tl: Timeline; t: number }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const tCar = fxT(tl, "car") ?? Infinity;
+  const dv = fxBeat(tl, "dive");
+  const tDive = dv?.t ?? Infinity;
+  const dur = dv?.dur ?? 3;
+  const hero = tl.beats.find((b) => b.bg === "hero-grey");
+  // hand over only once the real background has fully become the bright plate (no dip in between)
+  const tOut = Math.max((hero?.t ?? tDive + dur) + (hero?.dur ?? 0.55), tDive + dur);
   if (t < tCar) return null;
-  const o = 1 - prog(t, tOut, 0.9, inOut);
+  const o = 1 - prog(t, tOut, 0.5, inOut);
   if (o <= 0) return null;
   const draw = prog(t, tCar, 1.0, inOut);
   const u = prog(t, tDive, dur, inOut);
@@ -42,16 +83,27 @@ function Dive({ tl, t, tCar, tDive, dur, tOut }: { tl: Timeline; t: number; tCar
   const tr = `translate(${ps[0]} ${ps[1]}) scale(${z}) translate(${-P[0]} ${-P[1]})`;
   const ink = "rgba(237,236,232,0.75)";
   const dash = { pathLength: 1, strokeDasharray: 1, strokeDashoffset: 1 - draw };
-  // the anode layers are windows onto the real plate (full brightness), so at full zoom they *are* the background
-  const { k, dx, dy } = plateXf(tl, t);
   const cells = Array.from({ length: 16 }, (_, i) => 740 + i * 26.25 + 2);
   const bell = (a: number, b: number) => clamp01((lz - a) / 0.06) * clamp01((b - lz) / 0.06);
-  const toScreen = (wx: number, wy: number) => [(wx - P[0]) * z + ps[0], (wy - P[1]) * z + ps[1]];
+  const toScreen = (wx: number, wy: number): [number, number] => [(wx - P[0]) * z + ps[0], (wy - P[1]) * z + ps[1]];
+  const layersIn = clamp01((lz - 0.25) / 0.15);
+  // the two electrode layers are windows onto the real plate
+  const win = (wy: number, h: number) => {
+    const [x0, y0] = toScreen(952.5, wy);
+    const [x1, y1] = toScreen(952.5 + 21.25, wy + h);
+    const a = Math.max(-2, x0), b = Math.max(-2, y0), c = Math.min(1922, x1), d = Math.min(1082, y1);
+    if (c <= a || d <= b) return null;
+    return (
+      <div key={wy} style={{ ...fill, clipPath: `inset(${b}px ${1920 - c}px ${1080 - d}px ${a}px)`, opacity: layersIn }}>
+        <PlateReplica tl={tl} t={t} />
+      </div>
+    );
+  };
   const tag = (text: string, wx: number, wy: number, a: number) => {
     if (a <= 0.01) return null;
     const [sx, sy] = toScreen(wx, wy);
     return (
-      <div style={{ position: "absolute", left: sx, top: sy, transform: "translate(-50%, -100%)", opacity: a, ...lbl, fontSize: 15, color: C.text, padding: "8px 14px", borderRadius: 10, ...glass }}>
+      <div style={{ position: "absolute", left: sx, top: sy, transform: `translate(-50%, -100%) translateY(${(1 - a) * 6}px)`, opacity: a, ...lbl, fontSize: 15, color: C.text, padding: "8px 14px", borderRadius: 10, ...glass }}>
         {text}
       </div>
     );
@@ -64,22 +116,7 @@ function Dive({ tl, t, tCar, tDive, dur, tOut }: { tl: Timeline; t: number; tCar
             <circle cx="0.1" cy="0.08" r="0.05" fill="rgba(237,236,232,0.07)" />
             <circle cx="0.27" cy="0.23" r="0.035" fill="rgba(237,236,232,0.05)" />
           </pattern>
-          <clipPath id={`win${uid}`} clipPathUnits="userSpaceOnUse">
-            <rect x={952.5} y={594} width={21.25} height={2} transform={tr} />
-            <rect x={952.5} y={600} width={21.25} height={2} transform={tr} />
-          </clipPath>
         </defs>
-        <g clipPath={`url(#win${uid})`} opacity={clamp01((lz - 0.25) / 0.15)}>
-          <image
-            href={staticFile("bg/micro_grey.jpg")}
-            x={960 - 960 * k + dx}
-            y={540 - 540 * k + dy}
-            width={1920 * k}
-            height={1080 * k}
-            preserveAspectRatio="none"
-            style={{ filter: "brightness(0.92)" }}
-          />
-        </g>
         <g transform={tr}>
           {/* car */}
           <path d="M520 610 L540 540 Q560 500 640 492 L770 488 Q830 418 905 410 L1080 410 Q1160 414 1222 480 L1340 500 Q1400 512 1405 560 L1408 610 Z" fill="rgba(10,11,13,0.55)" stroke={ink} strokeWidth="2.2" strokeLinejoin="round" {...NS} {...dash} />
@@ -93,22 +130,28 @@ function Dive({ tl, t, tCar, tDive, dur, tOut }: { tl: Timeline; t: number; tCar
           {/* battery pack in the floor */}
           <rect x={740} y={585} width={420} height={20} rx={3} fill="rgba(255,122,47,0.08)" stroke={C.orange} strokeWidth="1.8" {...NS} opacity={prog(t, tCar + 0.6, 0.6)} />
           {cells.map((x, i) => (
-            <rect key={i} x={x} y={587} width={22.25} height={16} rx={1.2} fill={i === 8 ? "rgba(10,11,13,0.7)" : "rgba(255,255,255,0.02)"} stroke={i === 8 ? C.orange : "rgba(255,154,92,0.55)"} strokeWidth="1.2" {...NS} opacity={prog(t, tCar + 0.8, 0.6)} />
+            <rect key={i} x={x} y={587} width={22.25} height={16} rx={1.2} fill={i === 8 ? "rgba(10,11,13,0.7)" : "rgba(255,255,255,0.02)"} stroke={i === 8 ? C.orange : "rgba(255,154,92,0.55)"} strokeWidth="1.2" {...NS} opacity={prog(t, tCar + 0.8 + Math.abs(i - 8) * 0.02, 0.5)} />
           ))}
-          {/* inside the focus cell: anode / separator / cathode layers */}
-          <g opacity={clamp01((lz - 0.25) / 0.15)}>
+          {/* inside the focus cell: the dark current collectors */}
+          <g opacity={layersIn}>
             {[588.6, 597.2].map((y) => (
               <g key={y}>
                 <rect x={952.5} y={y} width={21.25} height={2.2} fill="#17181C" stroke="rgba(237,236,232,0.22)" strokeWidth="1" {...NS} />
                 <rect x={952.5} y={y} width={21.25} height={2.2} fill={`url(#dots${uid})`} />
               </g>
             ))}
-            {[591.9, 596.4, 599.8].map((y) => (
-              <rect key={y} x={952.5} y={y} width={21.25} height={0.12} fill="rgba(237,236,232,0.2)" />
-            ))}
-            <rect x={952.5} y={594} width={21.25} height={2} fill="none" stroke={C.orange} strokeWidth="1.2" {...NS} />
-            <rect x={952.5} y={600} width={21.25} height={2} fill="none" stroke="rgba(237,236,232,0.3)" strokeWidth="1" {...NS} />
           </g>
+        </g>
+      </svg>
+      {/* the electrode windows sit above the car and cell fills, so the plate inside is never dimmed */}
+      {layersIn > 0 ? [win(594, 2), win(600, 2)] : null}
+      <svg width={1920} height={1080} style={{ position: "absolute", left: 0, top: 0 }}>
+        <g transform={tr} opacity={layersIn}>
+          {[591.9, 596.4, 599.8].map((y) => (
+            <rect key={y} x={952.5} y={y} width={21.25} height={0.12} fill="rgba(237,236,232,0.2)" />
+          ))}
+          <rect x={952.5} y={594} width={21.25} height={2} fill="none" stroke={C.orange} strokeWidth="1.2" {...NS} />
+          <rect x={952.5} y={600} width={21.25} height={2} fill="none" stroke="rgba(237,236,232,0.3)" strokeWidth="1" {...NS} />
         </g>
       </svg>
       {tag("battery pack", 950, 583, bell(0.12, 0.34))}
@@ -135,13 +178,14 @@ function Labels({ tl, t }: { tl: Timeline; t: number }) {
         const t0 = fxT(tl, `label-${s.id}`);
         if (t0 == null || t < t0 || out >= 1) return null;
         const a = springAt(t, t0 + 0.15) * (1 - out);
+        const ring = sp(t, t0, SPRING_POP);
         const [x, y] = plateToScreen(tl, t, s.px, s.py);
         const lx = x + s.ox, ly = y + s.oy;
         const line = prog(t, t0 + 0.1, 0.5);
         return (
           <div key={s.id} style={{ position: "absolute", inset: 0, opacity: a }}>
             <svg width={1920} height={1080} style={{ position: "absolute", left: 0, top: 0 }}>
-              <circle cx={x} cy={y} r={26} fill="none" stroke={s.color} strokeWidth="2.5" opacity="0.95" />
+              <circle cx={x} cy={y} r={26 * Math.max(0.2, ring)} fill="none" stroke={s.color} strokeWidth="2.5" opacity="0.95" />
               <circle cx={x} cy={y} r={4} fill={s.color} />
               <line x1={x + (s.ox / Math.hypot(s.ox, s.oy)) * 28} y1={y + (s.oy / Math.hypot(s.ox, s.oy)) * 28} x2={lerp(x, lx, line)} y2={lerp(y, ly, line)} stroke={s.color} strokeWidth="2" />
             </svg>
@@ -150,7 +194,7 @@ function Labels({ tl, t }: { tl: Timeline; t: number }) {
                 position: "absolute",
                 left: lx,
                 top: ly,
-                transform: `translate(${s.ox < 0 ? "-100%" : "0"}, -50%)`,
+                transform: `translate(${s.ox < 0 ? "-100%" : "0"}, -50%) translateY(${(1 - a) * 8}px)`,
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
@@ -202,16 +246,17 @@ function Swell({ t, t0 }: { t: number; t0: number }) {
 }
 
 export function Science({ tl, t }: { tl: Timeline; t: number }) {
-  const tCar = fxT(tl, "car") ?? Infinity;
-  const dive = tl.beats.find((b) => b.fx === "dive");
-  const tHero = tl.beats.find((b) => b.bg === "hero-grey")?.t ?? Infinity;
+  const sc = tl.scenes.find((s) => s.id === "science");
+  if (!sc || t < sc.start - 0.5 || t > sc.end + 2.5) return null;
   const ts = fxT(tl, "swell");
   return (
     <>
-      <Dive tl={tl} t={t} tCar={tCar} tDive={dive?.t ?? Infinity} dur={dive?.dur ?? 3} tOut={tHero} />
+      <Dive tl={tl} t={t} />
       <Labels tl={tl} t={t} />
       {ts != null ? <Swell t={t} t0={ts} /> : null}
-      <Mark t={t} t0={fxT(tl, "mark") ?? Infinity} tOut={fxT(tl, "mark-out") ?? Infinity} />
+      <Needles tl={tl} t={t} />
+      <Fire tl={tl} t={t} />
+      <IntroMark tl={tl} t={t} />
     </>
   );
 }

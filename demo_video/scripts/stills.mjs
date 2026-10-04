@@ -12,7 +12,7 @@ const serveUrl = await bundle({
   entryPoint: path.join(root, "src/index.ts"),
   webpackOverride: (c) => ({ ...c, resolve: { ...c.resolve, modules: [path.join(root, "node_modules"), "node_modules"] } }),
 });
-const composition = await selectComposition({ serveUrl, id: "Animatic", inputProps: {} });
+const composition = await selectComposition({ serveUrl, id: "Catalyst", inputProps: {} });
 const { tl } = composition.props;
 const fps = composition.fps;
 for (const arg of process.argv.slice(2)) {

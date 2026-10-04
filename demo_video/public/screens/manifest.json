@@ -1,0 +1,3734 @@
+{
+  "app": "http://localhost:5176",
+  "captured": "2026-10-04T10:44:12.586Z",
+  "viewport": {
+    "w": 1400,
+    "h": 780,
+    "dpr": 2
+  },
+  "sidebar": {
+    "w": 236
+  },
+  "shots": {
+    "compare": {
+      "kind": "page",
+      "file": "screens/compare.png",
+      "url": "#/compare/Batch_1",
+      "w": 1400,
+      "vp": "screens/compare.vp.png",
+      "h": 2214,
+      "scrollY": 0,
+      "highlights": {
+        "answer": {
+          "x": 276,
+          "y": 181,
+          "w": 1084,
+          "h": 408.4,
+          "text": "INVESTIGATE\n\nBatch 1 has a higher silicon-to-graphite ratio and internal void fraction of silicon than the baseline, but neither is settled.\n\n0.0743 without them · baseline 0.075 · all 7 tiles 0.105\n\nWalk me through it\nWHY IT ISN'T ACCEPT\n1\nImaging differs from the baseline\nNoise and brightness differ on all three detectors, sharpness on BSE and ETD, curtaining on ETD, so Silicon-to-graphite brigh"
+        },
+        "verdict": {
+          "x": 326,
+          "y": 227,
+          "w": 151.3,
+          "h": 36,
+          "text": "INVESTIGATE"
+        },
+        "baseline": {
+          "x": 485.7,
+          "y": 105,
+          "w": 228.9,
+          "h": 52,
+          "text": "BASELINE\nBatch 3\n17 tiles · default"
+        },
+        "moved": {
+          "x": 276,
+          "y": 1054.6,
+          "w": 1084,
+          "h": 677.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it.\nBatch 1 average\nlikely range (90%)\nbaseline ±1.5σ tolerance\nPROPERTY\n−4σ\nbaseline\n+4σ\nSTATUS\nSilicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ\nDirectly the Si loading of the anode: capacity and swelling scale with it.\nAt the supplier: Confirm the Si:grap"
+        },
+        "moved_head": {
+          "x": 301,
+          "y": 1075.6,
+          "w": 734.5,
+          "h": 51.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it."
+        },
+        "row1": {
+          "x": 301,
+          "y": 1195.1,
+          "w": 1034,
+          "h": 68,
+          "text": "Silicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ"
+        },
+        "row2": {
+          "x": 301,
+          "y": 1472.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Internal void fraction of silicon\n0.257% → 0.478%\nNot settled\n+1.5σ"
+        },
+        "row3": {
+          "x": 301,
+          "y": 1541.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Share of T2 particles\n57.1% → 76.8%\nNot settled\n+1.4σ"
+        },
+        "tiles": {
+          "x": 276,
+          "y": 613.4,
+          "w": 1084,
+          "h": 417.2,
+          "text": "The two tiles behind it\nOutside the baseline range on 2 properties. Click one to look closer.\n4ih2ggld\nSilicon-to-graphite ratio\n0.164\nInternal void fraction of silicon\n1.36%\n5n1q8atc\nSilicon-to-graphite ratio\n0.198\nInternal void fraction of silicon\n1.12%\nBaseline range: Silicon-to-graphite ratio 0.033 – 0.117 · Internal void fraction of silicon 0% – 0.700%\nSILICON-TO-GRAPHITE RATIO\nBatch 1, all 7"
+        },
+        "next": {
+          "x": 276,
+          "y": 1756.1,
+          "w": 1084,
+          "h": 198,
+          "text": "Next steps\n1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity.\n2\nLook at tiles 4ih2ggld and 5n1q8atc: outside the baseline range on silicon-to-graphite ratio and internal void fraction of silicon.\n3\nAt the supplier, for silicon-to-graphite ratio: confirm the Si:graphite formulation ratio for this lot."
+        },
+        "next1": {
+          "x": 301,
+          "y": 1819.1,
+          "w": 338,
+          "h": 114,
+          "text": "1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity."
+        },
+        "explain_fold": {
+          "x": 277,
+          "y": 2036.1,
+          "w": 1082,
+          "h": 56,
+          "text": "Explain it for an operator, engineer, scientist or manager\n4 versions"
+        }
+      },
+      "targets": {
+        "explain_fold": {
+          "x": 818,
+          "y": 2064.1
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "batch": "Batch_1",
+        "baseline": "Batch_3",
+        "verdict": "INVESTIGATE",
+        "baseline_text": "BASELINE\nBatch 3\n17 tiles · default",
+        "non_get_requests": []
+      }
+    },
+    "compare@engineer": {
+      "kind": "page",
+      "file": "screens/compare@engineer.png",
+      "url": "#/compare/Batch_1",
+      "w": 1400,
+      "vp": "screens/compare@engineer.vp.png",
+      "h": 2729,
+      "scrollY": 0,
+      "highlights": {
+        "answer": {
+          "x": 276,
+          "y": 181,
+          "w": 1084,
+          "h": 408.4,
+          "text": "INVESTIGATE\n\nBatch 1 has a higher silicon-to-graphite ratio and internal void fraction of silicon than the baseline, but neither is settled.\n\n0.0743 without them · baseline 0.075 · all 7 tiles 0.105\n\nWalk me through it\nWHY IT ISN'T ACCEPT\n1\nImaging differs from the baseline\nNoise and brightness differ on all three detectors, sharpness on BSE and ETD, curtaining on ETD, so Silicon-to-graphite brigh"
+        },
+        "verdict": {
+          "x": 326,
+          "y": 227,
+          "w": 151.3,
+          "h": 36,
+          "text": "INVESTIGATE"
+        },
+        "baseline": {
+          "x": 485.7,
+          "y": 105,
+          "w": 228.9,
+          "h": 52,
+          "text": "BASELINE\nBatch 3\n17 tiles · default"
+        },
+        "moved": {
+          "x": 276,
+          "y": 1054.6,
+          "w": 1084,
+          "h": 677.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it.\nBatch 1 average\nlikely range (90%)\nbaseline ±1.5σ tolerance\nPROPERTY\n−4σ\nbaseline\n+4σ\nSTATUS\nSilicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ\nDirectly the Si loading of the anode: capacity and swelling scale with it.\nAt the supplier: Confirm the Si:grap"
+        },
+        "moved_head": {
+          "x": 301,
+          "y": 1075.6,
+          "w": 734.5,
+          "h": 51.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it."
+        },
+        "row1": {
+          "x": 301,
+          "y": 1195.1,
+          "w": 1034,
+          "h": 68,
+          "text": "Silicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ"
+        },
+        "row2": {
+          "x": 301,
+          "y": 1472.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Internal void fraction of silicon\n0.257% → 0.478%\nNot settled\n+1.5σ"
+        },
+        "row3": {
+          "x": 301,
+          "y": 1541.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Share of T2 particles\n57.1% → 76.8%\nNot settled\n+1.4σ"
+        },
+        "tiles": {
+          "x": 276,
+          "y": 613.4,
+          "w": 1084,
+          "h": 417.2,
+          "text": "The two tiles behind it\nOutside the baseline range on 2 properties. Click one to look closer.\n4ih2ggld\nSilicon-to-graphite ratio\n0.164\nInternal void fraction of silicon\n1.36%\n5n1q8atc\nSilicon-to-graphite ratio\n0.198\nInternal void fraction of silicon\n1.12%\nBaseline range: Silicon-to-graphite ratio 0.033 – 0.117 · Internal void fraction of silicon 0% – 0.700%\nSILICON-TO-GRAPHITE RATIO\nBatch 1, all 7"
+        },
+        "next": {
+          "x": 276,
+          "y": 1756.1,
+          "w": 1084,
+          "h": 198,
+          "text": "Next steps\n1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity.\n2\nLook at tiles 4ih2ggld and 5n1q8atc: outside the baseline range on silicon-to-graphite ratio and internal void fraction of silicon.\n3\nAt the supplier, for silicon-to-graphite ratio: confirm the Si:graphite formulation ratio for this lot."
+        },
+        "next1": {
+          "x": 301,
+          "y": 1819.1,
+          "w": 338,
+          "h": 114,
+          "text": "1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity."
+        },
+        "explain_fold": {
+          "x": 277,
+          "y": 2036.1,
+          "w": 1082,
+          "h": 56,
+          "text": "Explain it for an operator, engineer, scientist or manager\n4 versions"
+        },
+        "explain": {
+          "x": 277,
+          "y": 2092.1,
+          "w": 1082,
+          "h": 514.8,
+          "text": "Operator\nProcess engineer\nMaterials scientist\nManager\nSilicon-to-graphite ratio is 0.105 against 0.075 in the baseline: it is not settled.\nPossible causes to check: more silicon dosed into the formulation.\nAt the supplier: Confirm the Si:graphite formulation ratio for this lot.\nInternal void fraction of silicon is 0.478% against 0.257% in the baseline: it is not settled.\nPossible causes to check: "
+        },
+        "seg": {
+          "x": 297,
+          "y": 2096.1,
+          "w": 452.9,
+          "h": 46,
+          "text": "Operator\nProcess engineer\nMaterials scientist\nManager"
+        },
+        "seg_operator": {
+          "x": 302,
+          "y": 2101.1,
+          "w": 82,
+          "h": 36,
+          "text": "Operator"
+        },
+        "seg_engineer": {
+          "x": 386,
+          "y": 2101.1,
+          "w": 133.5,
+          "h": 36,
+          "text": "Process engineer"
+        },
+        "seg_scientist": {
+          "x": 521.5,
+          "y": 2101.1,
+          "w": 139.6,
+          "h": 36,
+          "text": "Materials scientist"
+        },
+        "seg_manager": {
+          "x": 663.1,
+          "y": 2101.1,
+          "w": 81.8,
+          "h": 36,
+          "text": "Manager"
+        },
+        "explain_text": {
+          "x": 297,
+          "y": 2158.1,
+          "w": 900,
+          "h": 428.8,
+          "text": "Silicon-to-graphite ratio is 0.105 against 0.075 in the baseline: it is not settled.\nPossible causes to check: more silicon dosed into the formulation.\nAt the supplier: Confirm the Si:graphite formulation ratio for this lot.\nInternal void fraction of silicon is 0.478% against 0.257% in the baseline: it is not settled.\nPossible causes to check: a porous silicon grade (e.g. SiOx or etched Si), FIB d"
+        }
+      },
+      "targets": {
+        "explain_fold": {
+          "x": 818,
+          "y": 2064.1
+        },
+        "seg_operator": {
+          "x": 343,
+          "y": 2119.1
+        },
+        "seg_engineer": {
+          "x": 452.8,
+          "y": 2119.1
+        },
+        "seg_scientist": {
+          "x": 591.3,
+          "y": 2119.1
+        },
+        "seg_manager": {
+          "x": 704,
+          "y": 2119.1
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "segment": "Process engineer",
+        "explain_text": "Silicon-to-graphite ratio is 0.105 against 0.075 in the baseline: it is not settled.\nPossible causes to check: more silicon dosed into the formulation.\nAt the supplier: Confirm the Si:graphite formulation ratio for this lot.\nInternal void fraction of silicon is 0.478% against 0.257% in the baseline: it is not settled.\nPossible causes to check: a porous silicon grade (e.g. SiOx or etched Si), FIB d",
+        "non_get_requests": []
+      }
+    },
+    "compare@operator": {
+      "kind": "page",
+      "file": "screens/compare@operator.png",
+      "url": "#/compare/Batch_1",
+      "w": 1400,
+      "vp": "screens/compare@operator.vp.png",
+      "h": 2355,
+      "scrollY": 0,
+      "highlights": {
+        "answer": {
+          "x": 276,
+          "y": 181,
+          "w": 1084,
+          "h": 408.4,
+          "text": "INVESTIGATE\n\nBatch 1 has a higher silicon-to-graphite ratio and internal void fraction of silicon than the baseline, but neither is settled.\n\n0.0743 without them · baseline 0.075 · all 7 tiles 0.105\n\nWalk me through it\nWHY IT ISN'T ACCEPT\n1\nImaging differs from the baseline\nNoise and brightness differ on all three detectors, sharpness on BSE and ETD, curtaining on ETD, so Silicon-to-graphite brigh"
+        },
+        "verdict": {
+          "x": 326,
+          "y": 227,
+          "w": 151.3,
+          "h": 36,
+          "text": "INVESTIGATE"
+        },
+        "baseline": {
+          "x": 485.7,
+          "y": 105,
+          "w": 228.9,
+          "h": 52,
+          "text": "BASELINE\nBatch 3\n17 tiles · default"
+        },
+        "moved": {
+          "x": 276,
+          "y": 1054.6,
+          "w": 1084,
+          "h": 677.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it.\nBatch 1 average\nlikely range (90%)\nbaseline ±1.5σ tolerance\nPROPERTY\n−4σ\nbaseline\n+4σ\nSTATUS\nSilicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ\nDirectly the Si loading of the anode: capacity and swelling scale with it.\nAt the supplier: Confirm the Si:grap"
+        },
+        "moved_head": {
+          "x": 301,
+          "y": 1075.6,
+          "w": 734.5,
+          "h": 51.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it."
+        },
+        "row1": {
+          "x": 301,
+          "y": 1195.1,
+          "w": 1034,
+          "h": 68,
+          "text": "Silicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ"
+        },
+        "row2": {
+          "x": 301,
+          "y": 1472.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Internal void fraction of silicon\n0.257% → 0.478%\nNot settled\n+1.5σ"
+        },
+        "row3": {
+          "x": 301,
+          "y": 1541.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Share of T2 particles\n57.1% → 76.8%\nNot settled\n+1.4σ"
+        },
+        "tiles": {
+          "x": 276,
+          "y": 613.4,
+          "w": 1084,
+          "h": 417.2,
+          "text": "The two tiles behind it\nOutside the baseline range on 2 properties. Click one to look closer.\n4ih2ggld\nSilicon-to-graphite ratio\n0.164\nInternal void fraction of silicon\n1.36%\n5n1q8atc\nSilicon-to-graphite ratio\n0.198\nInternal void fraction of silicon\n1.12%\nBaseline range: Silicon-to-graphite ratio 0.033 – 0.117 · Internal void fraction of silicon 0% – 0.700%\nSILICON-TO-GRAPHITE RATIO\nBatch 1, all 7"
+        },
+        "next": {
+          "x": 276,
+          "y": 1756.1,
+          "w": 1084,
+          "h": 198,
+          "text": "Next steps\n1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity.\n2\nLook at tiles 4ih2ggld and 5n1q8atc: outside the baseline range on silicon-to-graphite ratio and internal void fraction of silicon.\n3\nAt the supplier, for silicon-to-graphite ratio: confirm the Si:graphite formulation ratio for this lot."
+        },
+        "next1": {
+          "x": 301,
+          "y": 1819.1,
+          "w": 338,
+          "h": 114,
+          "text": "1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity."
+        },
+        "explain_fold": {
+          "x": 277,
+          "y": 2036.1,
+          "w": 1082,
+          "h": 56,
+          "text": "Explain it for an operator, engineer, scientist or manager\n4 versions"
+        },
+        "explain": {
+          "x": 277,
+          "y": 2092.1,
+          "w": 1082,
+          "h": 140.5,
+          "text": "Operator\nProcess engineer\nMaterials scientist\nManager\nThe batch needs a closer look before release.\nHold it and call the process engineer."
+        },
+        "seg": {
+          "x": 297,
+          "y": 2096.1,
+          "w": 452.9,
+          "h": 46,
+          "text": "Operator\nProcess engineer\nMaterials scientist\nManager"
+        },
+        "seg_operator": {
+          "x": 302,
+          "y": 2101.1,
+          "w": 82,
+          "h": 36,
+          "text": "Operator"
+        },
+        "seg_engineer": {
+          "x": 386,
+          "y": 2101.1,
+          "w": 133.5,
+          "h": 36,
+          "text": "Process engineer"
+        },
+        "seg_scientist": {
+          "x": 521.5,
+          "y": 2101.1,
+          "w": 139.6,
+          "h": 36,
+          "text": "Materials scientist"
+        },
+        "seg_manager": {
+          "x": 663.1,
+          "y": 2101.1,
+          "w": 81.8,
+          "h": 36,
+          "text": "Manager"
+        },
+        "explain_text": {
+          "x": 297,
+          "y": 2158.1,
+          "w": 900,
+          "h": 54.5,
+          "text": "The batch needs a closer look before release.\nHold it and call the process engineer."
+        }
+      },
+      "targets": {
+        "explain_fold": {
+          "x": 818,
+          "y": 2064.1
+        },
+        "seg_operator": {
+          "x": 343,
+          "y": 2119.1
+        },
+        "seg_engineer": {
+          "x": 452.8,
+          "y": 2119.1
+        },
+        "seg_scientist": {
+          "x": 591.3,
+          "y": 2119.1
+        },
+        "seg_manager": {
+          "x": 704,
+          "y": 2119.1
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "segment": "Operator",
+        "explain_text": "The batch needs a closer look before release.\nHold it and call the process engineer.",
+        "non_get_requests": []
+      }
+    },
+    "compare@scientist": {
+      "kind": "page",
+      "file": "screens/compare@scientist.png",
+      "url": "#/compare/Batch_1",
+      "w": 1400,
+      "vp": "screens/compare@scientist.vp.png",
+      "h": 2751,
+      "scrollY": 0,
+      "highlights": {
+        "answer": {
+          "x": 276,
+          "y": 181,
+          "w": 1084,
+          "h": 408.4,
+          "text": "INVESTIGATE\n\nBatch 1 has a higher silicon-to-graphite ratio and internal void fraction of silicon than the baseline, but neither is settled.\n\n0.0743 without them · baseline 0.075 · all 7 tiles 0.105\n\nWalk me through it\nWHY IT ISN'T ACCEPT\n1\nImaging differs from the baseline\nNoise and brightness differ on all three detectors, sharpness on BSE and ETD, curtaining on ETD, so Silicon-to-graphite brigh"
+        },
+        "verdict": {
+          "x": 326,
+          "y": 227,
+          "w": 151.3,
+          "h": 36,
+          "text": "INVESTIGATE"
+        },
+        "baseline": {
+          "x": 485.7,
+          "y": 105,
+          "w": 228.9,
+          "h": 52,
+          "text": "BASELINE\nBatch 3\n17 tiles · default"
+        },
+        "moved": {
+          "x": 276,
+          "y": 1054.6,
+          "w": 1084,
+          "h": 677.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it.\nBatch 1 average\nlikely range (90%)\nbaseline ±1.5σ tolerance\nPROPERTY\n−4σ\nbaseline\n+4σ\nSTATUS\nSilicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ\nDirectly the Si loading of the anode: capacity and swelling scale with it.\nAt the supplier: Confirm the Si:grap"
+        },
+        "moved_head": {
+          "x": 301,
+          "y": 1075.6,
+          "w": 734.5,
+          "h": 51.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it."
+        },
+        "row1": {
+          "x": 301,
+          "y": 1195.1,
+          "w": 1034,
+          "h": 68,
+          "text": "Silicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ"
+        },
+        "row2": {
+          "x": 301,
+          "y": 1472.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Internal void fraction of silicon\n0.257% → 0.478%\nNot settled\n+1.5σ"
+        },
+        "row3": {
+          "x": 301,
+          "y": 1541.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Share of T2 particles\n57.1% → 76.8%\nNot settled\n+1.4σ"
+        },
+        "tiles": {
+          "x": 276,
+          "y": 613.4,
+          "w": 1084,
+          "h": 417.2,
+          "text": "The two tiles behind it\nOutside the baseline range on 2 properties. Click one to look closer.\n4ih2ggld\nSilicon-to-graphite ratio\n0.164\nInternal void fraction of silicon\n1.36%\n5n1q8atc\nSilicon-to-graphite ratio\n0.198\nInternal void fraction of silicon\n1.12%\nBaseline range: Silicon-to-graphite ratio 0.033 – 0.117 · Internal void fraction of silicon 0% – 0.700%\nSILICON-TO-GRAPHITE RATIO\nBatch 1, all 7"
+        },
+        "next": {
+          "x": 276,
+          "y": 1756.1,
+          "w": 1084,
+          "h": 198,
+          "text": "Next steps\n1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity.\n2\nLook at tiles 4ih2ggld and 5n1q8atc: outside the baseline range on silicon-to-graphite ratio and internal void fraction of silicon.\n3\nAt the supplier, for silicon-to-graphite ratio: confirm the Si:graphite formulation ratio for this lot."
+        },
+        "next1": {
+          "x": 301,
+          "y": 1819.1,
+          "w": 338,
+          "h": 114,
+          "text": "1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity."
+        },
+        "explain_fold": {
+          "x": 277,
+          "y": 2036.1,
+          "w": 1082,
+          "h": 56,
+          "text": "Explain it for an operator, engineer, scientist or manager\n4 versions"
+        },
+        "explain": {
+          "x": 277,
+          "y": 2092.1,
+          "w": 1082,
+          "h": 536.5,
+          "text": "Operator\nProcess engineer\nMaterials scientist\nManager\nUnit: image, 7 vs 17; 346104 label arrangements, smallest possible p 2.9e-06.\nsi_graphite_ratio: UNCLEAR, 0.105 vs 0.075, difference 0.0298, interval 0.00608 to 0.0534 against a margin of ±0.021, family-wise p = 0.12.\nsi_d50_um: UNCLEAR, 4.41 µm vs 3.66 µm, difference 0.747 µm, interval 0.245 µm to 1.25 µm against a margin of ±0.945 µm, family-"
+        },
+        "seg": {
+          "x": 297,
+          "y": 2096.1,
+          "w": 452.9,
+          "h": 46,
+          "text": "Operator\nProcess engineer\nMaterials scientist\nManager"
+        },
+        "seg_operator": {
+          "x": 302,
+          "y": 2101.1,
+          "w": 82,
+          "h": 36,
+          "text": "Operator"
+        },
+        "seg_engineer": {
+          "x": 386,
+          "y": 2101.1,
+          "w": 133.5,
+          "h": 36,
+          "text": "Process engineer"
+        },
+        "seg_scientist": {
+          "x": 521.5,
+          "y": 2101.1,
+          "w": 139.6,
+          "h": 36,
+          "text": "Materials scientist"
+        },
+        "seg_manager": {
+          "x": 663.1,
+          "y": 2101.1,
+          "w": 81.8,
+          "h": 36,
+          "text": "Manager"
+        },
+        "explain_text": {
+          "x": 297,
+          "y": 2158.1,
+          "w": 900,
+          "h": 450.5,
+          "text": "Unit: image, 7 vs 17; 346104 label arrangements, smallest possible p 2.9e-06.\nsi_graphite_ratio: UNCLEAR, 0.105 vs 0.075, difference 0.0298, interval 0.00608 to 0.0534 against a margin of ±0.021, family-wise p = 0.12.\nsi_d50_um: UNCLEAR, 4.41 µm vs 3.66 µm, difference 0.747 µm, interval 0.245 µm to 1.25 µm against a margin of ±0.945 µm, family-wise p = 0.063.\nsi_internal_void_frac: UNCLEAR, 0.0047"
+        }
+      },
+      "targets": {
+        "explain_fold": {
+          "x": 818,
+          "y": 2064.1
+        },
+        "seg_operator": {
+          "x": 343,
+          "y": 2119.1
+        },
+        "seg_engineer": {
+          "x": 452.8,
+          "y": 2119.1
+        },
+        "seg_scientist": {
+          "x": 591.3,
+          "y": 2119.1
+        },
+        "seg_manager": {
+          "x": 704,
+          "y": 2119.1
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "segment": "Materials scientist",
+        "explain_text": "Unit: image, 7 vs 17; 346104 label arrangements, smallest possible p 2.9e-06.\nsi_graphite_ratio: UNCLEAR, 0.105 vs 0.075, difference 0.0298, interval 0.00608 to 0.0534 against a margin of ±0.021, family-wise p = 0.12.\nsi_d50_um: UNCLEAR, 4.41 µm vs 3.66 µm, difference 0.747 µm, interval 0.245 µm to 1.25 µm against a margin of ±0.945 µm, family-wise p = 0.063.\nsi_internal_void_frac: UNCLEAR, 0.0047",
+        "non_get_requests": []
+      }
+    },
+    "compare@manager": {
+      "kind": "page",
+      "file": "screens/compare@manager.png",
+      "url": "#/compare/Batch_1",
+      "w": 1400,
+      "vp": "screens/compare@manager.vp.png",
+      "h": 2534,
+      "scrollY": 0,
+      "highlights": {
+        "answer": {
+          "x": 276,
+          "y": 181,
+          "w": 1084,
+          "h": 408.4,
+          "text": "INVESTIGATE\n\nBatch 1 has a higher silicon-to-graphite ratio and internal void fraction of silicon than the baseline, but neither is settled.\n\n0.0743 without them · baseline 0.075 · all 7 tiles 0.105\n\nWalk me through it\nWHY IT ISN'T ACCEPT\n1\nImaging differs from the baseline\nNoise and brightness differ on all three detectors, sharpness on BSE and ETD, curtaining on ETD, so Silicon-to-graphite brigh"
+        },
+        "verdict": {
+          "x": 326,
+          "y": 227,
+          "w": 151.3,
+          "h": 36,
+          "text": "INVESTIGATE"
+        },
+        "baseline": {
+          "x": 485.7,
+          "y": 105,
+          "w": 228.9,
+          "h": 52,
+          "text": "BASELINE\nBatch 3\n17 tiles · default"
+        },
+        "moved": {
+          "x": 276,
+          "y": 1054.6,
+          "w": 1084,
+          "h": 677.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it.\nBatch 1 average\nlikely range (90%)\nbaseline ±1.5σ tolerance\nPROPERTY\n−4σ\nbaseline\n+4σ\nSTATUS\nSilicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ\nDirectly the Si loading of the anode: capacity and swelling scale with it.\nAt the supplier: Confirm the Si:grap"
+        },
+        "moved_head": {
+          "x": 301,
+          "y": 1075.6,
+          "w": 734.5,
+          "h": 51.5,
+          "text": "What moved\nThe 4 properties that moved most. None is settled: each range still crosses the tolerance edge, so more tiles would decide it."
+        },
+        "row1": {
+          "x": 301,
+          "y": 1195.1,
+          "w": 1034,
+          "h": 68,
+          "text": "Silicon-to-graphite ratio\n0.075 → 0.105\nNot settled\n+2.1σ"
+        },
+        "row2": {
+          "x": 301,
+          "y": 1472.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Internal void fraction of silicon\n0.257% → 0.478%\nNot settled\n+1.5σ"
+        },
+        "row3": {
+          "x": 301,
+          "y": 1541.6,
+          "w": 1034,
+          "h": 68,
+          "text": "Share of T2 particles\n57.1% → 76.8%\nNot settled\n+1.4σ"
+        },
+        "tiles": {
+          "x": 276,
+          "y": 613.4,
+          "w": 1084,
+          "h": 417.2,
+          "text": "The two tiles behind it\nOutside the baseline range on 2 properties. Click one to look closer.\n4ih2ggld\nSilicon-to-graphite ratio\n0.164\nInternal void fraction of silicon\n1.36%\n5n1q8atc\nSilicon-to-graphite ratio\n0.198\nInternal void fraction of silicon\n1.12%\nBaseline range: Silicon-to-graphite ratio 0.033 – 0.117 · Internal void fraction of silicon 0% – 0.700%\nSILICON-TO-GRAPHITE RATIO\nBatch 1, all 7"
+        },
+        "next": {
+          "x": 276,
+          "y": 1756.1,
+          "w": 1084,
+          "h": 198,
+          "text": "Next steps\n1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity.\n2\nLook at tiles 4ih2ggld and 5n1q8atc: outside the baseline range on silicon-to-graphite ratio and internal void fraction of silicon.\n3\nAt the supplier, for silicon-to-graphite ratio: confirm the Si:graphite formulation ratio for this lot."
+        },
+        "next1": {
+          "x": 301,
+          "y": 1819.1,
+          "w": 338,
+          "h": 114,
+          "text": "1\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity."
+        },
+        "explain_fold": {
+          "x": 277,
+          "y": 2036.1,
+          "w": 1082,
+          "h": 56,
+          "text": "Explain it for an operator, engineer, scientist or manager\n4 versions"
+        },
+        "explain": {
+          "x": 277,
+          "y": 2092.1,
+          "w": 1082,
+          "h": 320,
+          "text": "Operator\nProcess engineer\nMaterials scientist\nManager\nThe batch needs a closer look before release.\nMain driver: silicon-to-graphite ratio.\nNot settled yet.\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity.\nDirectly the Si loading of the anode: capacity and swelling scale with it.\nIndicative: silicon is 9% of the silicon "
+        },
+        "seg": {
+          "x": 297,
+          "y": 2096.1,
+          "w": 452.9,
+          "h": 46,
+          "text": "Operator\nProcess engineer\nMaterials scientist\nManager"
+        },
+        "seg_operator": {
+          "x": 302,
+          "y": 2101.1,
+          "w": 82,
+          "h": 36,
+          "text": "Operator"
+        },
+        "seg_engineer": {
+          "x": 386,
+          "y": 2101.1,
+          "w": 133.5,
+          "h": 36,
+          "text": "Process engineer"
+        },
+        "seg_scientist": {
+          "x": 521.5,
+          "y": 2101.1,
+          "w": 139.6,
+          "h": 36,
+          "text": "Materials scientist"
+        },
+        "seg_manager": {
+          "x": 663.1,
+          "y": 2101.1,
+          "w": 81.8,
+          "h": 36,
+          "text": "Manager"
+        },
+        "explain_text": {
+          "x": 297,
+          "y": 2158.1,
+          "w": 900,
+          "h": 234,
+          "text": "The batch needs a closer look before release.\nMain driver: silicon-to-graphite ratio.\nNot settled yet.\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity.\nDirectly the Si loading of the anode: capacity and swelling scale with it.\nIndicative: silicon is 9% of the silicon and graphite area against 7%, about +6% to +14% theore"
+        }
+      },
+      "targets": {
+        "explain_fold": {
+          "x": 818,
+          "y": 2064.1
+        },
+        "seg_operator": {
+          "x": 343,
+          "y": 2119.1
+        },
+        "seg_engineer": {
+          "x": 452.8,
+          "y": 2119.1
+        },
+        "seg_scientist": {
+          "x": 591.3,
+          "y": 2119.1
+        },
+        "seg_manager": {
+          "x": 704,
+          "y": 2119.1
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "segment": "Manager",
+        "explain_text": "The batch needs a closer look before release.\nMain driver: silicon-to-graphite ratio.\nNot settled yet.\nCheck the microscope settings against the baseline before trusting silicon-to-graphite brightness ratio and apparent porosity.\nDirectly the Si loading of the anode: capacity and swelling scale with it.\nIndicative: silicon is 9% of the silicon and graphite area against 7%, about +6% to +14% theore",
+        "non_get_requests": []
+      }
+    },
+    "identify": {
+      "kind": "page",
+      "file": "screens/identify.png",
+      "url": "#/identify",
+      "w": 1400,
+      "vp": "screens/identify.vp.png",
+      "h": 1009,
+      "scrollY": 0,
+      "highlights": {
+        "dropzone": {
+          "x": 276,
+          "y": 292.6,
+          "w": 1084,
+          "h": 312,
+          "text": "BSE\nComposition. Silicon shows bright.\nETD / SE\nTopography and edges.\nInLens\nSurface detail.\nDrop images here\nimg_<id>_BSE / _ETD (or _SE) / _InLens .tif\nChoose files"
+        },
+        "recent": {
+          "x": 276,
+          "y": 678.1,
+          "w": 717.3,
+          "h": 267,
+          "text": "Recent identifications\nUPLOAD\nCLOSEST BATCH PER TILE\nDrop demo\n4ih2ggld\nBatch 1\n51%\nr17byphk\nBatch 3\n40%"
+        },
+        "recent_row": {
+          "x": 277,
+          "y": 774.3,
+          "w": 715.3,
+          "h": 48,
+          "text": "Drop demo\n4ih2ggld\nBatch 1\n51%\nr17byphk\nBatch 3\n40%"
+        }
+      },
+      "targets": {
+        "recent_row": {
+          "x": 634.7,
+          "y": 798.3
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "drop": "drop_demo",
+        "recent_row": "Drop demo\n4ih2ggld\nBatch 1\n51%\nr17byphk\nBatch 3\n40%",
+        "non_get_requests": []
+      }
+    },
+    "identify_result": {
+      "kind": "page",
+      "file": "screens/identify_result.png",
+      "url": "#/identify/drop_demo/4ih2ggld",
+      "w": 1400,
+      "vp": "screens/identify_result.vp.png",
+      "h": 1293,
+      "scrollY": 0,
+      "highlights": {
+        "answer": {
+          "x": 276,
+          "y": 193,
+          "w": 1084,
+          "h": 186.5,
+          "text": "TILE 4ih2ggld · CLOSEST MATCH\nBatch 1\n51%\n\nNot the baseline: 99% that it isn't Batch 3. Between Batch 1 and Batch 2 it leans to Batch 1, 52 to 48 — a weak lean.\n\nBatch 1 51%\nBatch 2 48%\nBatch 3 1%\nWhen it's this sure, it was right 5 of 9 times\nCan't rule out Batch 2\nFamiliar tile\nHeld-out balanced accuracy 66% · chance 33%"
+        },
+        "closest": {
+          "x": 305,
+          "y": 246.5,
+          "w": 586.8,
+          "h": 48,
+          "text": "Batch 1\n51%"
+        },
+        "bars": {
+          "x": 919.8,
+          "y": 228.3,
+          "w": 411.2,
+          "h": 36,
+          "text": "Batch 1 51%\nBatch 2 48%\nBatch 3 1%"
+        },
+        "bar1": {
+          "x": 919.8,
+          "y": 248.3,
+          "w": 79.2,
+          "h": 16,
+          "text": "Batch 1 51%"
+        },
+        "bar2": {
+          "x": 1089.4,
+          "y": 248.3,
+          "w": 79.2,
+          "h": 16,
+          "text": "Batch 2 48%"
+        },
+        "bar3": {
+          "x": 1259,
+          "y": 248.3,
+          "w": 72,
+          "h": 16,
+          "text": "Batch 3 1%"
+        },
+        "confidence": {
+          "x": 502,
+          "y": 254.5,
+          "w": 43.2,
+          "h": 32,
+          "text": "51%"
+        },
+        "confidence_chip": {
+          "x": 919.8,
+          "y": 280.3,
+          "w": 256.9,
+          "h": 28,
+          "text": "When it's this sure, it was right 5 of 9 times"
+        },
+        "chips": {
+          "x": 919.8,
+          "y": 274.3,
+          "w": 411.2,
+          "h": 70,
+          "text": "When it's this sure, it was right 5 of 9 times\nCan't rule out Batch 2\nFamiliar tile\nHeld-out balanced accuracy 66% · chance 33%"
+        },
+        "familiar": {
+          "x": 919.8,
+          "y": 316.3,
+          "w": 85.9,
+          "h": 28,
+          "text": "Familiar tile"
+        },
+        "look_here": {
+          "x": 276,
+          "y": 403.5,
+          "w": 1084,
+          "h": 586.3,
+          "text": "Look here first\nLargest silicon particles · hover to look closer\n1\nFor this call\nBSE texture local contrast at 0.05 µm\n\n5.4σ above Batch 3\n\n»\n+5.4σ\n2\nFor this call\nBSE texture local contrast at 0.2 µm\n\n6.4σ above Batch 3\n\n»\n+6.4σ\n3\nFor this call\nImage pattern 01\n\nWhich moves with graphite chord length: 6.8σ below Batch 3 (r = −0.89)"
+        },
+        "tile_image": {
+          "x": 276,
+          "y": 452.5,
+          "w": 1084,
+          "h": 359.7,
+          "text": "Largest silicon particles · hover to look closer"
+        },
+        "spot1": {
+          "x": 474.7,
+          "y": 500.1,
+          "w": 80.7,
+          "h": 80.7,
+          "text": "Silicon particle 1, 9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        },
+        "spot2": {
+          "x": 871.1,
+          "y": 469.4,
+          "w": 72,
+          "h": 72,
+          "text": "Silicon particle 2, 8.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        },
+        "spot3": {
+          "x": 923.6,
+          "y": 515.5,
+          "w": 69.4,
+          "h": 69.4,
+          "text": "Silicon particle 3, 8.0 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        },
+        "spot4": {
+          "x": 722.9,
+          "y": 504.6,
+          "w": 68.1,
+          "h": 68.1,
+          "text": "Silicon particle 4, 7.9 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        },
+        "spot5": {
+          "x": 441.6,
+          "y": 690.7,
+          "w": 66.7,
+          "h": 66.7,
+          "text": "Silicon particle 5, 7.7 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        },
+        "tabs": {
+          "x": 276,
+          "y": 105,
+          "w": 156,
+          "h": 64,
+          "text": "4ih2ggld\nr17byphk"
+        }
+      },
+      "targets": {
+        "spot1": {
+          "x": 515.1,
+          "y": 540.5
+        },
+        "spot2": {
+          "x": 907.1,
+          "y": 505.4
+        },
+        "spot3": {
+          "x": 958.3,
+          "y": 550.2
+        },
+        "spot4": {
+          "x": 756.9,
+          "y": 538.7
+        },
+        "spot5": {
+          "x": 475,
+          "y": 724.1
+        },
+        "tab1": {
+          "x": 312,
+          "y": 137
+        },
+        "tab2": {
+          "x": 396,
+          "y": 137
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "drop": "drop_demo",
+        "image_id": "4ih2ggld",
+        "closest": "Batch 1\n51%",
+        "confidence": "51%",
+        "familiar": "Familiar tile",
+        "chips": "When it's this sure, it was right 5 of 9 times\nCan't rule out Batch 2\nFamiliar tile\nHeld-out balanced accuracy 66% · chance 33%",
+        "non_get_requests": []
+      }
+    },
+    "identify_result@hover": {
+      "kind": "viewport",
+      "file": "screens/identify_result@hover.png",
+      "url": "#/identify/drop_demo/4ih2ggld",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 242,
+      "highlights": {
+        "tooltip": {
+          "x": 567.4,
+          "y": 410.5,
+          "w": 328,
+          "h": 298.5,
+          "text": "Silicon particle 1\n10 µm\n6.3×\n9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        },
+        "spot": {
+          "x": 474.7,
+          "y": 500.1,
+          "w": 80.7,
+          "h": 80.7,
+          "text": "Silicon particle 1, 9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        },
+        "tile_image": {
+          "x": 276,
+          "y": 452.5,
+          "w": 1084,
+          "h": 359.7,
+          "text": "Largest silicon particles · hover to look closer"
+        }
+      },
+      "targets": {
+        "spot": {
+          "x": 515.1,
+          "y": 540.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "spot": 1,
+        "spot_label": "Silicon particle 1, 9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm).",
+        "non_get_requests": []
+      }
+    },
+    "identify_result@pinned": {
+      "kind": "viewport",
+      "file": "screens/identify_result@pinned.png",
+      "url": "#/identify/drop_demo/4ih2ggld",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 242,
+      "highlights": {
+        "inspector": {
+          "x": 972,
+          "y": 322,
+          "w": 404,
+          "h": 491.5,
+          "text": "Silicon particle 1\nDrop demo · 4ih2ggld\n✕\n5 µm\n6.3×\nBSE\nETD\nInLens\nSilicon\nPore\n\n9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm).\n\n←\n1 / 6\n→\nOpen full tile"
+        },
+        "inspector_img": {
+          "x": 989,
+          "y": 389.5,
+          "w": 372,
+          "h": 250,
+          "text": "5 µm\n6.3×"
+        },
+        "switch_silicon": {
+          "x": 1200.1,
+          "y": 664.5,
+          "w": 79.8,
+          "h": 20,
+          "text": "Silicon"
+        },
+        "switch_pore": {
+          "x": 1291.9,
+          "y": 664.5,
+          "w": 67.1,
+          "h": 20,
+          "text": "Pore"
+        },
+        "spot": {
+          "x": 474.7,
+          "y": 500.1,
+          "w": 80.7,
+          "h": 80.7,
+          "text": "Silicon particle 1, 9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        }
+      },
+      "targets": {
+        "switch_silicon": {
+          "x": 1240,
+          "y": 674.5
+        },
+        "switch_pore": {
+          "x": 1325.5,
+          "y": 674.5
+        },
+        "spot": {
+          "x": 515.1,
+          "y": 540.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "spot": 1,
+        "spot_label": "Silicon particle 1, 9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm).",
+        "non_get_requests": []
+      }
+    },
+    "identify_result@silicon": {
+      "kind": "viewport",
+      "file": "screens/identify_result@silicon.png",
+      "url": "#/identify/drop_demo/4ih2ggld",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 242,
+      "highlights": {
+        "inspector": {
+          "x": 972,
+          "y": 322,
+          "w": 404,
+          "h": 491.5,
+          "text": "Silicon particle 1\nDrop demo · 4ih2ggld\n✕\n5 µm\n6.3×\nBSE\nETD\nInLens\nSilicon\nPore\n\n9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm).\n\n←\n1 / 6\n→\nOpen full tile"
+        },
+        "inspector_img": {
+          "x": 989,
+          "y": 389.5,
+          "w": 372,
+          "h": 250,
+          "text": "5 µm\n6.3×"
+        },
+        "switch_silicon": {
+          "x": 1200.1,
+          "y": 664.5,
+          "w": 79.8,
+          "h": 20,
+          "text": "Silicon"
+        },
+        "switch_pore": {
+          "x": 1291.9,
+          "y": 664.5,
+          "w": 67.1,
+          "h": 20,
+          "text": "Pore"
+        },
+        "spot": {
+          "x": 474.7,
+          "y": 500.1,
+          "w": 80.7,
+          "h": 80.7,
+          "text": "Silicon particle 1, 9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        }
+      },
+      "targets": {
+        "switch_silicon": {
+          "x": 1240,
+          "y": 674.5
+        },
+        "switch_pore": {
+          "x": 1325.5,
+          "y": 674.5
+        },
+        "spot": {
+          "x": 515.1,
+          "y": 540.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "spot": 1,
+        "spot_label": "Silicon particle 1, 9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm).",
+        "switch_silicon": "true",
+        "non_get_requests": []
+      }
+    },
+    "identify_result@pore": {
+      "kind": "viewport",
+      "file": "screens/identify_result@pore.png",
+      "url": "#/identify/drop_demo/4ih2ggld",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 242,
+      "highlights": {
+        "inspector": {
+          "x": 972,
+          "y": 322,
+          "w": 404,
+          "h": 491.5,
+          "text": "Silicon particle 1\nDrop demo · 4ih2ggld\n✕\n5 µm\n6.3×\nBSE\nETD\nInLens\nSilicon\nPore\n\n9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm).\n\n←\n1 / 6\n→\nOpen full tile"
+        },
+        "inspector_img": {
+          "x": 989,
+          "y": 389.5,
+          "w": 372,
+          "h": 250,
+          "text": "5 µm\n6.3×"
+        },
+        "switch_silicon": {
+          "x": 1200.1,
+          "y": 664.5,
+          "w": 79.8,
+          "h": 20,
+          "text": "Silicon"
+        },
+        "switch_pore": {
+          "x": 1291.9,
+          "y": 664.5,
+          "w": 67.1,
+          "h": 20,
+          "text": "Pore"
+        },
+        "spot": {
+          "x": 474.7,
+          "y": 500.1,
+          "w": 80.7,
+          "h": 80.7,
+          "text": "Silicon particle 1, 9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm)."
+        }
+      },
+      "targets": {
+        "switch_silicon": {
+          "x": 1240,
+          "y": 674.5
+        },
+        "switch_pore": {
+          "x": 1325.5,
+          "y": 674.5
+        },
+        "spot": {
+          "x": 515.1,
+          "y": 540.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "spot": 1,
+        "spot_label": "Silicon particle 1, 9.3 µm across · type T2 (mid, grey: 1.7× graphite brightness, D50 2.2 µm).",
+        "switch_silicon": "true",
+        "switch_pore": "true",
+        "non_get_requests": []
+      }
+    },
+    "compare@peek": {
+      "kind": "viewport",
+      "file": "screens/compare@peek.png",
+      "url": "#/compare/Batch_1",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 403,
+      "highlights": {
+        "tooltip": {
+          "x": 638.7,
+          "y": 643.5,
+          "w": 488,
+          "h": 251.5,
+          "text": "Tile 4ih2ggld\n20 µm\nOutside the baseline range on Silicon-to-graphite ratio and Internal void fraction of silicon."
+        },
+        "spot": {
+          "x": 301,
+          "y": 701.9,
+          "w": 325.7,
+          "h": 183.2,
+          "text": "Tile 4ih2ggld: peek, click to pin"
+        },
+        "tiles": {
+          "x": 276,
+          "y": 613.4,
+          "w": 1084,
+          "h": 417.2,
+          "text": "The two tiles behind it\nOutside the baseline range on 2 properties. Click one to look closer.\n4ih2ggld\nSilicon-to-graphite ratio\n0.164\nInternal void fraction of silicon\n1.36%\n5n1q8atc\nSilicon-to-graphite ratio\n0.198\nInternal void fraction of silicon\n1.12%\nBaseline range: Silicon-to-graphite ratio 0.033 – 0.117 · Internal void fraction of silicon 0% – 0.700%\nSILICON-TO-GRAPHITE RATIO\nBatch 1, all 7"
+        }
+      },
+      "targets": {
+        "spot": {
+          "x": 463.9,
+          "y": 793.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "tile": "Tile 4ih2ggld",
+        "note": "Substitute for identify_result@hover: whole-tile peek of 4ih2ggld from 'The tiles behind it'",
+        "non_get_requests": []
+      }
+    },
+    "compare@pinned": {
+      "kind": "viewport",
+      "file": "screens/compare@pinned.png",
+      "url": "#/compare/Batch_1",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 403,
+      "highlights": {
+        "inspector": {
+          "x": 972,
+          "y": 483,
+          "w": 404,
+          "h": 364.5,
+          "text": "Tile 4ih2ggld\nBatch 1\n✕\n20 µm\nBSE\nETD\nInLens\nSilicon\nPore\n\nOutside the baseline range on Silicon-to-graphite ratio and Internal void fraction of silicon.\n\n←\n1 / 2\n→\nOpen full tile"
+        },
+        "inspector_img": {
+          "x": 989,
+          "y": 550.5,
+          "w": 372,
+          "h": 123,
+          "text": "20 µm"
+        },
+        "switch_silicon": {
+          "x": 1200.1,
+          "y": 698.5,
+          "w": 79.8,
+          "h": 20,
+          "text": "Silicon"
+        },
+        "switch_pore": {
+          "x": 1291.9,
+          "y": 698.5,
+          "w": 67.1,
+          "h": 20,
+          "text": "Pore"
+        },
+        "spot": {
+          "x": 301,
+          "y": 701.9,
+          "w": 325.7,
+          "h": 183.2,
+          "text": "Tile 4ih2ggld: peek, click to pin"
+        }
+      },
+      "targets": {
+        "switch_silicon": {
+          "x": 1240,
+          "y": 708.5
+        },
+        "switch_pore": {
+          "x": 1325.5,
+          "y": 708.5
+        },
+        "spot": {
+          "x": 463.9,
+          "y": 793.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "tile": "Tile 4ih2ggld",
+        "non_get_requests": []
+      }
+    },
+    "compare@pinned_silicon": {
+      "kind": "viewport",
+      "file": "screens/compare@pinned_silicon.png",
+      "url": "#/compare/Batch_1",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 403,
+      "highlights": {
+        "inspector": {
+          "x": 972,
+          "y": 483,
+          "w": 404,
+          "h": 364.5,
+          "text": "Tile 4ih2ggld\nBatch 1\n✕\n20 µm\nBSE\nETD\nInLens\nSilicon\nPore\n\nOutside the baseline range on Silicon-to-graphite ratio and Internal void fraction of silicon.\n\n←\n1 / 2\n→\nOpen full tile"
+        },
+        "inspector_img": {
+          "x": 989,
+          "y": 550.5,
+          "w": 372,
+          "h": 123,
+          "text": "20 µm"
+        },
+        "switch_silicon": {
+          "x": 1200.1,
+          "y": 698.5,
+          "w": 79.8,
+          "h": 20,
+          "text": "Silicon"
+        },
+        "switch_pore": {
+          "x": 1291.9,
+          "y": 698.5,
+          "w": 67.1,
+          "h": 20,
+          "text": "Pore"
+        },
+        "spot": {
+          "x": 301,
+          "y": 701.9,
+          "w": 325.7,
+          "h": 183.2,
+          "text": "Tile 4ih2ggld: peek, click to pin"
+        }
+      },
+      "targets": {
+        "switch_silicon": {
+          "x": 1240,
+          "y": 708.5
+        },
+        "switch_pore": {
+          "x": 1325.5,
+          "y": 708.5
+        },
+        "spot": {
+          "x": 463.9,
+          "y": 793.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "tile": "Tile 4ih2ggld",
+        "switch_silicon": "true",
+        "non_get_requests": []
+      }
+    },
+    "compare@pinned_pore": {
+      "kind": "viewport",
+      "file": "screens/compare@pinned_pore.png",
+      "url": "#/compare/Batch_1",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 403,
+      "highlights": {
+        "inspector": {
+          "x": 972,
+          "y": 483,
+          "w": 404,
+          "h": 364.5,
+          "text": "Tile 4ih2ggld\nBatch 1\n✕\n20 µm\nBSE\nETD\nInLens\nSilicon\nPore\n\nOutside the baseline range on Silicon-to-graphite ratio and Internal void fraction of silicon.\n\n←\n1 / 2\n→\nOpen full tile"
+        },
+        "inspector_img": {
+          "x": 989,
+          "y": 550.5,
+          "w": 372,
+          "h": 123,
+          "text": "20 µm"
+        },
+        "switch_silicon": {
+          "x": 1200.1,
+          "y": 698.5,
+          "w": 79.8,
+          "h": 20,
+          "text": "Silicon"
+        },
+        "switch_pore": {
+          "x": 1291.9,
+          "y": 698.5,
+          "w": 67.1,
+          "h": 20,
+          "text": "Pore"
+        },
+        "spot": {
+          "x": 301,
+          "y": 701.9,
+          "w": 325.7,
+          "h": 183.2,
+          "text": "Tile 4ih2ggld: peek, click to pin"
+        }
+      },
+      "targets": {
+        "switch_silicon": {
+          "x": 1240,
+          "y": 708.5
+        },
+        "switch_pore": {
+          "x": 1325.5,
+          "y": 708.5
+        },
+        "spot": {
+          "x": 463.9,
+          "y": 793.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "tile": "Tile 4ih2ggld",
+        "switch_silicon": "true",
+        "switch_pore": "true",
+        "non_get_requests": []
+      }
+    },
+    "library@off": {
+      "kind": "page",
+      "file": "screens/library@off.png",
+      "url": "#/library/Batch_1/4ih2ggld",
+      "w": 1400,
+      "vp": "screens/library@off.vp.png",
+      "h": 1163,
+      "scrollY": 0,
+      "highlights": {
+        "micrograph": {
+          "x": 276,
+          "y": 169,
+          "w": 809,
+          "h": 269.7,
+          "text": "Micrograph"
+        },
+        "switch_silicon": {
+          "x": 1122,
+          "y": 224.5,
+          "w": 217,
+          "h": 40,
+          "text": "Silicon"
+        },
+        "switch_pore": {
+          "x": 1122,
+          "y": 270.5,
+          "w": 217,
+          "h": 40,
+          "text": "Pore"
+        },
+        "switch_binder": {
+          "x": 1122,
+          "y": 316.5,
+          "w": 217,
+          "h": 40,
+          "text": "Binder"
+        },
+        "switches": {
+          "x": 1101,
+          "y": 169,
+          "w": 259,
+          "h": 208.5,
+          "text": "Layers\nSilicon\nPore\nBinder"
+        }
+      },
+      "targets": {
+        "switch_silicon": {
+          "x": 1230.5,
+          "y": 244.5
+        },
+        "switch_pore": {
+          "x": 1230.5,
+          "y": 290.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "batch": "Batch_1",
+        "image_id": "4ih2ggld",
+        "non_get_requests": []
+      }
+    },
+    "library@silicon": {
+      "kind": "page",
+      "file": "screens/library@silicon.png",
+      "url": "#/library/Batch_1/4ih2ggld",
+      "w": 1400,
+      "vp": "screens/library@silicon.vp.png",
+      "h": 1163,
+      "scrollY": 0,
+      "highlights": {
+        "micrograph": {
+          "x": 276,
+          "y": 169,
+          "w": 809,
+          "h": 269.7,
+          "text": "Micrograph"
+        },
+        "switch_silicon": {
+          "x": 1122,
+          "y": 224.5,
+          "w": 217,
+          "h": 40,
+          "text": "Silicon"
+        },
+        "switch_pore": {
+          "x": 1122,
+          "y": 270.5,
+          "w": 217,
+          "h": 40,
+          "text": "Pore"
+        },
+        "switch_binder": {
+          "x": 1122,
+          "y": 316.5,
+          "w": 217,
+          "h": 40,
+          "text": "Binder"
+        },
+        "switches": {
+          "x": 1101,
+          "y": 169,
+          "w": 259,
+          "h": 208.5,
+          "text": "Layers\nSilicon\nPore\nBinder"
+        }
+      },
+      "targets": {
+        "switch_silicon": {
+          "x": 1230.5,
+          "y": 244.5
+        },
+        "switch_pore": {
+          "x": 1230.5,
+          "y": 290.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "batch": "Batch_1",
+        "image_id": "4ih2ggld",
+        "non_get_requests": []
+      }
+    },
+    "library@pore": {
+      "kind": "page",
+      "file": "screens/library@pore.png",
+      "url": "#/library/Batch_1/4ih2ggld",
+      "w": 1400,
+      "vp": "screens/library@pore.vp.png",
+      "h": 1163,
+      "scrollY": 0,
+      "highlights": {
+        "micrograph": {
+          "x": 276,
+          "y": 169,
+          "w": 809,
+          "h": 269.7,
+          "text": "Micrograph"
+        },
+        "switch_silicon": {
+          "x": 1122,
+          "y": 224.5,
+          "w": 217,
+          "h": 40,
+          "text": "Silicon"
+        },
+        "switch_pore": {
+          "x": 1122,
+          "y": 270.5,
+          "w": 217,
+          "h": 40,
+          "text": "Pore"
+        },
+        "switch_binder": {
+          "x": 1122,
+          "y": 316.5,
+          "w": 217,
+          "h": 40,
+          "text": "Binder"
+        },
+        "switches": {
+          "x": 1101,
+          "y": 169,
+          "w": 259,
+          "h": 208.5,
+          "text": "Layers\nSilicon\nPore\nBinder"
+        }
+      },
+      "targets": {
+        "switch_silicon": {
+          "x": 1230.5,
+          "y": 244.5
+        },
+        "switch_pore": {
+          "x": 1230.5,
+          "y": 290.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "batch": "Batch_1",
+        "image_id": "4ih2ggld",
+        "non_get_requests": []
+      }
+    },
+    "audit": {
+      "kind": "page",
+      "file": "screens/audit.png",
+      "url": "#/audit",
+      "w": 1400,
+      "vp": "screens/audit.vp.png",
+      "h": 1398,
+      "scrollY": 0,
+      "highlights": {
+        "log": {
+          "x": 276,
+          "y": 354.6,
+          "w": 625.7,
+          "h": 313.5,
+          "text": "Decision log\n4 entries\n#0004\nBatch 1 vs Batch 3\n2026-10-04 09:54 UTC · b53af46 · 72 files\nINVESTIGATE\n#0003\nBatch 1 vs Batch 2\none-off\n2026-10-04 00:06 UTC · cbdd6f8 · 42 files\nINVESTIGATE\n#0002\nBatch 3 against itself\n2026-10-04 00:04 UTC · cbdd6f8 · 51 files\nINVESTIGATE\n#0001\nBatch 2 vs Batch 3\n2026-10-04 00:04 UTC · cbdd6f8 · 72 files\nINVESTIGATE"
+        },
+        "row": {
+          "x": 277,
+          "y": 411.1,
+          "w": 623.7,
+          "h": 64,
+          "text": "#0004\nBatch 1 vs Batch 3\n2026-10-04 09:54 UTC · b53af46 · 72 files\nINVESTIGATE"
+        },
+        "passport": {
+          "x": 917.7,
+          "y": 354.6,
+          "w": 442.3,
+          "h": 769.5,
+          "text": "BATCH PASSPORT\n#0004\nBatch 1\nBaseline Batch 3 · 7 vs 17 tiles\nINVESTIGATE\nDrivers\nSilicon-to-graphite ratio · Internal void fraction of silicon · Share of T2 particles · Median silicon particle size\nSummary\nBatch 1 has a higher silicon-to-graphite ratio and internal void fraction of silicon than the baseline, but neither is settled.\nRules fired\nImaging differs from the baseline\n2 of 7 tiles outsid"
+        },
+        "hash_row": {
+          "x": 1065.7,
+          "y": 913.1,
+          "w": 270.3,
+          "h": 16,
+          "text": "a7fa8987 Batch_1/img_4ih2ggld_BSE.tif"
+        },
+        "hashes": {
+          "x": 1065.7,
+          "y": 913.1,
+          "w": 270.3,
+          "h": 127,
+          "text": "a7fa8987 Batch_1/img_4ih2ggld_BSE.tif\n297533fc Batch_1/img_4ih2ggld_ETD.tif\nbcb9b0d7 Batch_1/img_4ih2ggld_Inlens.tif\n4b040a76 Batch_1/img_5n1q8atc_BSE.tif\n3ea3c666 Batch_1/img_5n1q8atc_ETD.tif\n+ 67 more files"
+        },
+        "verify_btn": {
+          "x": 1185.9,
+          "y": 259.6,
+          "w": 149.1,
+          "h": 44,
+          "text": "Verify everything"
+        },
+        "verify_all": {
+          "x": 1185.9,
+          "y": 259.6,
+          "w": 149.1,
+          "h": 44,
+          "text": "Verify everything"
+        },
+        "lawsuit": {
+          "x": 917.7,
+          "y": 1140.1,
+          "w": 442.3,
+          "h": 193.5,
+          "text": "Supplier shipped something other than the batch they promised? Turn this record into a claims pack for your lawyers.\n\nGENERATE LAWSUIT\nParody. Made-up parties; nothing is generated or filed."
+        },
+        "lawsuit_btn": {
+          "x": 938.7,
+          "y": 1214.1,
+          "w": 400.3,
+          "h": 68,
+          "text": "GENERATE LAWSUIT"
+        }
+      },
+      "targets": {
+        "row": {
+          "x": 588.9,
+          "y": 443.1
+        },
+        "verify_btn": {
+          "x": 1260.5,
+          "y": 281.6
+        },
+        "lawsuit_btn": {
+          "x": 1138.9,
+          "y": 1248.1
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "audit_row_selected": "#0004 Batch 1 vs Batch 3 2026-10-04 09:54 UTC · b53af46 · 72 files INVESTIGATE",
+        "row": "#0004\nBatch 1 vs Batch 3\n2026-10-04 09:54 UTC · b53af46 · 72 files\nINVESTIGATE",
+        "hash_row": "a7fa8987 Batch_1/img_4ih2ggld_BSE.tif",
+        "non_get_requests": []
+      }
+    },
+    "audit@verified": {
+      "kind": "page",
+      "file": "screens/audit@verified.png",
+      "url": "#/audit",
+      "w": 1400,
+      "vp": "screens/audit@verified.vp.png",
+      "h": 1433,
+      "scrollY": 0,
+      "highlights": {
+        "log": {
+          "x": 276,
+          "y": 354.6,
+          "w": 625.7,
+          "h": 313.5,
+          "text": "Decision log\n4 entries\n#0004\nBatch 1 vs Batch 3\n2026-10-04 09:54 UTC · b53af46 · 72 files\n✓\nINVESTIGATE\n#0003\nBatch 1 vs Batch 2\none-off\n2026-10-04 00:06 UTC · cbdd6f8 · 42 files\n✓\nINVESTIGATE\n#0002\nBatch 3 against itself\n2026-10-04 00:04 UTC · cbdd6f8 · 51 files\n✓\nINVESTIGATE\n#0001\nBatch 2 vs Batch 3\n2026-10-04 00:04 UTC · cbdd6f8 · 72 files\n✓\nINVESTIGATE"
+        },
+        "row": {
+          "x": 277,
+          "y": 411.1,
+          "w": 623.7,
+          "h": 64,
+          "text": "#0004\nBatch 1 vs Batch 3\n2026-10-04 09:54 UTC · b53af46 · 72 files\n✓\nINVESTIGATE"
+        },
+        "passport": {
+          "x": 917.7,
+          "y": 354.6,
+          "w": 442.3,
+          "h": 804.5,
+          "text": "BATCH PASSPORT\n#0004\nBatch 1\nBaseline Batch 3 · 7 vs 17 tiles\nINVESTIGATE\nDrivers\nSilicon-to-graphite ratio · Internal void fraction of silicon · Share of T2 particles · Median silicon particle size\nSummary\nBatch 1 has a higher silicon-to-graphite ratio and internal void fraction of silicon than the baseline, but neither is settled.\nRules fired\nImaging differs from the baseline\n2 of 7 tiles outsid"
+        },
+        "hash_row": {
+          "x": 1065.7,
+          "y": 913.1,
+          "w": 270.3,
+          "h": 16,
+          "text": "a7fa8987 Batch_1/img_4ih2ggld_BSE.tif"
+        },
+        "hashes": {
+          "x": 1065.7,
+          "y": 913.1,
+          "w": 270.3,
+          "h": 162,
+          "text": "a7fa8987 Batch_1/img_4ih2ggld_BSE.tif\n297533fc Batch_1/img_4ih2ggld_ETD.tif\nbcb9b0d7 Batch_1/img_4ih2ggld_Inlens.tif\n4b040a76 Batch_1/img_5n1q8atc_BSE.tif\n3ea3c666 Batch_1/img_5n1q8atc_ETD.tif\n+ 67 more files\n✓ re-hashed: inputs and config unchanged"
+        },
+        "verify_btn": {
+          "x": 1219.5,
+          "y": 259.6,
+          "w": 115.5,
+          "h": 44,
+          "text": "Verify again"
+        },
+        "verify_all": {
+          "x": 1219.5,
+          "y": 259.6,
+          "w": 115.5,
+          "h": 44,
+          "text": "Verify again"
+        },
+        "lawsuit": {
+          "x": 917.7,
+          "y": 1175.1,
+          "w": 442.3,
+          "h": 193.5,
+          "text": "Supplier shipped something other than the batch they promised? Turn this record into a claims pack for your lawyers.\n\nGENERATE LAWSUIT\nParody. Made-up parties; nothing is generated or filed."
+        },
+        "lawsuit_btn": {
+          "x": 938.7,
+          "y": 1249.1,
+          "w": 400.3,
+          "h": 68,
+          "text": "GENERATE LAWSUIT"
+        },
+        "verify_passport": {
+          "x": 1065.7,
+          "y": 1043.1,
+          "w": 270.3,
+          "h": 32,
+          "text": "✓ re-hashed: inputs and config unchanged"
+        },
+        "verify_result": {
+          "x": 842.6,
+          "y": 259.6,
+          "w": 352.9,
+          "h": 44,
+          "text": "All 4 decisions unchanged · 93 files re-hashed"
+        },
+        "tick1": {
+          "x": 591.7,
+          "y": 446.6,
+          "w": 10.4,
+          "h": 16,
+          "text": "✓"
+        },
+        "tick2": {
+          "x": 594.2,
+          "y": 510.6,
+          "w": 10.4,
+          "h": 16,
+          "text": "✓"
+        },
+        "tick3": {
+          "x": 591.5,
+          "y": 574.6,
+          "w": 10.4,
+          "h": 16,
+          "text": "✓"
+        },
+        "tick4": {
+          "x": 593,
+          "y": 639.1,
+          "w": 10.4,
+          "h": 16,
+          "text": "✓"
+        }
+      },
+      "targets": {
+        "row": {
+          "x": 588.9,
+          "y": 443.1
+        },
+        "verify_btn": {
+          "x": 1277.3,
+          "y": 281.6
+        },
+        "lawsuit_btn": {
+          "x": 1138.9,
+          "y": 1283.1
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "audit_row_selected": "#0004 Batch 1 vs Batch 3 2026-10-04 09:54 UTC · b53af46 · 72 files INVESTIGATE",
+        "verify_ms": 2900,
+        "verify_banner": "All 4 decisions unchanged · 93 files re-hashed",
+        "verify_passport": "✓ re-hashed: inputs and config unchanged",
+        "tick1": "✓",
+        "tick2": "✓",
+        "tick3": "✓",
+        "tick4": "✓",
+        "hash_row": "a7fa8987 Batch_1/img_4ih2ggld_BSE.tif",
+        "non_get_requests": [
+          "POST /api/verify/Batch_1?baseline=Batch_3",
+          "POST /api/verify/Batch_1?baseline=Batch_2",
+          "POST /api/verify/Batch_3?baseline=Batch_3",
+          "POST /api/verify/Batch_2?baseline=Batch_3"
+        ]
+      }
+    },
+    "audit@lawsuit_done": {
+      "kind": "viewport",
+      "file": "screens/audit@lawsuit_done.png",
+      "url": "#/audit",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 961,
+      "highlights": {
+        "lawsuit": {
+          "x": 917.7,
+          "y": 1175.1,
+          "w": 442.3,
+          "h": 541.5,
+          "text": "Supplier shipped something other than the batch they promised? Turn this record into a claims pack for your lawyers.\n\nGENERATE ANOTHER\nExhibit A: batch passport #0004, stamped INVESTIGATE\nExhibit B: 72 image hashes, SHA-256, notarised\nExhibit C: rules frozen 2026-10-03 21:10 UTC\nExhibit D: 7 vs 17 micrographs\nClaim: Batch 1 is not what Batch 3 promised (silicon-to-graphite ratio, internal void fra"
+        },
+        "counsel": {
+          "x": 938.7,
+          "y": 1531.1,
+          "w": 400.3,
+          "h": 134,
+          "text": "IN THE MATTER OF\nFictional Cells Ltd v. Fictional Silicon Co.\nExhibits A–D attached · re: Batch 1 vs Batch 3\nREADY FOR COUNSEL*"
+        },
+        "disclaimer": {
+          "x": 938.7,
+          "y": 1679.1,
+          "w": 400.3,
+          "h": 16.5,
+          "text": "* Not really. Parody. Made-up parties; nothing is generated or filed."
+        },
+        "steps": {
+          "x": 938.7,
+          "y": 1331.1,
+          "w": 400.3,
+          "h": 186,
+          "text": "Exhibit A: batch passport #0004, stamped INVESTIGATE\nExhibit B: 72 image hashes, SHA-256, notarised\nExhibit C: rules frozen 2026-10-03 21:10 UTC\nExhibit D: 7 vs 17 micrographs\nClaim: Batch 1 is not what Batch 3 promised (silicon-to-graphite ratio, internal void fraction of silicon, share of T2 particles, median silicon particle size)\nCouriering to Fictional & Partners LLP"
+        },
+        "verify_passport": {
+          "x": 1065.7,
+          "y": 1043.1,
+          "w": 270.3,
+          "h": 32,
+          "text": "✓ re-hashed: inputs and config unchanged"
+        },
+        "verify_result": {
+          "x": 842.6,
+          "y": 259.6,
+          "w": 352.9,
+          "h": 44,
+          "text": "All 4 decisions unchanged · 93 files re-hashed"
+        }
+      },
+      "targets": {},
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "audit_row_selected": "#0004 Batch 1 vs Batch 3 2026-10-04 09:54 UTC · b53af46 · 72 files INVESTIGATE",
+        "verify_ms": 3383,
+        "lawsuit_non_get": 0,
+        "counsel": "IN THE MATTER OF\nFictional Cells Ltd v. Fictional Silicon Co.\nExhibits A–D attached · re: Batch 1 vs Batch 3\nREADY FOR COUNSEL*",
+        "disclaimer": "* Not really. Parody. Made-up parties; nothing is generated or filed.",
+        "steps": "Exhibit A: batch passport #0004, stamped INVESTIGATE\nExhibit B: 72 image hashes, SHA-256, notarised\nExhibit C: rules frozen 2026-10-03 21:10 UTC\nExhibit D: 7 vs 17 micrographs\nClaim: Batch 1 is not what Batch 3 promised (silicon-to-graphite ratio, internal void fraction of silicon, share of T2 particles, median silicon particle size)\nCouriering to Fictional & Partners LLP",
+        "verify_banner": "All 4 decisions unchanged · 93 files re-hashed",
+        "verify_passport": "✓ re-hashed: inputs and config unchanged",
+        "non_get_requests": [
+          "POST /api/verify/Batch_1?baseline=Batch_3",
+          "POST /api/verify/Batch_1?baseline=Batch_2",
+          "POST /api/verify/Batch_3?baseline=Batch_3",
+          "POST /api/verify/Batch_2?baseline=Batch_3"
+        ]
+      }
+    },
+    "impact": {
+      "kind": "page",
+      "file": "screens/impact.png",
+      "url": "#/impact/Batch_1/Batch_3",
+      "w": 1400,
+      "vp": "screens/impact.vp.png",
+      "h": 3948,
+      "scrollY": 0,
+      "highlights": {
+        "cards": {
+          "x": 276,
+          "y": 671.9,
+          "w": 1084,
+          "h": 2358.9,
+          "text": "Capacity\nSpecific capacity of the active material (silicon + graphite)\nNot settled\n+9%\n−3% to +29% vs Batch 3\n−50%\n0\n+50%\n← worse\nbetter →\nBatch 3\n525 mAh/g (440 mAh/g to 624 mAh/g)\nBatch 1\n576 mAh/g (442 mAh/g to 772 mAh/g)\n\nMore capacity per gram of anode. Usually paid for in swelling and cycle life.\n\nSilicon stores almost ten times the lithium of graphite per gram, so a little more silicon move"
+        },
+        "card_capacity": {
+          "x": 276,
+          "y": 671.9,
+          "w": 532,
+          "h": 763,
+          "text": "Capacity\nSpecific capacity of the active material (silicon + graphite)\nNot settled\n+9%\n−3% to +29% vs Batch 3\n−50%\n0\n+50%\n← worse\nbetter →\nBatch 3\n525 mAh/g (440 mAh/g to 624 mAh/g)\nBatch 1\n576 mAh/g (442 mAh/g to 772 mAh/g)\n\nMore capacity per gram of anode. Usually paid for in swelling and cycle life.\n\nSilicon stores almost ten times the lithium of graphite per gram, so a little more silicon move"
+        },
+        "card_charge": {
+          "x": 276,
+          "y": 1454.9,
+          "w": 532,
+          "h": 876.7,
+          "text": "Fast charging\nEffective ion transport through the pores, relative to free electrolyte\nWorse in these images\n−33%\n−58% to −9% vs Batch 3\n−100%\n0\n+100%\n← worse\nbetter →\n\nIons move less freely; at fast charge the separator side fills first and lithium plating becomes more likely.\n\nIons must travel through the pores. Fewer pores mean a narrower, more winding path (Bruggeman).\n\nSAFETY · WORST CASE IF I"
+        },
+        "worst": {
+          "x": 301,
+          "y": 1829.3,
+          "w": 482,
+          "h": 417.3,
+          "text": "SAFETY · WORST CASE IF IGNORED\nLithium plating at fast charge, and in the worst case an internal short\n1\nIons move more slowly through the anode pores\n2\nAt fast charge or in the cold the anode surface saturates first\n3\nLithium plates as metal instead of entering the graphite and silicon\n4\nPlated lithium grows dendrites and reacts with the electrolyte, giving off heat and gas\n5\nA dendrite through t"
+        },
+        "rules_out": {
+          "x": 316,
+          "y": 2162.6,
+          "w": 452,
+          "h": 42.3,
+          "text": "What rules it out: Charge-rate limits from plating tests on this lot; Temperature-dependent charging in the battery management system."
+        },
+        "step1": {
+          "x": 316,
+          "y": 1918.8,
+          "w": 452,
+          "h": 28,
+          "text": "1\nIons move more slowly through the anode pores"
+        },
+        "step2": {
+          "x": 316,
+          "y": 1946.8,
+          "w": 452,
+          "h": 28,
+          "text": "2\nAt fast charge or in the cold the anode surface saturates first"
+        },
+        "step3": {
+          "x": 316,
+          "y": 1974.8,
+          "w": 452,
+          "h": 28,
+          "text": "3\nLithium plates as metal instead of entering the graphite and silicon"
+        },
+        "step4": {
+          "x": 316,
+          "y": 2002.8,
+          "w": 452,
+          "h": 43.8,
+          "text": "4\nPlated lithium grows dendrites and reacts with the electrolyte, giving off heat and gas"
+        },
+        "step5": {
+          "x": 316,
+          "y": 2046.5,
+          "w": 452,
+          "h": 28,
+          "text": "5\nA dendrite through the separator shorts the cell"
+        },
+        "step6": {
+          "x": 316,
+          "y": 2074.5,
+          "w": 452,
+          "h": 25.9,
+          "text": "6\nThermal runaway – venting, fire – in the worst case"
+        }
+      },
+      "targets": {},
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "worst": "SAFETY · WORST CASE IF IGNORED\nLithium plating at fast charge, and in the worst case an internal short\n1\nIons move more slowly through the anode pores\n2\nAt fast charge or in the cold the anode surface saturates first\n3\nLithium plates as metal instead of entering the graphite and silicon\n4\nPlated lithium grows dendrites and reacts with the electrolyte, giving off heat and gas\n5\nA dendrite through t",
+        "rules_out": "What rules it out: Charge-rate limits from plating tests on this lot; Temperature-dependent charging in the battery management system.",
+        "non_get_requests": []
+      }
+    },
+    "anode": {
+      "kind": "viewport",
+      "file": "screens/anode.png",
+      "url": "?soc=0&c=1&cycles=0#/anode",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 0,
+      "highlights": {
+        "block": {
+          "x": 236,
+          "y": 65,
+          "w": 804,
+          "h": 716,
+          "text": ""
+        },
+        "charge_btn": {
+          "x": 1061,
+          "y": 170,
+          "w": 224.9,
+          "h": 36,
+          "text": "Charge at 1.0C"
+        },
+        "soc": {
+          "x": 1061,
+          "y": 220,
+          "w": 302,
+          "h": 43.5,
+          "text": "State of charge\n0%"
+        },
+        "rate": {
+          "x": 1061,
+          "y": 277.5,
+          "w": 302,
+          "h": 43.5,
+          "text": "Charge rate\n1.0C · 60 min"
+        },
+        "ageing": {
+          "x": 1061,
+          "y": 335,
+          "w": 302,
+          "h": 43.5,
+          "text": "Ageing\n0 cycles"
+        },
+        "readouts": {
+          "x": 1061,
+          "y": 470.5,
+          "w": 302,
+          "h": 117.5,
+          "text": "Batch 3\nBatch 1\nThickness\t50.0 µm\t50.0 µm\nPlating margin\t+885 mV\t+885 mV\nCapacity left\t100%\t100%"
+        },
+        "measurements_fold": {
+          "x": 1041,
+          "y": 958,
+          "w": 342,
+          "h": 56,
+          "text": "All measurements"
+        },
+        "takeaway": {
+          "x": 252,
+          "y": 81,
+          "w": 772,
+          "h": 61.8,
+          "text": "Si share of capacity\n41%\n43%\nswell at full charge\n8.5%\n9.4%\nplating above\n3.0C\n2.3C\nall within image-to-image spread"
+        }
+      },
+      "targets": {
+        "charge_btn": {
+          "x": 1173.5,
+          "y": 188
+        },
+        "measurements_fold": {
+          "x": 1212,
+          "y": 986
+        },
+        "soc": {
+          "x": 1212,
+          "y": 253.5
+        },
+        "rate": {
+          "x": 1212,
+          "y": 311
+        },
+        "ageing": {
+          "x": 1212,
+          "y": 368.5
+        },
+        "soc_thumb": {
+          "x": 1069,
+          "y": 253.5
+        },
+        "rate_thumb": {
+          "x": 1183.4,
+          "y": 311
+        },
+        "ageing_thumb": {
+          "x": 1069,
+          "y": 368.5
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "readouts": "Batch 3\nBatch 1\nThickness\t50.0 µm\t50.0 µm\nPlating margin\t+885 mV\t+885 mV\nCapacity left\t100%\t100%",
+        "non_get_requests": []
+      }
+    },
+    "anode@fast": {
+      "kind": "viewport",
+      "file": "screens/anode@fast.png",
+      "url": "?soc=0&c=8&cycles=0#/anode",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 0,
+      "highlights": {
+        "block": {
+          "x": 236,
+          "y": 65,
+          "w": 804,
+          "h": 716,
+          "text": ""
+        },
+        "plating": {
+          "x": 1061,
+          "y": 526.5,
+          "w": 302,
+          "h": 33,
+          "text": "Plating margin\nplating\nplating"
+        },
+        "soc": {
+          "x": 1061,
+          "y": 220,
+          "w": 302,
+          "h": 43.5,
+          "text": "State of charge\n60%"
+        },
+        "rate": {
+          "x": 1061,
+          "y": 277.5,
+          "w": 302,
+          "h": 43.5,
+          "text": "Charge rate\n8.0C · 8 min"
+        },
+        "readouts": {
+          "x": 1061,
+          "y": 470.5,
+          "w": 302,
+          "h": 119.5,
+          "text": "Batch 3\nBatch 1\nThickness\t52.9 µm\t53.3 µm\nPlating margin\nplating\nplating\nCapacity left\t100%\t100%"
+        },
+        "charge_btn": {
+          "x": 1061,
+          "y": 170,
+          "w": 224.9,
+          "h": 36,
+          "text": "Charge at 8.0C"
+        }
+      },
+      "targets": {
+        "rate": {
+          "x": 1212,
+          "y": 311
+        },
+        "rate_thumb": {
+          "x": 1355,
+          "y": 311
+        },
+        "soc_thumb": {
+          "x": 1240.6,
+          "y": 253.5
+        },
+        "charge_btn": {
+          "x": 1173.5,
+          "y": 188
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "camera": {
+          "az": -0.614278,
+          "pol": 1.572427,
+          "pos": [
+            -158.220406,
+            25.552315,
+            224.32887
+          ],
+          "target": [
+            0,
+            26,
+            0
+          ]
+        },
+        "camera_note": "anode_rotate's drag replayed, then 150 frames of settling (az -35.196°)",
+        "plating_scan": "18%:-P 20%:PP 22%:PP 24%:PP 26%:PP 28%:PP 30%:PP 32%:PP 34%:PP 36%:PP 38%:PP 40%:PP 42%:PP 44%:PP 46%:PP 48%:PP 50%:PP 52%:PP 54%:PP 56%:PP 58%:PP 60%:PP 62%:PP 64%:PP 66%:PP 68%:PP 70%:PP 72%:PP 74%:PP 76%:PP 78%:PP 80%:PP 82%:PP 84%:PP 86%:PP 88%:PP 90%:PP 92%:PP 94%:PP 96%:PP 98%:PP",
+        "soc_used": 0.6,
+        "plating": "Plating margin\nplating\nplating",
+        "rate": "Charge rate\n8.0C · 8 min",
+        "soc": "State of charge\n60%",
+        "non_get_requests": []
+      }
+    },
+    "anode@800": {
+      "kind": "viewport",
+      "file": "screens/anode@800.png",
+      "url": "?soc=0&c=1&cycles=800#/anode",
+      "w": 1400,
+      "h": 780,
+      "scrollY": 0,
+      "highlights": {
+        "block": {
+          "x": 236,
+          "y": 65,
+          "w": 804,
+          "h": 716,
+          "text": ""
+        },
+        "cracked": {
+          "x": 1061,
+          "y": 399,
+          "w": 302,
+          "h": 48.5,
+          "text": "Silicon cracked / lost contact\t99/31%\t100/29%"
+        },
+        "ageing": {
+          "x": 1061,
+          "y": -469,
+          "w": 302,
+          "h": 43.5,
+          "text": "Ageing\n800 cycles"
+        },
+        "measurements_fold": {
+          "x": 1041,
+          "y": 154,
+          "w": 342,
+          "h": 56,
+          "text": "All measurements"
+        }
+      },
+      "targets": {
+        "ageing": {
+          "x": 1212,
+          "y": -435.5
+        },
+        "ageing_thumb": {
+          "x": 1324.7,
+          "y": -435.5
+        },
+        "measurements_fold": {
+          "x": 1212,
+          "y": 182
+        }
+      },
+      "nav": {
+        "identify": {
+          "x": 117.5,
+          "y": 106
+        },
+        "compare": {
+          "x": 117.5,
+          "y": 148
+        },
+        "library": {
+          "x": 117.5,
+          "y": 190
+        },
+        "audit": {
+          "x": 117.5,
+          "y": 232
+        },
+        "impact": {
+          "x": 117.5,
+          "y": 324.5
+        },
+        "anode": {
+          "x": 117.5,
+          "y": 366.5
+        },
+        "experimental": {
+          "x": 14,
+          "y": 254,
+          "w": 207,
+          "h": 48.5
+        }
+      },
+      "data": {
+        "camera": {
+          "az": -0.614278,
+          "pol": 1.572427,
+          "pos": [
+            -158.220406,
+            25.552315,
+            224.32887
+          ],
+          "target": [
+            0,
+            26,
+            0
+          ]
+        },
+        "camera_note": "anode_rotate's drag replayed, then 150 frames of settling (az -35.196°)",
+        "cracked": "Silicon cracked / lost contact\t99/31%\t100/29%",
+        "ageing": "Ageing\n800 cycles",
+        "non_get_requests": []
+      }
+    }
+  },
+  "clips": {
+    "lawsuit": {
+      "file": "clips/lawsuit.mp4",
+      "w": 1400,
+      "h": 780,
+      "fps": 30,
+      "frames": 180,
+      "duration": 6,
+      "bytes": 1700727,
+      "url": "#/audit",
+      "scrollY": 961,
+      "highlights": {
+        "lawsuit": {
+          "x": 917.7,
+          "y": 1175.1,
+          "w": 442.3,
+          "h": 193.5,
+          "text": "Supplier shipped something other than the batch they promised? Turn this record into a claims pack for your lawyers.\n\nGENERATE LAWSUIT\nParody. Made-up parties; nothing is generated or filed."
+        },
+        "lawsuit_btn": {
+          "x": 938.7,
+          "y": 1249.1,
+          "w": 400.3,
+          "h": 68,
+          "text": "GENERATE LAWSUIT"
+        },
+        "counsel": {
+          "x": 938.7,
+          "y": 1531.1,
+          "w": 400.3,
+          "h": 134,
+          "text": "IN THE MATTER OF\nFictional Cells Ltd v. Fictional Silicon Co.\nExhibits A–D attached · re: Batch 1 vs Batch 3\nREADY FOR COUNSEL*"
+        },
+        "lawsuit_end": {
+          "x": 917.7,
+          "y": 1175.1,
+          "w": 442.3,
+          "h": 541.5,
+          "text": "Supplier shipped something other than the batch they promised? Turn this record into a claims pack for your lawyers.\n\nGENERATE ANOTHER\nExhibit A: batch passport #0004, stamped INVESTIGATE\nExhibit B: 72 image hashes, SHA-256, notarised\nExhibit C: rules frozen 2026-10-03 21:10 UTC\nExhibit D: 7 vs 17 micrographs\nClaim: Batch 1 is not what Batch 3 promised (silicon-to-graphite ratio, internal void fra"
+        }
+      },
+      "targets": {
+        "lawsuit_btn": {
+          "x": 1138.9,
+          "y": 1283.1
+        }
+      },
+      "events": {
+        "press": 7,
+        "done": 168
+      },
+      "data": {
+        "state": "verified",
+        "verify_banner": "All 4 decisions unchanged · 93 files re-hashed",
+        "verify_passport": "✓ re-hashed: inputs and config unchanged",
+        "verify_posts_before_recording": [
+          "POST /api/verify/Batch_1?baseline=Batch_3 [clip lawsuit]",
+          "POST /api/verify/Batch_1?baseline=Batch_2 [clip lawsuit]",
+          "POST /api/verify/Batch_3?baseline=Batch_3 [clip lawsuit]",
+          "POST /api/verify/Batch_2?baseline=Batch_3 [clip lawsuit]"
+        ]
+      },
+      "notes": "Verified layout: row #0004 selected, \"Verify everything\" pressed before recording (4 POST /api/verify) -> \"All 4 decisions unchanged · 93 files re-hashed\". Deterministic (paused page clock, 1/30 s per frame). Non-GET requests during the recording: 0; main padded by 348px so the final scroll position exists before the card grows."
+    },
+    "anode_rotate": {
+      "file": "clips/anode_rotate.mp4",
+      "w": 1400,
+      "h": 780,
+      "fps": 30,
+      "frames": 138,
+      "duration": 4.6,
+      "bytes": 3451999,
+      "url": "?soc=0&c=1&cycles=0#/anode",
+      "scrollY": 0,
+      "highlights": {
+        "block": {
+          "x": 236,
+          "y": 65,
+          "w": 804,
+          "h": 716,
+          "text": ""
+        },
+        "charge_btn": {
+          "x": 1061,
+          "y": 170,
+          "w": 224.9,
+          "h": 36,
+          "text": "Charge at 1.0C"
+        },
+        "soc": {
+          "x": 1061,
+          "y": 220,
+          "w": 302,
+          "h": 43.5,
+          "text": "State of charge\n0%"
+        },
+        "rate": {
+          "x": 1061,
+          "y": 277.5,
+          "w": 302,
+          "h": 43.5,
+          "text": "Charge rate\n1.0C · 60 min"
+        },
+        "ageing": {
+          "x": 1061,
+          "y": 335,
+          "w": 302,
+          "h": 43.5,
+          "text": "Ageing\n0 cycles"
+        },
+        "readouts": {
+          "x": 1061,
+          "y": 470.5,
+          "w": 302,
+          "h": 117.5,
+          "text": "Batch 3\nBatch 1\nThickness\t50.0 µm\t50.0 µm\nPlating margin\t+885 mV\t+885 mV\nCapacity left\t100%\t100%"
+        },
+        "measurements_fold": {
+          "x": 1041,
+          "y": 958,
+          "w": 342,
+          "h": 56,
+          "text": "All measurements"
+        },
+        "takeaway": {
+          "x": 252,
+          "y": 81,
+          "w": 772,
+          "h": 61.8,
+          "text": "Si share of capacity\n41%\n43%\nswell at full charge\n8.5%\n9.4%\nplating above\n3.0C\n2.3C\nall within image-to-image spread"
+        }
+      },
+      "targets": {
+        "drag_from": {
+          "x": 638,
+          "y": 508.92
+        },
+        "drag_to": {
+          "x": 708,
+          "y": 502.92
+        }
+      },
+      "events": {
+        "drag_start": 9,
+        "drag_end": 114
+      },
+      "notes": "Eased drag of 70px (~35°, OrbitControls 2π·Δx/height) over 105 frames, then release; paused page clock."
+    },
+    "anode_charge": {
+      "file": "clips/anode_charge.mp4",
+      "w": 1400,
+      "h": 780,
+      "fps": 30,
+      "frames": 82,
+      "duration": 2.733,
+      "bytes": 2175815,
+      "url": "?soc=0&c=8&cycles=0#/anode",
+      "scrollY": 0,
+      "highlights": {
+        "block": {
+          "x": 236,
+          "y": 65,
+          "w": 804,
+          "h": 716,
+          "text": ""
+        },
+        "charge_btn": {
+          "x": 1061,
+          "y": 170,
+          "w": 224.9,
+          "h": 36,
+          "text": "Charge at 8.0C"
+        },
+        "soc": {
+          "x": 1061,
+          "y": 220,
+          "w": 302,
+          "h": 43.5,
+          "text": "State of charge\n60%"
+        },
+        "rate": {
+          "x": 1061,
+          "y": 277.5,
+          "w": 302,
+          "h": 43.5,
+          "text": "Charge rate\n8.0C · 8 min"
+        },
+        "ageing": {
+          "x": 1061,
+          "y": 335,
+          "w": 302,
+          "h": 43.5,
+          "text": "Ageing\n0 cycles"
+        },
+        "readouts": {
+          "x": 1061,
+          "y": 470.5,
+          "w": 302,
+          "h": 117.5,
+          "text": "Batch 3\nBatch 1\nThickness\t50.0 µm\t50.0 µm\nPlating margin\t+780 mV\t+780 mV\nCapacity left\t100%\t100%"
+        },
+        "measurements_fold": {
+          "x": 1041,
+          "y": 958,
+          "w": 342,
+          "h": 56,
+          "text": "All measurements"
+        },
+        "takeaway": {
+          "x": 252,
+          "y": 81,
+          "w": 772,
+          "h": 61.8,
+          "text": "Si share of capacity\n41%\n43%\nswell at full charge\n8.5%\n9.4%\nplating above\n3.0C\n2.3C\nall within image-to-image spread"
+        },
+        "plating": {
+          "x": 1061,
+          "y": 526.5,
+          "w": 302,
+          "h": 33,
+          "text": "Plating margin\nplating\nplating"
+        }
+      },
+      "targets": {
+        "charge_btn": {
+          "x": 1173.5,
+          "y": 188
+        }
+      },
+      "events": {
+        "press": 9,
+        "plating": 24,
+        "pause": 63,
+        "end": null
+      },
+      "data": {
+        "camera_start": {
+          "az": -0.613507,
+          "pol": 1.572361,
+          "pos": [
+            -158.047498,
+            25.570446,
+            224.450758
+          ],
+          "target": [
+            0,
+            26,
+            0
+          ]
+        },
+        "camera_end": {
+          "az": -0.614278,
+          "pol": 1.572427,
+          "pos": [
+            -158.220376,
+            25.552318,
+            224.328891
+          ],
+          "target": [
+            0,
+            26,
+            0
+          ]
+        },
+        "camera": "anode_rotate's end angle (drag replayed in this page first)"
+      },
+      "notes": "Camera: anode_rotate's drag replayed first (az -35.151° at frame 0 = anode_rotate's last frame, -35.196° at the end). 8C charge from empty; events.plating = first frame the readout says plating; Pause pressed at events.pause (state of charge >= 60%), then held. Paused page clock."
+    },
+    "anode_age": {
+      "file": "clips/anode_age.mp4",
+      "w": 1400,
+      "h": 780,
+      "fps": 30,
+      "frames": 112,
+      "duration": 3.733,
+      "bytes": 2236280,
+      "url": "?soc=0&c=1&cycles=0#/anode",
+      "scrollY": 0,
+      "highlights": {
+        "block": {
+          "x": 236,
+          "y": 65,
+          "w": 804,
+          "h": 716,
+          "text": ""
+        },
+        "charge_btn": {
+          "x": 1061,
+          "y": 170,
+          "w": 224.9,
+          "h": 36,
+          "text": "Charge at 1.0C"
+        },
+        "soc": {
+          "x": 1061,
+          "y": 220,
+          "w": 302,
+          "h": 43.5,
+          "text": "State of charge\n0%"
+        },
+        "rate": {
+          "x": 1061,
+          "y": 277.5,
+          "w": 302,
+          "h": 43.5,
+          "text": "Charge rate\n1.0C · 60 min"
+        },
+        "ageing": {
+          "x": 1061,
+          "y": 335,
+          "w": 302,
+          "h": 43.5,
+          "text": "Ageing\n0 cycles"
+        },
+        "readouts": {
+          "x": 1061,
+          "y": 470.5,
+          "w": 302,
+          "h": 117.5,
+          "text": "Batch 3\nBatch 1\nThickness\t50.0 µm\t50.0 µm\nPlating margin\t+885 mV\t+885 mV\nCapacity left\t100%\t100%"
+        },
+        "measurements_fold": {
+          "x": 1041,
+          "y": 958,
+          "w": 342,
+          "h": 56,
+          "text": "All measurements"
+        },
+        "takeaway": {
+          "x": 252,
+          "y": 81,
+          "w": 772,
+          "h": 61.8,
+          "text": "Si share of capacity\n41%\n43%\nswell at full charge\n8.5%\n9.4%\nplating above\n3.0C\n2.3C\nall within image-to-image spread"
+        },
+        "ageing_end": {
+          "x": 1061,
+          "y": 335,
+          "w": 302,
+          "h": 43.5,
+          "text": "Ageing\n800 cycles"
+        },
+        "readouts_end": {
+          "x": 1061,
+          "y": 470.5,
+          "w": 302,
+          "h": 117.5,
+          "text": "Batch 3\nBatch 1\nThickness\t51.1 µm\t51.3 µm\nPlating margin\t+885 mV\t+885 mV\nCapacity left\t72–80%\t72–80%"
+        },
+        "block_end": {
+          "x": 236,
+          "y": 65,
+          "w": 804,
+          "h": 716,
+          "text": ""
+        }
+      },
+      "targets": {
+        "ageing": {
+          "x": 1212,
+          "y": 356.8
+        }
+      },
+      "events": {
+        "start": 7,
+        "end": 97
+      },
+      "data": {
+        "camera_start": {
+          "az": -0.613524,
+          "pol": 1.572363,
+          "pos": [
+            -158.051254,
+            25.570053,
+            224.448113
+          ],
+          "target": [
+            0,
+            26,
+            0
+          ]
+        },
+        "camera_last_slider_frame": {
+          "az": -0.614278,
+          "pol": 1.572427,
+          "pos": [
+            -158.2204,
+            25.552316,
+            224.328874
+          ],
+          "target": [
+            0,
+            26,
+            0
+          ]
+        },
+        "camera_final_state": {
+          "az": -0.614278,
+          "pol": 1.572427,
+          "pos": [
+            -158.2204,
+            25.552316,
+            224.328874
+          ],
+          "target": [
+            0,
+            26,
+            0
+          ]
+        },
+        "camera": "anode_rotate's end angle (drag replayed in this page, and again on the cycles=800 page)"
+      },
+      "notes": "Camera: anode_rotate's drag replayed first (az -35.152° at frame 0 = anode_rotate's last frame); the cycles=800 page replays it too (az -35.196° vs -35.196° on the last slider frame). Slider eased 0 -> 796 cycles over 90 frames (\"Ageing 796 cycles\"), then the ?cycles=800 state (frame 97) held 0.5 s."
+    },
+    "verify": {
+      "file": "clips/verify.mp4",
+      "w": 1400,
+      "h": 780,
+      "fps": 30,
+      "frames": 50,
+      "duration": 1.667,
+      "bytes": 733381,
+      "url": "#/audit",
+      "scrollY": 0,
+      "highlights": {
+        "log": {
+          "x": 276,
+          "y": 354.6,
+          "w": 625.7,
+          "h": 313.5,
+          "text": "Decision log\n4 entries\n#0004\nBatch 1 vs Batch 3\n2026-10-04 09:54 UTC · b53af46 · 72 files\nINVESTIGATE\n#0003\nBatch 1 vs Batch 2\none-off\n2026-10-04 00:06 UTC · cbdd6f8 · 42 files\nINVESTIGATE\n#0002\nBatch 3 against itself\n2026-10-04 00:04 UTC · cbdd6f8 · 51 files\nINVESTIGATE\n#0001\nBatch 2 vs Batch 3\n2026-10-04 00:04 UTC · cbdd6f8 · 72 files\nINVESTIGATE"
+        },
+        "row": {
+          "x": 277,
+          "y": 411.1,
+          "w": 623.7,
+          "h": 64,
+          "text": "#0004\nBatch 1 vs Batch 3\n2026-10-04 09:54 UTC · b53af46 · 72 files\nINVESTIGATE"
+        },
+        "passport": {
+          "x": 917.7,
+          "y": 354.6,
+          "w": 442.3,
+          "h": 769.5,
+          "text": "BATCH PASSPORT\n#0004\nBatch 1\nBaseline Batch 3 · 7 vs 17 tiles\nINVESTIGATE\nDrivers\nSilicon-to-graphite ratio · Internal void fraction of silicon · Share of T2 particles · Median silicon particle size\nSummary\nBatch 1 has a higher silicon-to-graphite ratio and internal void fraction of silicon than the baseline, but neither is settled.\nRules fired\nImaging differs from the baseline\n2 of 7 tiles outsid"
+        },
+        "hash_row": {
+          "x": 1065.7,
+          "y": 913.1,
+          "w": 270.3,
+          "h": 16,
+          "text": "a7fa8987 Batch_1/img_4ih2ggld_BSE.tif"
+        },
+        "hashes": {
+          "x": 1065.7,
+          "y": 913.1,
+          "w": 270.3,
+          "h": 127,
+          "text": "a7fa8987 Batch_1/img_4ih2ggld_BSE.tif\n297533fc Batch_1/img_4ih2ggld_ETD.tif\nbcb9b0d7 Batch_1/img_4ih2ggld_Inlens.tif\n4b040a76 Batch_1/img_5n1q8atc_BSE.tif\n3ea3c666 Batch_1/img_5n1q8atc_ETD.tif\n+ 67 more files"
+        },
+        "verify_btn": {
+          "x": 1185.9,
+          "y": 259.6,
+          "w": 149.1,
+          "h": 44,
+          "text": "Verify everything"
+        },
+        "verify_all": {
+          "x": 1185.9,
+          "y": 259.6,
+          "w": 149.1,
+          "h": 44,
+          "text": "Verify everything"
+        },
+        "lawsuit": {
+          "x": 917.7,
+          "y": 1140.1,
+          "w": 442.3,
+          "h": 193.5,
+          "text": "Supplier shipped something other than the batch they promised? Turn this record into a claims pack for your lawyers.\n\nGENERATE LAWSUIT\nParody. Made-up parties; nothing is generated or filed."
+        },
+        "lawsuit_btn": {
+          "x": 938.7,
+          "y": 1214.1,
+          "w": 400.3,
+          "h": 68,
+          "text": "GENERATE LAWSUIT"
+        },
+        "verify_passport": {
+          "x": 1065.7,
+          "y": 1043.1,
+          "w": 270.3,
+          "h": 32,
+          "text": "✓ re-hashed: inputs and config unchanged"
+        },
+        "verify_result": {
+          "x": 842.6,
+          "y": 259.6,
+          "w": 352.9,
+          "h": 44,
+          "text": "All 4 decisions unchanged · 93 files re-hashed"
+        },
+        "tick1": {
+          "x": 591.7,
+          "y": 446.6,
+          "w": 10.4,
+          "h": 16,
+          "text": "✓"
+        },
+        "tick2": {
+          "x": 594.2,
+          "y": 510.6,
+          "w": 10.4,
+          "h": 16,
+          "text": "✓"
+        },
+        "tick3": {
+          "x": 591.5,
+          "y": 574.6,
+          "w": 10.4,
+          "h": 16,
+          "text": "✓"
+        },
+        "tick4": {
+          "x": 593,
+          "y": 639.1,
+          "w": 10.4,
+          "h": 16,
+          "text": "✓"
+        }
+      },
+      "targets": {
+        "verify_btn": {
+          "x": 1260.5,
+          "y": 281.6
+        }
+      },
+      "events": {
+        "press": 9,
+        "done": 29
+      },
+      "notes": "Verify everything (POST /api/verify/* x4, allowed). Server time 8653 ms; spinner frames reflect page-clock time, not server time."
+    }
+  },
+  "ids": {
+    "baseline": "Batch_3",
+    "B": "Batch_1",
+    "drop": "drop_demo",
+    "image": "4ih2ggld",
+    "imageBatch": "Batch_1",
+    "spotIndex": 0,
+    "predicted": "Batch_1"
+  },
+  "run": {
+    "at": "2026-10-04T10:46:14.179Z",
+    "seconds": 263,
+    "warnings": [],
+    "blocked": [],
+    "allowed_non_get": [
+      "POST http://localhost:5176/api/verify/Batch_1?baseline=Batch_3 [audit@verified]",
+      "POST http://localhost:5176/api/verify/Batch_1?baseline=Batch_2 [audit@verified]",
+      "POST http://localhost:5176/api/verify/Batch_3?baseline=Batch_3 [audit@verified]",
+      "POST http://localhost:5176/api/verify/Batch_2?baseline=Batch_3 [audit@verified]",
+      "POST http://localhost:5176/api/verify/Batch_1?baseline=Batch_3 [clip verify]",
+      "POST http://localhost:5176/api/verify/Batch_1?baseline=Batch_2 [clip verify]",
+      "POST http://localhost:5176/api/verify/Batch_3?baseline=Batch_3 [clip verify]",
+      "POST http://localhost:5176/api/verify/Batch_2?baseline=Batch_3 [clip verify]"
+    ]
+  },
+  "run_partial": {
+    "only": [
+      "anode@fast",
+      "anode@800",
+      "anode_charge",
+      "anode_age"
+    ],
+    "at": "2026-10-04T10:54:34.847Z",
+    "seconds": 95,
+    "warnings": [],
+    "blocked": [],
+    "allowed_non_get": []
+  }
+}
