@@ -2,6 +2,8 @@
 
 Written 3 Oct 2026, late evening, for Pat. It answers one question: can a different or better model (for example a Gaussian one) improve batch attribution, and if not, what can?
 
+> Historical: "tonight", "before the freeze" and the submission times refer to 3–4 Oct. What was adopted and what was ruled out since is in [MODEL.md](MODEL.md) and [TICKETS.md](TICKETS.md).
+
 - No code was changed and no model was fitted or evaluated for this document. Every model result quoted is from [PLAN_v4.md](PLAN_v4.md) §12–12.2. New numbers are simple arithmetic, shown where used; image counts per strip read from the file headers; and, in section 8, read-only checks on the 31 known images and on the tables in `out/`, made with throwaway scripts after looking at the images. The unseen images were not touched.
 - It does not replace PLAN_v4. Where it suggests changing §4 step 2, that is a proposal for the two owners.
 - References are `[L1]`…`[L55]`, listed in section 9. Most were read at abstract or search-summary level today. The ones marked * are cited from prior knowledge and were not reopened.

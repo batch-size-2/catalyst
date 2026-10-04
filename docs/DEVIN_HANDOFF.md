@@ -4,9 +4,8 @@ Written 4 Oct 2026 by the previous agent (Claude) at the end of its session. Rea
 
 ## 1. State
 
-- Branch `akaimody123/catalyst-prs-experiments-summary`, with `main` at `5ca6a10` (Compare v4) and `pat/T14-confidence` merged in (so it also carries the commits of PR #21 and PR #36).
-- Pull request: #44, against `main`.
-- `uv run pytest` (136 tests) and `cd web && npm run build` pass.
+- Merged into `main` as PR #44 (with the commits of PR #21 and PR #36, which are now closed); the T18 stage records followed on `main`, then PR #46 (known-answer controls, Identify polish).
+- `uv run pytest` (144 tests; `tests/test_page_blocks.py` needs Node ≥ 20.19) and `cd web && npm run build` pass.
 - The pipeline was run end to end from the raw TIFFs on 4 Oct (features, DINOv2, fit, evaluation, rehearsal, the three test samples, the app).
 
 ## 2. What was done in this session
@@ -32,7 +31,7 @@ Numbers to remember: 22 of 31 with strips held out (balanced 0.66, null 0.51); r
 ## 3. What is next, in order
 
 1. **Move the `rules-frozen` tag, after Patrik agrees.** It also locks `config/decision.yaml` and the default baseline. Until it moves, the app says "model differs from the frozen one", which is correct. Command: `git tag -f rules-frozen <commit of config/attribution_model.json on main> && git push -f origin rules-frozen`. Do not move it on your own.
-2. **Close PR #36 (T14) and PR #21 (experiments base) once this PR is merged**: their commits are in it. The other open ticket PRs (T1–T13) stack on `pat/experiments-base` and will need a rebase onto `main`. None of their scripts uses the removed temperature code; T4 and T8 touch `qc/attribute.py` and `tests/test_attribute.py` and will conflict there.
+2. **Done:** PR #36 (T14) and PR #21 (experiments base) are closed; their commits are on `main`. The other open ticket PRs (T1–T13) stack on `pat/experiments-base` and will need a rebase onto `main`. None of their scripts uses the removed temperature code; T4 and T8 touch `qc/attribute.py` and `tests/test_attribute.py` and will conflict there.
 3. **Last-minute images.** Same single command, nothing is refit: `uv run python -m qc.attribute --images data/<folder>`, then copy the output to `results/` and commit it unchanged. Through the app: Identify tile, drop the three TIFFs; about 17 s per sample.
 4. **Explainability, still open** (MODEL.md §9.4):
    - Per-reason imaging caveat on the reason cards. PR #31 (T4) has a text-only wording layer; rebase it on this branch. The overall panel already shows which image patterns track imaging.
@@ -58,6 +57,8 @@ On Pat's Mac the raw batches are in `/Users/pat/conductor/workspaces/catalyst/da
 ## 5. Things that will bite
 
 - **Name the three batch folders** for `qc.features` and `qc.deep`. Without arguments they take every folder in `data/`, and the test folder would become a training batch.
+- **`tests/fixtures/attribution_example.json` predates the T18 stage records** (no `record`, `p_value`, `established`), so the UI preview never shows "Which variation: not established". Regenerate it from the raw TIFFs (fixture is Patrik's).
+- **The tier records (9/9, 7/11, 6/11) were computed before the low-confidence cap** on unestablished "which variation" calls. Recompute `calibration` in the model file from the out-of-fold probabilities; the classifier does not change. Unverified: needs the TIFFs.
 - **A refit changes `fitted_at`**, so every saved run then shows "Made by an earlier model" in the app. After a refit, rescore and regenerate `tests/fixtures/attribution_example.json` (three known images: `0grcilhi`, `3806gxp0`, `4ih2ggld`, scored from a folder named `example_drop`).
 - **Do not judge a calibration by holding out one image.** Images of one strip share scores. T14's original comparison did this and looked better than it is; hold out the strip, and check on the rehearsal (`--dry-run --repeats 30`).
 - **Do not let the largest of three probabilities decide the call** once stage 1 is calibrated. With the Venn–Abers of T14 it lost 2 of 31 known images and 28 of 270 rehearsal calls against the staged rule.
