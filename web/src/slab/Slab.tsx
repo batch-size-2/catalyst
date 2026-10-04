@@ -417,10 +417,10 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
 
       <mesh position={[offsetX, H + SEPARATOR_UM / 2, zMid]} scale={[W, SEPARATOR_UM, zFront]}>
         <boxGeometry />
-        <meshStandardMaterial map={separatorTexture()} transparent opacity={0.85} depthWrite={false} roughness={0.9} side={THREE.DoubleSide} />
+        <meshStandardMaterial map={separatorTexture()} transparent opacity={0.3} depthWrite={false} roughness={0.9} side={THREE.DoubleSide} />
       </mesh>
       <lineSegments geometry={edges} position={[offsetX, H + SEPARATOR_UM / 2, zMid]} scale={[W, SEPARATOR_UM, zFront]}>
-        <lineBasicMaterial color={COLORS.separator} transparent opacity={0.12} />
+        <lineBasicMaterial color={COLORS.separator} transparent opacity={0.06} />
       </lineSegments>
       <mesh position={[offsetX, -COPPER_UM / 2, zMid]} scale={[W, COPPER_UM, zFront]}>
         <boxGeometry />
@@ -441,6 +441,9 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
       </Html>
       {labels && (
         <>
+          <Html portal={labelRoot} position={[offsetX + W / 2 + 3, H + SEPARATOR_UM / 2, front]}>
+            <div className={labelStyle}>separator</div>
+          </Html>
           <Html portal={labelRoot} position={[offsetX + W / 2 + 3, H / 2, front]}>
             <div className={labelStyle}>{H.toFixed(1)} µm</div>
           </Html>
