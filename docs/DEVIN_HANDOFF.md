@@ -4,9 +4,9 @@ Written 4 Oct 2026 by the previous agent (Claude) at the end of its session. Rea
 
 ## 1. State
 
-- Branch `akaimody123/catalyst-prs-experiments-summary`, based on `main` at `ef7ff8f`, with `pat/T14-confidence` merged in (so it also carries the commits of PR #21 and PR #36).
-- The pull request for this branch targets `main`.
-- `uv run pytest` and `cd web && npm run build` pass.
+- Branch `akaimody123/catalyst-prs-experiments-summary`, with `main` at `5ca6a10` (Compare v4) and `pat/T14-confidence` merged in (so it also carries the commits of PR #21 and PR #36).
+- Pull request: #44, against `main`.
+- `uv run pytest` (136 tests) and `cd web && npm run build` pass.
 - The pipeline was run end to end from the raw TIFFs on 4 Oct (features, DINOv2, fit, evaluation, rehearsal, the three test samples, the app).
 
 ## 2. What was done in this session
