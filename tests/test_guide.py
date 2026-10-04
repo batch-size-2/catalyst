@@ -58,6 +58,8 @@ def test_slots_come_from_the_evidence(evidence, table):
 def test_template_uses_only_known_slots_and_passes_its_own_rules(evidence, table):
     plain = template(evidence, DICT, table, [], CFG)
     assert plain["source"] == "template" and [s["target"] for s in plain["steps"]] == ["verdict", "moved", "tiles", "next"]
+    for role in ("operator", "engineer", "scientist", "manager"):
+        assert plain["audiences"][role] == {"source": "template", "sentences": list(getattr(evidence.explanations, role))}
     texts = [*plain["summary"], *(s for st in plain["steps"][:3] for s in st["sentences"])]
     used = {f"{k}:{v}" for t in texts for k, v in SLOT.findall(t)}
     assert used and used <= set(plain["slots"])
@@ -151,11 +153,60 @@ def test_whatif_recomputes_without_exactly_the_named_tiles(in_tmp):
     assert whatifs(ev, cfg) == []  # the table moved on: no what-if rather than a wrong one
 
 
+def _asked(evidence, monkeypatch, body):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setattr(guide_module, "call_claude", lambda _body: body)
+    return guide(evidence, "claude", ask=True)
+
+
+def test_audience_slots_are_filled_and_a_made_up_number_falls_back(evidence, monkeypatch, in_tmp):
+    """One call writes all four readings. Slots stay markers until Catalyst fills them; a typed number is dropped."""
+    Path("config/kpi_dictionary.yaml").write_text((Path(__file__).resolve().parents[1] / "config/kpi_dictionary.yaml").read_text())
+    steps = evidence.explanations.next_steps
+    summary = ["The silicon-to-graphite ratio leans higher, {diff:si_graphite_ratio}, but it is not settled."]
+    walk = [{"target": "moved", "title": "The biggest move", "sentences": ["It moved {shift:si_graphite_ratio}."]}]
+    audiences = {
+        "operator": [steps[0], steps[1]],
+        "engineer": [
+            "Silicon-to-graphite ratio moved {diff:si_graphite_ratio} and is not settled.",
+            "Possible causes to check: more silicon dosed into the formulation.",
+        ],
+        "scientist": [
+            "Silicon-to-graphite ratio is {diff:si_graphite_ratio}, interval {interval:si_graphite_ratio}.",
+            "Median silicon particle size is {diff:si_d50_um} and is not settled.",
+        ],
+        "manager": [
+            "Waiting leaves silicon-to-graphite ratio not settled at {diff:si_graphite_ratio}.",
+            "The cost of waiting is {count:unclear} unsettled properties.",
+        ],
+    }
+    out = _asked(evidence, monkeypatch, {"summary": summary, "steps": walk, "audiences": audiences})
+    assert out["source"] == "claude"
+    assert out["audiences"]["engineer"]["source"] == "claude"
+    assert "{diff:si_graphite_ratio}" in out["audiences"]["engineer"]["sentences"][0]
+    assert out["slots"]["diff:si_graphite_ratio"]["text"] == "0.090 → 0.115"
+    assert out["slots"]["interval:si_graphite_ratio"]["text"]
+    assert "0.025" not in json.dumps(out["audiences"])
+
+    for path in Path("out/guide").rglob("*.json"):
+        path.unlink()
+    invented = {**audiences, "scientist": [
+        "Silicon-to-graphite ratio is {diff:si_graphite_ratio} and is not settled.",
+        "The interval runs from -0.005 to 0.055.",
+    ]}
+    rejected = _asked(evidence, monkeypatch, {"summary": summary, "steps": walk, "audiences": invented})
+    assert rejected["audiences"]["scientist"]["source"] == "template"
+    assert rejected["audiences"]["scientist"]["sentences"] == list(evidence.explanations.scientist)
+    assert "The interval runs from -0.005 to 0.055." not in rejected["audiences"]["scientist"]["sentences"]
+    assert rejected["audiences"]["engineer"]["source"] == "claude"
+
+
 def test_without_a_key_the_template_answers(evidence, monkeypatch, in_tmp):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
     out = guide(evidence, "claude", ask=True)
     assert out["source"] == "template" and "ANTHROPIC_API_KEY" in out["fallback_reason"]
+    assert out["audiences"]["operator"] == {"source": "template", "sentences": list(evidence.explanations.operator)}
 
 
 def test_refusal_is_cached_as_the_template(evidence, monkeypatch, in_tmp):

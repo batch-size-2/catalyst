@@ -372,12 +372,18 @@ export interface GuideStep {
   source: string | null;
 }
 
+export interface GuideAudience {
+  source: "claude" | "template";
+  sentences: string[];
+}
+
 export interface Guide {
   source: "claude" | "template";
   model: string | null;
   fallback_reason: string | null;
   summary: string[];
   steps: GuideStep[];
+  audiences?: Partial<Record<"operator" | "engineer" | "scientist" | "manager", GuideAudience>>;
   slots: Record<string, GuideSlot>;
   checks: { numbers: number; dropped: string[] };
 }
