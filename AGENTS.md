@@ -44,3 +44,11 @@ cd web && npm run build                                    # typecheck + build, 
 - Never commit `data/`, `out/` or `EXAMPLE BATCHES FOR LOCAL REFERENCE/` (1.6 GB of raw TIFFs). The dataset has been shared with every hackathon participant, so screenshots of the app on real images are fine in PRs and docs.
 - Don't edit `config/decision.yaml` after the `rules-frozen` git tag.
 - Install npm packages with `npm install --before=<date one week ago>` to avoid brand-new releases.
+
+## UI conventions (web/)
+
+- Desktop only (1280–1920 wide). Don't add mobile layouts.
+- Every page: `PAGE` column + `PageHeader` (40 px title, at most one short sentence) from `components/bits.tsx`. No eyebrow labels over titles, no "EXPERIMENTAL"/"TEMPLATE" chips: the breadcrumb and the sidebar heading already say it.
+- Reuse the shared pieces: `BatchSelect` (`components/Pickers.tsx`) for any batch/baseline picker, `Note` for neutral notices, `ErrorPanel` (with `details` for raw backend text), `Folds`, `Seg`, `SigmaBand`, `LAYERS`, `batchLabel()` for any folder name.
+- `design/tokens.css` sits in Tailwind's components layer, so utilities on an element override token classes (`p-0` on a `.panel`, `min-h-9` on a `.btn`); no `!` or inline-style overrides needed.
+- No noise: one caveat where it's needed, not on every card; no code names (snake_case, feature codes, folder paths, git words) in visible text; no developer instructions in the UI.

@@ -155,4 +155,13 @@ pore_connectivity:
 
 # Particle types: filled in by `uv run python -m qc.types` after the fit on particles.csv.
 # Per type: name, defining features in units, what it likely is, what to check at the supplier.
-particle_types: {}
+# T1 and T2 are the fitted types in config/particle_types.json. Names here win over "share of T1 particles".
+particle_types:
+  T1:
+    name: brighter mid-grey silicon share
+    unit: fraction
+    why_it_matters: "Silicon particles 2.1× as bright as graphite (D50 1.9 µm). A higher share means a different particle mix."
+  T2:
+    name: mid-grey silicon share
+    unit: fraction
+    why_it_matters: "Silicon particles 1.7× as bright as graphite (D50 2.2 µm). A higher share means a different particle mix."

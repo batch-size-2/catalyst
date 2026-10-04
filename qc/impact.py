@@ -259,7 +259,7 @@ def effect_of(change: Range, higher_is: str, tol: float) -> Effect:
 
 
 def pct(value: float | None) -> str:
-    return "—" if value is None else f"{value:+.0%}"
+    return "—" if value is None else "≈0%" if round(value * 100) == 0 else f"{value:+.0%}".replace("-", "−")
 
 
 def grid(lo: float, hi: float, n: int = 60, log: bool = False) -> np.ndarray:
@@ -333,9 +333,7 @@ def impact_report(kpis: pd.DataFrame, particles: pd.DataFrame | None, batch: str
         eff = "unsettled" if too_few else effect_of(change, s["higher_is"], tol)
         direction = s["if_higher"] if (change.value or 0) > 0 else s["if_lower"]
         consequence = (f"Within ±{tol:.0%} of {baseline.replace('_', ' ')} on the whole interval: "
-                       "no change to expect from this measurement." if eff == "similar"
-                       else f"If the shift is real: {direction[0].lower()}{direction[1:]}" if eff == "unsettled"
-                       else direction)
+                       "no change to expect from this measurement." if eff == "similar" else direction)
         bad = change.high if s["higher_is"] == "worse" else None if change.low is None else -change.low
         trigger = ("likely" if eff == "worse" else "possible"
                    if eff == "unsettled" and bad is not None and bad > tol else None)
@@ -355,9 +353,8 @@ def impact_report(kpis: pd.DataFrame, particles: pd.DataFrame | None, batch: str
     gr_text = (f"Graphite: {graphite['capacity_mah_g']} mAh/g, +{graphite['expansion']:.0%} volume, "
                f"{graphite['density_g_cm3']} g/cm³")
     porosity_caveat = ("Apparent porosity from a 2D section (pore back walls read as solid), "
-                       "imaging-sensitive: check the imaging check in Compare first.")
-    chemistry_caveat = (f"The interval spans an unresolved choice between {si_names}, not only sampling "
-                        "noise: the facts below show each end.")
+                       "imaging-sensitive: see the imaging check in Compare first.")
+    chemistry_caveat = f"The interval spans an unresolved choice between {si_names}, not only sampling noise."
 
     impacts = [
         build("capacity", capacity, silicon,
@@ -429,7 +426,7 @@ def impact_report(kpis: pd.DataFrame, particles: pd.DataFrame | None, batch: str
                "Section diameters underestimate 3D diameters; the bias is the same in both batches only if "
                "the size spreads have the same shape.",
                "Graphite carries SEI too and is not counted: this is the silicon part only.",
-               "Cracking adds fresh surface over life (next card); not included here."],
+               "Cracking adds fresh surface over life (see Particle cracking); not included here."],
               Curve(title="Finer silicon, more SEI surface", x_label="Silicon particle size (D32)", x_unit="um",
                     y_label="Silicon surface per electrode volume", y_unit="m²/cm³", x_log=True, y_log=True,
                     lines=[line(f"{100 * point[name]['si_area_frac']:.1f}% silicon ({name.replace('_', ' ')})",
@@ -467,7 +464,7 @@ def impact_report(kpis: pd.DataFrame, particles: pd.DataFrame | None, batch: str
               "Measured directly: share of silicon area in Si-rich domains > ~5 µm",
               ["si_agglomerate_frac", "si_dispersion_cv"],
               [], ["Direction only: there is no textbook formula from clump share to cell performance."],
-              ["2D sections can join or split clumps; Batch-level means hide single clumped strips "
+              ["2D sections can join or split clumps; batch-level means hide single clumped strips "
                "(see Compare's odd tiles)."],
               None),
     ]
@@ -530,12 +527,12 @@ def impact_report(kpis: pd.DataFrame, particles: pd.DataFrame | None, batch: str
             f"{imp.property} ({pct(imp.change.low)} to {pct(imp.change.high)})")
     words = {"better": "Better for the cell in these images", "worse": "Worse for the cell in these images",
              "unsettled": "Not settled by these images", "similar": "About the same"}
-    b_label, r_label = batch.replace("_", " "), baseline.replace("_", " ")
-    summary = [f"{b_label} against {r_label}, indicative from textbook relations, not a prediction."]
-    summary += [f"{words[e]}: {', '.join(groups[e])}." for e in words if e in groups]
+    r_label = baseline.replace("_", " ")
+    summary = [f"{words[e]}: {', '.join(groups[e])}." for e in words if e in groups]
     if scenario and scenario.fade_scale.low is not None and scenario.fade_scale.high is not None:
-        summary.append(f"Wear scenario, illustrative: fade rate {scenario.fade_scale.low:.2g}× to "
+        summary.append(f"Wear scenario: fade rate {scenario.fade_scale.low:.2g}–"
                        f"{scenario.fade_scale.high:.2g}× {r_label}'s.")
+    strips = sorted(set(n_units.values()))
 
     def composition(name: str) -> dict[str, float | None]:
         m = point[name]
@@ -553,11 +550,10 @@ def impact_report(kpis: pd.DataFrame, particles: pd.DataFrame | None, batch: str
             f"Silicon chemistry not confirmed, so every silicon number spans {si_names}.",
             "2D sections only: 3D connectivity, electrode thickness and loading are not measured.",
             "No electrochemical data to check against: these are the directions and rough sizes "
-            "textbook relations give, for people to weigh. They never feed the verdict.",
+            "textbook relations give, for people to weigh.",
             f"Intervals: {level:.0%}, hierarchical bootstrap over strips then images ({n} resamples), "
-            "widened to span the constant ranges. With "
-            f"{min(n_units.values())} to {max(n_units.values())} strips a percentile bootstrap tends to be too "
-            "narrow.",
+            f"widened to span the constant ranges. With {' to '.join(map(str, strips))} strips a percentile "
+            "bootstrap tends to be too narrow.",
             "The intervals hold sampling noise only. Segmentation, stereology and porosity biases are not in "
             "them and can be larger, so 'better' or 'worse' means 'in these images', not 'proven'.",
         ] + ([f"Fewer than {cfg['min_units']} strips in a batch: the bootstrap interval is too narrow to "

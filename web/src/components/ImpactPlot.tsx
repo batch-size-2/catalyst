@@ -2,8 +2,8 @@ import { batchColor, batchLabel } from "../lib";
 import { fmtUnit, type CurveLine, type CurveMarker, type Threshold } from "../impact";
 
 const W = 520;
-const H = 250;
-const M = { l: 58, r: 18, t: 14, b: 42 };
+const H = 260;
+const M = { l: 50, r: 18, t: 30, b: 42 };
 const LINE_COLORS = ["var(--cx-phase-si)", "var(--cx-text-2)", "var(--cx-phase-pore)"];
 
 export interface Band {
@@ -22,6 +22,7 @@ export interface PlotProps {
   lines: (CurveLine & { color?: string; dash?: boolean })[];
   markers?: CurveMarker[];
   thresholds?: Threshold[];
+  thresholdsInLegend?: boolean;
   bands?: Band[];
   yMin?: number;
   markerNote?: string;
@@ -58,8 +59,24 @@ function domain(values: number[], log: boolean, floor?: number): [number, number
   return [floor != null && lo >= floor ? lo : lo - pad, hi + pad];
 }
 
+function mergeRows(rows: { y: number; label: string }[]): { top: number; bottom: number; label: string }[] {
+  const groups: { y: number; label: string }[][] = [];
+  for (const row of [...rows].sort((a, b) => a.y - b.y)) {
+    const last = groups[groups.length - 1];
+    if (last && row.y - last[last.length - 1].y < 14) last.push(row);
+    else groups.push([row]);
+  }
+  return groups.map((g) => {
+    const heads = g.map((r) => r.label.split(", ")[0]);
+    const label = g.length === 1 ? g[0].label
+      : heads.every((h) => h === heads[0]) ? `${heads[0]}, ${g.map((r) => r.label.slice(heads[0].length + 2)).join(" and ")}`
+      : g.map((r) => r.label).join(" / ");
+    return { top: g[0].y, bottom: g[g.length - 1].y, label };
+  });
+}
+
 export default function ImpactPlot(props: PlotProps) {
-  const { xLog = false, yLog = false, lines, markers = [], thresholds = [], bands = [] } = props;
+  const { xLog = false, yLog = false, lines, markers = [], thresholds = [], bands = [], thresholdsInLegend = false } = props;
   const xs = [
     ...lines.flatMap((l) => l.points.map((p) => p[0])),
     ...markers.flatMap((m) => [m.x.value, m.x.low, m.x.high].filter((v): v is number => v != null)),
@@ -83,10 +100,15 @@ export default function ImpactPlot(props: PlotProps) {
   const yt = yLog ? logTicks(y0, y1) : niceTicks(y0, y1, 4);
   const tick = (v: number, unit: string) => (unit === "fraction" ? fmtUnit(v, unit) : `${Number(v.toPrecision(3))}`);
   const unitOf = (unit: string) => (!unit || unit === "fraction" || unit === "ratio" ? "" : ` (${unit === "um" ? "µm" : unit})`);
+  const vertical = thresholds.filter((th) => th.axis === "x");
+  const horizontal = thresholds.filter((th) => th.axis === "y");
+  const rows = mergeRows(horizontal.map((th) => ({ y: clipY(th.value), label: th.label })));
+  const dotted = [...new Set(markers.filter((m) => m.x.value != null && m.y.value != null).map((m) => m.batch))];
 
   return (
     <div className="flex flex-col gap-2">
       <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" role="img" aria-label={`${props.yLabel} against ${props.xLabel}`}>
+        <text x={4} y={14} fontSize="11.5" fill="var(--cx-muted)">{props.yLabel}{unitOf(props.yUnit)}</text>
         {yt.map((v) => (
           <g key={`y${v}`}>
             <line x1={M.l} x2={W - M.r} y1={sy(v)} y2={sy(v)} stroke="var(--cx-line)" />
@@ -104,29 +126,33 @@ export default function ImpactPlot(props: PlotProps) {
         <text x={(M.l + W - M.r) / 2} y={H - 6} textAnchor="middle" fontSize="11.5" fill="var(--cx-muted)">
           {props.xLabel}{unitOf(props.xUnit)}
         </text>
-        <text x={12} y={(M.t + H - M.b) / 2} textAnchor="middle" fontSize="11.5" fill="var(--cx-muted)"
-          transform={`rotate(-90 12 ${(M.t + H - M.b) / 2})`}>
-          {props.yLabel}{unitOf(props.yUnit)}
-        </text>
 
         {bands.map((b, i) => (
           <path key={`b${i}`} fill={b.color} fillOpacity={0.18} stroke="none"
             d={`${path(b.upper)}L${[...b.lower].reverse().map((p) => `${sx(p[0]).toFixed(1)},${clipY(p[1]).toFixed(1)}`).join("L")}Z`} />
         ))}
-        {thresholds.map((th, i) =>
-          th.axis === "x" ? (
-            <g key={`t${i}`}>
-              <line x1={sx(th.value)} x2={sx(th.value)} y1={M.t} y2={H - M.b} stroke="var(--cx-faint)" strokeDasharray="3 4" />
-              <text x={sx(th.value) + 4} y={M.t + 11 + 13 * thresholds.slice(0, i).filter((t) => t.axis === "x").length}
-                fontSize="10.5" fill="var(--cx-faint)">{th.label}</text>
-            </g>
-          ) : (
-            <g key={`t${i}`}>
-              <line x1={M.l} x2={W - M.r} y1={clipY(th.value)} y2={clipY(th.value)} stroke="var(--cx-faint)" strokeDasharray="3 4" />
-              <text x={W - M.r - 4} y={clipY(th.value) - 5} textAnchor="end" fontSize="10.5" fill="var(--cx-faint)">{th.label}</text>
-            </g>
-          ),
-        )}
+        {vertical.map((th, i) => (
+          <g key={`tx${i}`}>
+            <line x1={sx(th.value)} x2={sx(th.value)} y1={M.t} y2={H - M.b} stroke="var(--cx-faint)" strokeDasharray="3 4" />
+            {!thresholdsInLegend && (
+              <text x={sx(th.value) + 4} y={M.t + 11 + 13 * i} fontSize="10.5" fill="var(--cx-faint)">{th.label}</text>
+            )}
+          </g>
+        ))}
+        {rows.map((r, i) => (
+          <g key={`ty${i}`}>
+            {r.bottom - r.top > 0.5 && (
+              <rect x={M.l} width={W - M.l - M.r} y={r.top} height={r.bottom - r.top} fill="var(--cx-faint)" fillOpacity={0.16} />
+            )}
+            <line x1={M.l} x2={W - M.r} y1={r.top} y2={r.top} stroke="var(--cx-faint)" strokeDasharray="3 4" />
+            {r.bottom - r.top > 0.5 && (
+              <line x1={M.l} x2={W - M.r} y1={r.bottom} y2={r.bottom} stroke="var(--cx-faint)" strokeDasharray="3 4" />
+            )}
+            {!thresholdsInLegend && (
+              <text x={W - M.r - 4} y={r.top - 5} textAnchor="end" fontSize="10.5" fill="var(--cx-faint)">{r.label}</text>
+            )}
+          </g>
+        ))}
         {lines.map((l, i) => (
           <path key={`${i}-${l.name}`} d={path(l.points)} fill="none" strokeWidth={2}
             stroke={l.color ?? (l.batch ? batchColor(l.batch) : LINE_COLORS[i % LINE_COLORS.length])}
@@ -139,6 +165,7 @@ export default function ImpactPlot(props: PlotProps) {
           const cy = clipY(m.y.value);
           return (
             <g key={`${mi}-${m.batch}`}>
+              <title>{batchLabel(m.batch)}</title>
               {m.x.low != null && m.x.high != null && (
                 <line x1={clipX(m.x.low)} x2={clipX(m.x.high)} y1={cy} y2={cy} stroke={c} strokeWidth={2} strokeOpacity={0.7} />
               )}
@@ -146,8 +173,6 @@ export default function ImpactPlot(props: PlotProps) {
                 <line x1={cx} x2={cx} y1={clipY(m.y.low)} y2={clipY(m.y.high)} stroke={c} strokeWidth={2} strokeOpacity={0.7} />
               )}
               <circle cx={cx} cy={cy} r={5.5} fill={c} stroke="#111215" strokeWidth={2.5} />
-              <text x={cx > W - M.r - 70 ? cx - 9 : cx + 9} y={cy - 8} fontSize="11" fill={c}
-                textAnchor={cx > W - M.r - 70 ? "end" : "start"}>{batchLabel(m.batch)}</text>
             </g>
           );
         })}
@@ -163,7 +188,21 @@ export default function ImpactPlot(props: PlotProps) {
             {l.name}
           </span>
         ))}
-        {markers.length > 0 && props.markerNote && <span>{props.markerNote}</span>}
+        {thresholdsInLegend && thresholds.map((th) => (
+          <span key={th.label} className="flex items-center gap-1.5">
+            <svg width="18" height="6" aria-hidden>
+              <line x1="0" x2="18" y1="3" y2="3" strokeWidth="1" stroke="var(--cx-faint)" strokeDasharray="3 3" />
+            </svg>
+            {th.label}
+          </span>
+        ))}
+        {dotted.map((b) => (
+          <span key={b} className="flex items-center gap-1.5">
+            <span aria-hidden style={{ width: 9, height: 9, borderRadius: 99, background: batchColor(b) }} />
+            {batchLabel(b)}
+          </span>
+        ))}
+        {dotted.length > 0 && props.markerNote && <span>{props.markerNote}</span>}
       </div>
     </div>
   );

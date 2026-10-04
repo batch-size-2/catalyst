@@ -1,5 +1,7 @@
-"""Indicative 3D anode slab for web/slab.html: a particle packing that hits one batch's measured 2D
-fractions, plus textbook electrochemistry for its charge, fast-charge and ageing sliders.
+"""Indicative 3D anode slab for the Anode lab page (web/src/slab/).
+
+A particle packing that hits one batch's measured 2D fractions, plus textbook electrochemistry for its charge,
+fast-charge and ageing sliders.
 
 An illustration driven by measured statistics. Not a 3D reconstruction (we only have 2D sections), not
 a cell simulation, and never an input to a verdict. Every constant is listed in ASSUMPTIONS with its
@@ -56,42 +58,50 @@ ICO_NORMALS = _HULL.equations[:, :3]
 ICO_SCALE = (4 / 3 * np.pi / _HULL.volume) ** (1 / 3)
 ICO_INNER = float(-_HULL.equations[0, 3]) * ICO_SCALE  # inradius after scaling to unit-sphere volume
 
+_SUP = str.maketrans("0123456789.-", "⁰¹²³⁴⁵⁶⁷⁸⁹·⁻")
+
+
+def _sci(x: float) -> str:
+    mantissa, exponent = f"{x:.0e}".split("e")
+    return f"{mantissa} × 10{str(int(exponent)).translate(_SUP)}"
+
+
 ASSUMPTIONS = [
     {"name": "Area fraction = volume fraction", "value": "Si share of the solid, from the 2D section",
      "source": "Delesse principle (stereology); exact for isotropic random sections"},
     {"name": "True porosity", "value": f"baseline anchored at {BASELINE_TRUE_POROSITY:.0%}; each batch scaled by its apparent porosity over the baseline's",
-     "source": "Assumed; calendered graphite anodes are typically 25-35%. The 2D apparent value (~10%) under-counts: open pores show their back wall"},
-    {"name": "Si sizes", "value": "measured particle diameters x 4/pi, drawn with weight 1/d",
+     "source": "Assumed; calendered graphite anodes are typically 25–35%. The 2D apparent value (~10%) under-counts: open pores show their back wall"},
+    {"name": "Si sizes", "value": "measured particle diameters × 4/π, drawn with weight 1/d",
      "source": "First-order Wicksell correction for spheres: a plane hits big spheres more often and cuts them below their equator"},
-    {"name": "Graphite flakes", "value": f"angular plates, semi-axis ~{FLAKE_SEMI_AXIS_UM:.0f} um, aspect {FLAKE_ASPECT}, tilt sd {FLAKE_TILT_DEG:.0f} deg; overlap only once nothing else fits",
-     "source": "Assumed from the images (flakes ~10-35 um lying flat); not fitted to graphite_chord_um"},
-    {"name": "Electrode", "value": f"{BOX_UM[1]:.0f} um thick, collector to separator",
-     "source": "Assumed; typical anode coating 40-80 um. Our sections do not show the full thickness"},
-    {"name": "Specific capacity", "value": f"Si {SI_Q_MAH_G:.0f} mAh/g (Li15Si4), SiOx ~{SIOX_Q_MAH_G:.0f}, graphite {GR_Q_MAH_G:.0f} (LiC6)",
+    {"name": "Graphite flakes", "value": f"angular plates, semi-axis ~{FLAKE_SEMI_AXIS_UM:.0f} µm, aspect {FLAKE_ASPECT}, tilt s.d. {FLAKE_TILT_DEG:.0f}°; overlap only once nothing else fits",
+     "source": "Assumed from the images (flakes ~10–35 µm lying flat); not fitted to the measured graphite chord length"},
+    {"name": "Electrode", "value": f"{BOX_UM[1]:.0f} µm thick, collector to separator",
+     "source": "Assumed; typical anode coating 40–80 µm. Our sections do not show the full thickness"},
+    {"name": "Specific capacity", "value": f"Si {SI_Q_MAH_G:.0f} mAh/g (Li₁₅Si₄), SiOₓ ~{SIOX_Q_MAH_G:.0f}, graphite {GR_Q_MAH_G:.0f} (LiC₆)",
      "source": "Obrovac & Chevrier, Chem. Rev. 2014"},
-    {"name": "Volume expansion", "value": f"Si +{SI_EXPANSION:.0%} (radius x {(1 + SI_EXPANSION) ** (1 / 3):.2f}), graphite +{GR_EXPANSION:.0%} along c",
-     "source": "Si to Li15Si4: Obrovac & Christensen 2004. Graphite: interlayer spacing 3.35 -> 3.70 A from LiC6 crystallography"},
-    {"name": "Equilibrium potentials", "value": "a-Si sloping 0.6 -> 0 V; graphite staging plateaus ~0.21, 0.12, 0.085 V",
+    {"name": "Volume expansion", "value": f"Si +{SI_EXPANSION:.0%} (radius ×{(1 + SI_EXPANSION) ** (1 / 3):.2f}), graphite +{GR_EXPANSION:.0%} along c",
+     "source": "Si → Li₁₅Si₄: Obrovac & Christensen 2004. Graphite: interlayer spacing 3.35 → 3.70 Å from LiC₆ crystallography"},
+    {"name": "Equilibrium potentials", "value": "a-Si sloping 0.6 → 0 V; graphite staging plateaus ~0.21, 0.12, 0.085 V",
      "source": "Textbook lithiation curves (a-Si from ~0.9 V); blend shares one potential, so Si lithiates first on charge"},
-    {"name": "Graphite colour", "value": "grey -> blue (stage 3/4) -> red (LiC12) -> gold (LiC6), switching flake by flake",
+    {"name": "Graphite colour", "value": "grey → blue (stage 3/4) → red (LiC₁₂) → gold (LiC₆), switching flake by flake",
      "source": "Operando optical microscopy, Harris et al., Chem. Phys. Lett. 2010. Two-phase plateaus: the share of flakes in the new stage follows the lever rule"},
-    {"name": "Pore absorption", "value": f"{PORE_ABSORPTION[1]:.0%} of swelling fills pores ({PORE_ABSORPTION[0]:.0%}-{PORE_ABSORPTION[2]:.0%}), floor {POROSITY_FLOOR:.0%}",
+    {"name": "Pore absorption", "value": f"{PORE_ABSORPTION[1]:.0%} of swelling fills pores ({PORE_ABSORPTION[0] * 100:.0f}–{PORE_ABSORPTION[2]:.0%}), floor {POROSITY_FLOOR:.0%}",
      "source": "Assumed; the rest thickens the electrode"},
-    {"name": "Ion transport", "value": f"D_eff = D * porosity^{BRUGGEMAN}, D = {D_ELECTROLYTE:.0e} m2/s",
-     "source": "Bruggeman relation; LiPF6 in carbonates"},
-    {"name": "Through-thickness gradient", "value": f"slope = {GRADIENT_SCALE:g} L^2 / (D_eff t_charge), capped at 1.5",
-     "source": "Qualitative: fast charge lithiates the separator side first (Harris 2010). Scale set so the baseline plates near 3C, typical for a 50 um graphite-rich anode at room temperature"},
-    {"name": "N/P ratio", "value": f"{NP_RATIO}: a full cell leaves the anode {1 / NP_RATIO:.0%} lithiated on average",
+    {"name": "Ion transport", "value": f"effective diffusivity = D × porosity{str(BRUGGEMAN).translate(_SUP)}, D = {_sci(D_ELECTROLYTE)} m²/s",
+     "source": "Bruggeman relation; LiPF₆ in carbonates"},
+    {"name": "Through-thickness gradient", "value": f"slope = {GRADIENT_SCALE:g} × thickness² / (effective diffusivity × charge time), capped at 1.5",
+     "source": f"Qualitative: fast charge lithiates the separator side first (Harris 2010). Scale set so the baseline plates near 3C, typical for a {BOX_UM[1]:.0f} µm graphite-rich anode at room temperature"},
+    {"name": "Anode over cathode capacity (N/P ratio)", "value": f"{NP_RATIO}: a full cell leaves the anode {1 / NP_RATIO:.0%} lithiated on average",
      "source": "Assumed; typical design margin of anode over cathode capacity, against plating"},
     {"name": "Charging protocol", "value": f"CC-CV: constant current to {CV_FROM_SOC:.0%}, then tapering to {CV_END_CURRENT:.0%} at full",
      "source": "Standard Li-ion charging; the plating onset is quoted for constant current to 80%"},
-    {"name": "Lithium plating", "value": f"where local potential - {ETA_PER_C * 1000:.0f} mV per C < 0 V vs Li",
+    {"name": "Lithium plating", "value": f"where the local potential minus {ETA_PER_C * 1000:.0f} mV per C drops below 0 V vs Li",
      "source": "Thermodynamic criterion with an assumed kinetic overpotential"},
-    {"name": "Si fracture", "value": f"particles above {SI_CRITICAL_D_UM} um crack; sooner when larger, later when porous",
-     "source": "Fracture-free only below ~0.15 um for c-Si (Liu et al., ACS Nano 2012) and up to ~0.87 um for a-Si (McDowell et al., Nano Lett. 2013), so all our micron Si cracks. Onset cycles are a scenario"},
-    {"name": "Particle stress", "value": f"index = R^2 / (D_Si t_charge), D_Si = {D_SI:.0e} m2/s; the glow saturates at {STRESS_FULL_INDEX:g}",
+    {"name": "Si fracture", "value": f"particles above {SI_CRITICAL_D_UM} µm crack; sooner when larger, later when porous",
+     "source": "Fracture-free only below ~0.15 µm for c-Si (Liu et al., ACS Nano 2012) and up to ~0.87 µm for a-Si (McDowell et al., Nano Lett. 2013), so all our micron Si cracks. Onset cycles are a scenario"},
+    {"name": "Particle stress", "value": f"index = radius² / (Si diffusivity × charge time), Si diffusivity {_sci(D_SI)} m²/s; the glow saturates at {STRESS_FULL_INDEX:g}",
      "source": "Diffusion-induced stress scales with particle diffusion time over charge time. A relative index, not a stress in MPa"},
-    {"name": "Ageing", "value": "SEI ~ sqrt(cycles), faster on Si; cracked Si may lose contact",
+    {"name": "Ageing", "value": "SEI grows with √cycles, faster on Si; cracked Si may lose contact",
      "source": "Scenario band, not a lifetime prediction: no cycling data exists for these batches"},
 ]
 
@@ -431,12 +441,12 @@ def _build(batch: str, image_id: str | None, stamp: tuple) -> dict:
                                     void, prone))
     central = indicators(target["si_frac"], target["graphite_frac"], target["porosity"], si_void_mean, prone_share)
     meta = {
-        "si_capacity_share": ("Silicon share of the capacity", "fraction", "phi_Si rho_Si q_Si / (phi_Si rho_Si q_Si + phi_gr rho_gr q_gr)"),
-        "thickness_swell_full": ("Electrode thickening at full charge", "fraction", "phi_Si 2.8 x_Si + phi_gr 0.10 x_gr, minus what the pores absorb"),
-        "porosity_full": ("Porosity at full charge", "fraction", "(porosity - absorbed swelling) / (1 + thickening)"),
-        "transport_full_vs_empty": ("Ion transport at full vs empty", "ratio", "(porosity_full / porosity)^1.5 (Bruggeman)"),
+        "si_capacity_share": ("Silicon share of the capacity", "fraction", "Si capacity / (Si + graphite capacity), each volume fraction × density × specific capacity"),
+        "thickness_swell_full": ("Electrode thickening at full charge", "fraction", f"Si fraction × {SI_EXPANSION:.0%} × Si fill + graphite fraction × {GR_EXPANSION:.0%} × graphite fill, minus what the pores absorb"),
+        "porosity_full": ("Porosity at full charge", "fraction", "(porosity − absorbed swelling) / (1 + thickening)"),
+        "transport_full_vs_empty": ("Ion transport at full vs empty", "ratio", f"(porosity at full / porosity at empty){str(BRUGGEMAN).translate(_SUP)} (Bruggeman)"),
         "plating_onset_c": ("Plating onset (charge to 80%)", "C", "lowest C at which the separator side drops below 0 V vs Li"),
-        "fracture_prone_si_share": ("Fracture-prone silicon", "fraction of Si volume", f"particles larger than {SI_CRITICAL_D_UM} um"),
+        "fracture_prone_si_share": ("Fracture-prone silicon", "fraction of Si volume", f"particles larger than {SI_CRITICAL_D_UM} µm"),
     }
     out_indicators = {key: {"label": label, "unit": unit, "formula": formula,
                             "value": central[key] if np.isfinite(central[key]) else None,

@@ -63,22 +63,29 @@ const ICONS = {
 };
 
 export interface ShellInfo {
-  baseline: string | null;
+  baseline: string | null;      // null until the settings have loaded
   baselineTiles: number | null;
   totalTiles: number | null;
   frozen: string | null;        // commit of the rules-frozen tag
   modelChanged: boolean;        // the model file differs from the one under rules-frozen
 }
 
+export interface Crumb {
+  label: ReactNode;
+  href?: string;
+}
+
 export default function Shell({
   page,
   crumbs,
   info,
+  wide = false,
   children,
 }: {
   page: string;
-  crumbs: ReactNode[];
+  crumbs: Crumb[];
   info: ShellInfo;
+  wide?: boolean;               // a full-bleed page (the anode lab): the crumbs don't sit in the 1180 px column
   children: ReactNode;
 }) {
   const navItem = (key: string, label: string, icon: ReactNode, to: string, extra?: ReactNode) => (
@@ -88,20 +95,15 @@ export default function Shell({
       {extra}
     </a>
   );
-  const experimental = (
-    <span className="mono ml-auto rounded-md border border-cx-orange/40 px-1.5 py-0.5 text-[10px] text-cx-orange-text"
-      title="Experimental feature: indicative, never part of the verdict">EXP</span>
-  );
   return (
     <div className="cx flex min-h-screen items-stretch">
       <div className="print-hidden w-[236px] shrink-0 border-r border-cx-line bg-cx-sidebar">
         <aside className="sticky top-0 flex h-screen flex-col gap-7 overflow-y-auto px-3.5 py-5">
-        <a href={href.identify()} className="flex items-center gap-2.5 px-2 py-1 text-cx-text-strong no-underline">
+        <a href={href.identify()} className="flex items-center gap-2.5 px-2 py-1 text-cx-text-strong no-underline hover:text-cx-text-strong">
           <img src={CAT.mark} alt="Catalyst" width={30} height={30} />
           <span className="text-[19px] font-semibold tracking-[-0.02em]">catalyst</span>
         </a>
         <nav aria-label="Main" className="flex flex-col gap-0.5">
-          <div className="lbl px-2.5 pb-2">Analyse</div>
           {navItem("identify", "Identify tile", ICONS.identify, href.identify())}
           {navItem("compare", "Compare batch", ICONS.compare, href.compare())}
           {navItem(
@@ -110,20 +112,19 @@ export default function Shell({
             ICONS.library,
             href.library(),
             info.totalTiles != null && (
-              <span className="mono ml-auto text-[11px] text-cx-faint">{info.totalTiles}</span>
+              <span className="mono ml-auto text-[11px] text-cx-faint" title={`${info.totalTiles} tiles`}>{info.totalTiles}</span>
             ),
           )}
-          <div className="lbl px-2.5 pt-5 pb-2">Trust</div>
           {navItem("audit", "Audit log", ICONS.audit, href.audit())}
-          {(flagOn("impact") || flagOn("anode")) && <div className="lbl px-2.5 pt-5 pb-2">Experimental</div>}
-          {flagOn("impact") && navItem("impact", "Wear & impact", ICONS.wear, href.impact(), experimental)}
-          {flagOn("anode") && navItem("anode", "Anode lab", ICONS.anode, href.anode(), experimental)}
+          {(flagOn("impact") || flagOn("anode")) && <div className="lbl px-2.5 pt-6 pb-2">Experimental</div>}
+          {flagOn("impact") && navItem("impact", "Wear & impact", ICONS.wear, href.impact())}
+          {flagOn("anode") && navItem("anode", "Anode lab", ICONS.anode, href.anode())}
         </nav>
         <div className="mt-auto flex flex-col gap-2.5">
           {navItem("settings", "Settings", ICONS.settings, href.settings())}
           {info.baseline && (
-            <a href={href.settings()} className="glass flex flex-col gap-2 rounded-[14px] p-3.5 text-inherit no-underline">
-              <div className="lbl">Default baseline</div>
+            <a href={href.settings()} className="glass flex flex-col gap-1.5 rounded-[14px] p-3.5 text-inherit no-underline hover:bg-white/[0.06] hover:text-inherit">
+              <div className="lbl">Baseline</div>
               <div className="flex items-center gap-2 text-sm font-medium text-cx-text">
                 <BatchDot name={info.baseline} />
                 {batchLabel(info.baseline)}
@@ -131,37 +132,41 @@ export default function Shell({
                   <span className="ml-auto text-xs font-normal text-cx-faint">{info.baselineTiles} tiles</span>
                 )}
               </div>
-              <div className="text-xs leading-snug text-cx-muted">
-                What the supplier promised.{" "}
-                {info.frozen ? <span className="text-cx-faint">Locked</span> : <span className="text-cx-orange-text">Change</span>}
+              <div className="flex items-center gap-1.5 text-xs leading-snug text-cx-muted">
+                {info.modelChanged ? (
+                  <span className="text-cx-investigate-text">Model differs from the frozen one</span>
+                ) : (
+                  <>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      {ICONS.lock}
+                    </svg>
+                    {info.frozen ? (
+                      <span title={`rules-frozen · ${shortHash(info.frozen, 7)}`}>Locked: rules frozen</span>
+                    ) : (
+                      "Rules not frozen yet"
+                    )}
+                  </>
+                )}
               </div>
             </a>
           )}
-          <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-cx-muted">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              {ICONS.lock}
-            </svg>
-            {info.modelChanged ? (
-              <span className="text-cx-investigate-text">Model differs from the frozen one</span>
-            ) : info.frozen ? (
-              <>
-                Rules frozen · <span className="mono">{shortHash(info.frozen, 7)}</span>
-              </>
-            ) : (
-              "Rules not frozen yet"
-            )}
-          </div>
         </div>
         </aside>
       </div>
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="print-hidden flex min-h-16 flex-wrap items-center gap-3 border-b border-cx-line px-10 text-sm text-cx-muted">
-          {crumbs.map((crumb, i) => (
-            <span key={i} className="flex items-center gap-3">
-              {i > 0 && <span className="text-[#5F6166]">/</span>}
-              <span className={i === crumbs.length - 1 ? "text-cx-text" : undefined}>{crumb}</span>
-            </span>
-          ))}
+        <header className="print-hidden border-b border-cx-line">
+          <nav aria-label="Breadcrumb" className={`flex min-h-16 flex-wrap items-center gap-3 px-10 text-sm text-cx-muted ${wide ? "" : "mx-auto w-full max-w-[1180px]"}`}>
+            {crumbs.map((crumb, i) => (
+              <span key={i} className="flex items-center gap-3">
+                {i > 0 && <span className="text-[#5F6166]">/</span>}
+                {crumb.href && i < crumbs.length - 1 ? (
+                  <a href={crumb.href} className="text-cx-muted no-underline hover:text-cx-text">{crumb.label}</a>
+                ) : (
+                  <span className={i === crumbs.length - 1 ? "text-cx-text" : undefined}>{crumb.label}</span>
+                )}
+              </span>
+            ))}
+          </nav>
         </header>
         {children}
       </main>

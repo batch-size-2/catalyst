@@ -92,8 +92,34 @@ export function Seg<T extends string>({
 }
 
 export function Panel({ className = "", children }: { className?: string; children: ReactNode }) {
-  return <section className={`panel p-6 ${className}`}>{children}</section>;
+  const pad = /(^|\s)!?p-/.test(className) ? "" : "p-6";  // a padding in className replaces the default
+  return <section className={`panel ${pad} ${className}`}>{children}</section>;
 }
+
+/** Every page's top: one 40 px title, at most one short sentence, and the page's own controls on the right. */
+export function PageHeader({ title, intro, children }: { title: ReactNode; intro?: ReactNode; children?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <div className="flex min-w-0 flex-col gap-2.5">
+        <h1 className="m-0 text-[40px] leading-[1.1] font-semibold tracking-[-0.03em]">{title}</h1>
+        {intro && <p className="m-0 max-w-[640px] text-base leading-[1.55] text-cx-muted">{intro}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** A one-line, neutral notice: a corrected link, a run that finished elsewhere. */
+export function Note({ children }: { children: ReactNode }) {
+  return (
+    <div role="note" className="flex items-center gap-3 rounded-[14px] border border-cx-line bg-cx-surface px-4 py-3 text-sm text-cx-text-2">
+      {children}
+    </div>
+  );
+}
+
+/** The page column every page uses: 1180 px, the same side and top padding. */
+export const PAGE = "mx-auto flex w-full max-w-[1180px] flex-col px-10 pt-10 pb-16";
 
 /** The ±1σ/±2σ baseline band with a marker dot at z (0 = baseline mean). */
 export function SigmaBand({ z, height = 4 }: { z: number | null; height?: number }) {
@@ -163,7 +189,15 @@ export const PHASE_LEGEND: [string, string][] = [
   ["Silicon", "rgb(191,134,64)"],
   ["Pore", "rgb(84,124,191)"],
   ["Binder", "rgb(159,109,191)"],
-  ["Graphite (grey, no tint)", "#6B6D73"],
+  ["Graphite", "#6B6D73"],
+];
+
+/** The phase layers /api/layers draws over a detector image, in qc/io.py LAYER_RGB. */
+export type Layer = "silicon" | "pore" | "binder";
+export const LAYERS: { id: Layer; label: string; color: string }[] = [
+  { id: "silicon", label: "Silicon", color: "rgb(255,140,0)" },
+  { id: "pore", label: "Pore", color: "rgb(40,120,255)" },
+  { id: "binder", label: "Binder", color: "rgb(190,90,255)" },
 ];
 
 /** "Everything else": a list of folded rows, each with a one-line summary. */
@@ -171,16 +205,18 @@ export function Folds({
   rows,
   open,
   onToggle,
+  bare = false,
 }: {
   rows: { id: string; title: string; summary: ReactNode; body: () => ReactNode }[];
   open: Record<string, boolean>;
   onToggle: (id: string) => void;
+  bare?: boolean;
 }) {
   return (
     <section aria-label="Everything else" className="overflow-hidden rounded-[22px] border border-cx-line bg-cx-surface">
-      <div className="lbl px-5 pt-4 pb-2.5">Everything else</div>
-      {rows.map((row) => (
-        <div key={row.id} className="border-t border-cx-line-soft">
+      {!bare && <div className="lbl px-5 pt-4 pb-2.5">Everything else</div>}
+      {rows.map((row, i) => (
+        <div key={row.id} className={bare && i === 0 ? "" : "border-t border-cx-line-soft"}>
           <button
             type="button"
             aria-expanded={!!open[row.id]}
@@ -267,7 +303,7 @@ export function TileKpiGrid({
           const z = band && band.sd > 0 ? (v! - band.mean) / band.sd : null;
           return (
             <div key={kpi} className="flex flex-col gap-2 rounded-[14px] border border-cx-line-soft bg-black/20 p-3">
-              <span className="line-clamp-2 min-h-[2lh] text-xs leading-snug text-cx-muted" title={`${quantityLabel(kpi, dict)} · ${kpi}`}>
+              <span className="line-clamp-2 min-h-[2lh] text-xs leading-snug text-cx-muted" title={dictEntry(kpi, dict).why_it_matters ?? quantityLabel(kpi, dict)}>
                 {quantityLabel(kpi, dict)}
               </span>
               <span className="mono text-[14px] whitespace-nowrap">
@@ -342,14 +378,21 @@ export function Details({ label = "details", children }: { label?: string; child
   );
 }
 
-export function ErrorPanel({ title, message, command }: { title: string; message: string; command?: string }) {
+export function ErrorPanel({ title, message, details, command }: { title: string; message: ReactNode; details?: ReactNode; command?: string }) {
   return (
     <Panel className="flex flex-col gap-3 border-cx-reject/30">
       <div className="flex items-center gap-2 text-cx-reject-text">
         <IconWarn size={16} />
         <h2 className="m-0 text-[15px] font-medium">{title}</h2>
       </div>
-      <p className="m-0 text-sm leading-relaxed text-cx-muted">{message}</p>
+      <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-sm leading-relaxed text-cx-muted">
+        {message}
+        {details && (
+          <Details>
+            <span className="mono block pt-1 text-xs break-words text-cx-faint">{details}</span>
+          </Details>
+        )}
+      </p>
       {command && (
         <code className="mono w-fit rounded-lg border border-cx-line bg-black/40 px-3 py-2 text-[13px] text-cx-text-2">
           {command}

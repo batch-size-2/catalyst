@@ -1,5 +1,6 @@
 @import "tailwindcss";
-@import "../../design/tokens.css";
+/* In the components layer, so a utility on an element (text-cx-orange-text on a .lbl, p-0 on a .panel) wins. */
+@import "../../design/tokens.css" layer(components);
 
 @theme inline {
   --font-cx: var(--cx-font);
@@ -44,19 +45,22 @@
   --radius-cx-hero: var(--cx-r-hero);
 }
 
-html,
-body {
-  margin: 0;
-  background: var(--cx-bg);
+@layer base {
+  html,
+  body {
+    margin: 0;
+    background: var(--cx-bg);
+  }
+
+  a {
+    color: var(--cx-orange-text);
+  }
+  a:hover {
+    color: #ffb98a;
+  }
 }
 
-a {
-  color: var(--cx-orange-text);
-}
-a:hover {
-  color: #ffb98a;
-}
-
+@layer components {
 /* Numbers Catalyst filled into guide text (Compare-Guided): a value chip and a tile chip. */
 .chip-num,
 .chip-tile {
@@ -193,6 +197,7 @@ a:hover {
 .lawsuit-run {
   animation: cxsiren 0.9s ease-out infinite;
 }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .spin,
@@ -213,17 +218,29 @@ a:hover {
   animation: rise 0.4s ease-out both;
 }
 
-/* Print: the batch passport only. */
+/* Print: the batch passport only, full width on white paper. */
 @media print {
-  body {
-    background: #fff;
+  body,
+  .cx {
+    background: #fff !important;
+    background-image: none !important;
   }
   .print-hidden {
     display: none !important;
+  }
+  .print-block {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   .passport {
     box-shadow: none !important;
     margin: 0 auto;
     max-width: 720px;
+  }
+  .passport .mono {
+    word-break: break-all;
   }
 }

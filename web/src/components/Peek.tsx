@@ -3,7 +3,7 @@ import { getParticles, imageUrl, layerUrl } from "../api";
 import { batchLabel } from "../lib";
 import { href } from "../router";
 import type { TileParticles } from "../types";
-import { Seg } from "./bits";
+import { LAYERS as ALL_LAYERS, Seg, type Layer as PhaseLayer } from "./bits";
 
 /** "Look closer without leaving" (design/README.md): peek on hover or focus, pin on click.
  *  A region is a real particle centroid (particles.csv) or, without one, the whole tile. */
@@ -17,11 +17,8 @@ export interface PeekItem {
   hasLayers?: boolean;  // silicon and pore layers from the segmentation
 }
 
-type Layer = "silicon" | "pore";
-const LAYERS: { id: Layer; label: string; color: string }[] = [
-  { id: "silicon", label: "Silicon", color: "rgb(255,140,0)" },
-  { id: "pore", label: "Pore", color: "rgb(40,120,255)" },
-];
+type Layer = Exclude<PhaseLayer, "binder">;
+const LAYERS = ALL_LAYERS.filter((l): l is (typeof ALL_LAYERS)[number] & { id: Layer } => l.id !== "binder");
 
 type Geometry = Pick<TileParticles, "width" | "height" | "px_um">;
 const geometryCache = new Map<string, Promise<Geometry>>();
@@ -128,6 +125,15 @@ export function PeekProvider({ children }: { children: ReactNode }) {
     setHover(null);
     setPinned({ items, index, returnTo: from });
   }, []);
+  // a peek belongs to the page it was opened on
+  useEffect(() => {
+    const close = () => {
+      setHover(null);
+      setPinned(null);
+    };
+    window.addEventListener("hashchange", close);
+    return () => window.removeEventListener("hashchange", close);
+  }, []);
   return (
     <PeekContext.Provider value={{ peek, unpeek, pin }}>
       {children}
@@ -162,9 +168,8 @@ function Popover({ item, anchor }: { item: PeekItem; anchor: DOMRect }) {
   return (
     <div role="tooltip" className="glass font-cx pointer-events-none fixed z-50 flex flex-col gap-2 rounded-[16px] p-3.5 text-cx-text" style={{ left, top, width, background: "rgba(20,21,25,.92)" }}>
       <span className="text-[13px] font-medium">{item.title}</span>
-      <Magnified item={item} box={POP} layers={["silicon", "pore"]} opacity={0.45} />
+      <Magnified item={item} box={POP} />
       {item.note && <span className="text-xs leading-snug text-cx-text-2">{item.note}</span>}
-      <span className="mono text-[10px] text-cx-faint">Click to pin · stays on this page</span>
     </div>
   );
 }
@@ -197,7 +202,9 @@ function Inspector({ pinned, onMove, onClose }: { pinned: Pinned; onMove: (index
       <div className="flex items-center gap-2.5">
         <span className="flex min-w-0 flex-col">
           <span className="text-[15px] font-medium">{item.title}</span>
-          <span className="mono truncate text-[11px] text-cx-faint">{batchLabel(item.batch)} · {item.imageId}</span>
+          <span className="truncate text-xs text-cx-faint">
+            {batchLabel(item.batch)}{item.title.includes(item.imageId) ? "" : <> · <span className="mono">{item.imageId}</span></>}
+          </span>
         </span>
         <button ref={close} type="button" aria-label="Close inspector" onClick={onClose} className="ml-auto grid h-8 w-8 cursor-pointer place-items-center rounded-lg border border-cx-line bg-transparent text-cx-text">
           ✕

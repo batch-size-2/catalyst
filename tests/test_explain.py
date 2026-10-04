@@ -116,6 +116,13 @@ def test_particle_type_labels_and_causes():
         "Possible causes to check: higher value."
 
 
+def test_fitted_particle_types_are_named_in_plain_language():
+    types = load_dictionary()["particle_types"]
+    assert types["T1"]["name"] == "brighter mid-grey silicon share"
+    assert types["T2"]["name"] == "mid-grey silicon share"
+    assert "T1" not in types["T1"]["name"] and "T2" not in types["T2"]["name"]
+
+
 def test_load_dictionary(tmp_path):
     missing = tmp_path / "missing.yaml"
     assert load_dictionary(missing, missing) == {}
