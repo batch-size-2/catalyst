@@ -104,6 +104,7 @@ def model_status(path: Path = ATTRIBUTION_MODEL_PATH) -> dict | None:
         "n_trained_on": {batch: len(ids) for batch, ids in (model.get("trained_on") or {}).items()},
         "loso_balanced_accuracy": (model.get("loso") or {}).get("balanced_accuracy"),
         "calibration": model.get("calibration"),
+        "importance": (model.get("explain") or {}).get("importance"),
         "sha256": sha256(path),
         "rules_frozen_commit": frozen,
         "matches_frozen": None if tagged is None or current is None else tagged == current,

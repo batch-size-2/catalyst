@@ -1,6 +1,6 @@
 {
- "version": "v4.1-draft",
- "fitted_at": "2026-10-03T21:27:23",
+ "version": "v4.2",
+ "fitted_at": "2026-10-04T10:57:27",
  "kind": "staged",
  "families": [
   "reg",
@@ -86,12 +86,33 @@
     "Batch_3": 14
    }
   },
-  "n_strips": 13
+  "n_strips": 13,
+  "classifier_balanced_accuracy": 0.6554621848739496
  },
  "calibration": {
-  "temperature": 1.4158915687682763,
+  "method": "venn_abers",
   "n": 31,
   "accuracy": 0.7096774193548387,
+  "balanced_accuracy": 0.6554621848739496,
+  "confusion": {
+   "Batch_1": {
+    "Batch_1": 3,
+    "Batch_2": 4,
+    "Batch_3": 0
+   },
+   "Batch_2": {
+    "Batch_1": 0,
+    "Batch_2": 5,
+    "Batch_3": 2
+   },
+   "Batch_3": {
+    "Batch_1": 0,
+    "Batch_2": 3,
+    "Batch_3": 14
+   }
+  },
+  "log_loss": 0.724168327740528,
+  "raw_log_loss": 0.7917473049858137,
   "tiers": [
    {
     "tier": "high",
@@ -102,20 +123,91 @@
    {
     "tier": "medium",
     "min_confidence": 0.5,
-    "right": 5,
-    "n": 9
+    "right": 7,
+    "n": 11
    },
    {
     "tier": "low",
     "min_confidence": 0.0,
-    "right": 8,
-    "n": 13
+    "right": 6,
+    "n": 11
    }
   ],
+  "venn_abers": {
+   "scores": [
+    0.01568637605242245,
+    0.05509563607550756,
+    0.14140119935250886,
+    0.13650962436846556,
+    0.2563881310964306,
+    0.07980818335240378,
+    0.0400789950856508,
+    0.4864527780249044,
+    0.1331307350044345,
+    0.28813430343939006,
+    0.0548231448953105,
+    0.0029853739928226023,
+    0.6453413686630857,
+    0.3050773233148745,
+    0.9102598253255246,
+    0.966118868734365,
+    0.9908237156325946,
+    0.5187791156505152,
+    0.9345998080868868,
+    0.990083067295798,
+    0.9939193294622126,
+    0.7889341165925873,
+    0.0007613494125858116,
+    0.48989399915821974,
+    0.998070099009748,
+    0.9580929013325604,
+    0.3786770810766033,
+    0.3195751173669278,
+    0.6283380942547238,
+    0.9896550127642093,
+    0.8463050006835932
+   ],
+   "labels": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "mean_width": 0.20384757892387848
+  },
   "conformal": {
    "alpha": 0.2,
-   "qhat": 0.6762603965575515,
-   "n": 31
+   "qhat": 0.6666666666666666,
+   "n": 31,
+   "coverage": 0.8709677419354839,
+   "mean_size": 1.4838709677419355
   },
   "stages": {
    "baseline": {
@@ -3181,7 +3273,7 @@
     }
    },
    "kpi_si_area_frac": {
-    "label": "silicon area fraction",
+    "label": "silicon content (share of image area)",
     "baseline_mean": 0.060299852299828156,
     "baseline_sd": 0.008996680428471038,
     "batch_means": {
@@ -3539,6 +3631,249 @@
      "Batch_2": 0.3660455140880227,
      "Batch_3": 0.4105850043137996
     }
+   }
+  },
+  "importance": {
+   "baseline": {
+    "n_features": 180,
+    "families": {
+     "tex": 0.608,
+     "reg": 0.1794,
+     "par": 0.11,
+     "kpi": 0.0606,
+     "edge": 0.042
+    },
+    "features": [
+     {
+      "feature": "tex_bse_lbp3",
+      "label": "BSE fine texture: share of corners",
+      "share": 0.0157,
+      "higher_means": "Batch_3"
+     },
+     {
+      "feature": "tex_inlens_glcm_contrast_d4",
+      "label": "InLens texture local contrast at 0.2 um",
+      "share": 0.0156,
+      "higher_means": "Batch_3"
+     },
+     {
+      "feature": "tex_bse_lbp8",
+      "label": "BSE fine texture: share of flat areas and dark specks",
+      "share": 0.0155,
+      "higher_means": "not Batch_3"
+     },
+     {
+      "feature": "tex_etd_lbp8",
+      "label": "ETD fine texture: share of flat areas and dark specks",
+      "share": 0.0144,
+      "higher_means": "not Batch_3"
+     },
+     {
+      "feature": "tex_etd_lbp6",
+      "label": "ETD fine texture: share of shallow curves",
+      "share": 0.0143,
+      "higher_means": "Batch_3"
+     },
+     {
+      "feature": "reg_binder_frac_slope",
+      "label": "binder fraction, top-to-bottom trend",
+      "share": 0.0136,
+      "higher_means": "not Batch_3"
+     },
+     {
+      "feature": "tex_bse_lbp7",
+      "label": "BSE fine texture: share of dark notches",
+      "share": 0.0136,
+      "higher_means": "Batch_3"
+     },
+     {
+      "feature": "tex_inlens_glcm_energy_aniso",
+      "label": "InLens texture uniformity horizontal vs vertical",
+      "share": 0.0135,
+      "higher_means": "not Batch_3"
+     }
+    ]
+   },
+   "variation": {
+    "n_features": 10,
+    "families": {
+     "deep": 1.0
+    },
+    "features": [
+     {
+      "feature": "deep_pc07",
+      "label": "DINOv2 image pattern 07",
+      "share": 0.2441,
+      "higher_means": "Batch_1",
+      "related": [],
+      "imaging": [
+       {
+        "feature": "img_inlens_p1",
+        "label": "InLens imaging: darkest grey level",
+        "r": -0.59
+       }
+      ]
+     },
+     {
+      "feature": "deep_pc03",
+      "label": "DINOv2 image pattern 03",
+      "share": 0.1822,
+      "higher_means": "Batch_1",
+      "related": [
+       {
+        "feature": "tex_inlens_lbp4",
+        "r": -0.72,
+        "label": "InLens fine texture: share of straight edges"
+       },
+       {
+        "feature": "tex_inlens_lbp9",
+        "r": 0.65,
+        "label": "InLens fine texture: share of irregular, noisy patterns"
+       },
+       {
+        "feature": "tex_inlens_lbp7",
+        "r": 0.63,
+        "label": "InLens fine texture: share of dark notches"
+       }
+      ],
+      "imaging": [
+       {
+        "feature": "img_inlens_p50",
+        "label": "InLens imaging: median brightness",
+        "r": 0.78
+       },
+       {
+        "feature": "img_etd_p50",
+        "label": "ETD imaging: median brightness",
+        "r": 0.74
+       },
+       {
+        "feature": "img_inlens_noise",
+        "label": "InLens imaging: noise",
+        "r": 0.59
+       }
+      ]
+     },
+     {
+      "feature": "deep_pc04",
+      "label": "DINOv2 image pattern 04",
+      "share": 0.167,
+      "higher_means": "Batch_1",
+      "related": [
+       {
+        "feature": "tex_bse_lbp8",
+        "r": -0.6,
+        "label": "BSE fine texture: share of flat areas and dark specks"
+       },
+       {
+        "feature": "tex_inlens_glcm_energy_d1",
+        "r": 0.52,
+        "label": "InLens texture uniformity at 0.05 um"
+       },
+       {
+        "feature": "tex_inlens_glcm_energy_d4",
+        "r": 0.52,
+        "label": "InLens texture uniformity at 0.2 um"
+       }
+      ],
+      "imaging": [
+       {
+        "feature": "img_inlens_p50",
+        "label": "InLens imaging: median brightness",
+        "r": -0.59
+       }
+      ]
+     },
+     {
+      "feature": "deep_pc01",
+      "label": "DINOv2 image pattern 01",
+      "share": 0.1441,
+      "higher_means": "Batch_1",
+      "related": [
+       {
+        "feature": "kpi_graphite_chord_um",
+        "r": -0.89,
+        "label": "graphite chord length"
+       },
+       {
+        "feature": "reg_graphite_chord_um_mean",
+        "r": -0.8,
+        "label": "graphite chord length, average over regions"
+       },
+       {
+        "feature": "reg_graphite_frac_p50",
+        "r": -0.79,
+        "label": "graphite fraction, typical region"
+       }
+      ],
+      "imaging": [
+       {
+        "feature": "img_bse_p99",
+        "label": "BSE imaging: brightest grey level",
+        "r": -0.57
+       },
+       {
+        "feature": "img_etd_p99",
+        "label": "ETD imaging: brightest grey level",
+        "r": 0.51
+       }
+      ]
+     },
+     {
+      "feature": "deep_pc10",
+      "label": "DINOv2 image pattern 10",
+      "share": 0.0655,
+      "higher_means": "Batch_1",
+      "related": [],
+      "imaging": []
+     },
+     {
+      "feature": "deep_pc05",
+      "label": "DINOv2 image pattern 05",
+      "share": 0.0649,
+      "higher_means": "Batch_1",
+      "related": [],
+      "imaging": [
+       {
+        "feature": "img_inlens_saturated_frac",
+        "label": "InLens imaging: saturated share",
+        "r": -0.59
+       }
+      ]
+     },
+     {
+      "feature": "deep_pc02",
+      "label": "DINOv2 image pattern 02",
+      "share": 0.0611,
+      "higher_means": "Batch_2",
+      "related": [
+       {
+        "feature": "reg_pore_chord_um_p50",
+        "r": 0.7,
+        "label": "pore chord length, typical region"
+       },
+       {
+        "feature": "reg_pore_chord_um_mean",
+        "r": 0.61,
+        "label": "pore chord length, average over regions"
+       },
+       {
+        "feature": "kpi_pore_chord_um",
+        "r": 0.58,
+        "label": "pore chord length"
+       }
+      ],
+      "imaging": []
+     },
+     {
+      "feature": "deep_pc08",
+      "label": "DINOv2 image pattern 08",
+      "share": 0.0379,
+      "higher_means": "Batch_1",
+      "related": [],
+      "imaging": []
+     }
+    ]
    }
   }
  },

@@ -362,11 +362,19 @@ function ModelGauge({ model }: { model: ModelStatus }) {
             <dd className="mono m-0 text-right">{record(stages.variation)}</dd>
           </>
         )}
+        {model.calibration?.tiers.filter((t) => t.n > 0).map((t) => (
+          <div key={t.tier} className="contents">
+            <dt className="text-cx-muted">{TIER_TEXT[t.tier]}</dt>
+            <dd className="mono m-0 text-right">{record(t)}</dd>
+          </div>
+        ))}
       </dl>
       <span className="mt-auto text-xs text-cx-faint">Fitted {localTime(model.fitted_at).slice(0, 10)}</span>
     </div>
   );
 }
+
+const TIER_TEXT = { high: "When 75% sure or more", medium: "When 50–75% sure", low: "When under 50% sure" } as const;
 
 type Stage = "load" | AttributionStage | "done";
 const NEXT_STAGE: Partial<Record<Stage, Stage>> = { features: "deep", deep: "predict" };

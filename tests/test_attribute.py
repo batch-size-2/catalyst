@@ -191,19 +191,40 @@ def test_every_image_gets_a_batch_even_when_unlike_anything(table):
     assert out["unfamiliar"].iloc[1] == True and out["predicted"].iloc[1] in model["classes"]  # noqa: E712
 
 
-def test_calibration_is_built_from_out_of_fold_calls(table):
+def test_calibration_is_a_held_out_record(table):
     model = A.fit_model(table, "Batch_3")
     cal = model["calibration"]
-    assert cal["n"] == len(table) and sum(t["n"] for t in cal["tiers"]) == len(table)
+    assert cal["method"] == "venn_abers" and cal["n"] == len(table) and sum(t["n"] for t in cal["tiers"]) == len(table)
     assert sum(t["right"] for t in cal["tiers"]) == round(cal["accuracy"] * cal["n"])
     assert 0 <= cal["conformal"]["qhat"] <= 1 and cal["stages"]["baseline"]["n"] == len(table)
-    probs = np.array([[0.5, 0.3, 0.2], [0.1, 0.2, 0.7]])
-    for t in (0.2, 1.0, 5.0):
-        scaled = A._temper(probs, t)
-        assert np.allclose(scaled.sum(axis=1), 1) and (scaled.argmax(axis=1) == probs.argmax(axis=1)).all()
-    assert A._temper(probs, 0.2).max() > probs.max() > A._temper(probs, 5.0).max()
+    assert 0 <= cal["conformal"]["coverage"] <= 1 and 1 <= cal["conformal"]["mean_size"] <= 3
+    points = cal["venn_abers"]                                 # one out-of-fold p(baseline) and label per image
+    assert len(points["scores"]) == len(points["labels"]) == len(table) and sum(points["labels"]) == (table["batch"] == "Batch_3").sum()
+    assert model["loso"]["balanced_accuracy"] == cal["balanced_accuracy"] and "classifier_balanced_accuracy" in model["loso"]
     out = A.predict(model, table).iloc[0]
     assert out["confidence_record"]["n"] == next(t["n"] for t in cal["tiers"] if t["tier"] == out["confidence_tier"])
+    json.dumps(model, default=A._json_default)
+
+
+def test_venn_abers_gives_an_interval_around_the_calibrated_probability():
+    scores = np.array([0.05, 0.1, 0.2, 0.3, 0.45, 0.55, 0.7, 0.8, 0.9, 0.95])
+    labels = np.array([0, 0, 0, 1, 0, 1, 1, 1, 1, 1.0])
+    low = A.venn_abers(scores, labels, 0.02)
+    high = A.venn_abers(scores, labels, 0.97)
+    assert 0 <= low[0] <= low[1] <= 0.5 <= high[0] <= high[1] <= 1
+    raw = np.array([[0.6, 0.38, 0.02], [0.01, 0.02, 0.97], [0.0, 0.0, 0.5]])
+    probs, intervals = A._calibrated(raw, ["Batch_1", "Batch_2", "Batch_3"], "Batch_3", {"scores": scores, "labels": labels})
+    assert np.allclose(probs.sum(axis=1), 1) and ((intervals[:, 0] <= probs[:, 2]) & (probs[:, 2] <= intervals[:, 1])).all()
+    assert np.isclose(probs[0, 0] / probs[0, 1], 0.6 / 0.38)   # the variations keep their raw proportions
+    assert np.isclose(probs[2, 0], probs[2, 1])                # nothing to share out: split evenly
+    assert A._calibrated(raw, ["Batch_1", "Batch_2", "Batch_3"], "Batch_3", None) == (raw, None)
+
+
+def test_the_bet_follows_the_stages():
+    classes = ["Batch_1", "Batch_2", "Batch_3"]
+    assert classes[A._call(np.array([0.3, 0.25, 0.45]), classes, "Batch_3")] == "Batch_1"   # more likely not the baseline
+    assert classes[A._call(np.array([0.3, 0.2, 0.5]), classes, "Batch_3")] == "Batch_3"
+    assert classes[A._call(np.array([0.3, 0.25, 0.45]), classes, "Batch_9")] == "Batch_3"   # no baseline: plain argmax
 
 
 def test_stage_calls_say_different_from_baseline_then_in_what_way(table):
@@ -213,8 +234,11 @@ def test_stage_calls_say_different_from_baseline_then_in_what_way(table):
     assert base["stage_baseline"]["call"] == "Batch_3" and base["stage_variation"] is None
     assert other["stage_baseline"]["call"] == "not Batch_3" and other["stage_variation"]["call"] == other["predicted"]
     assert 0.5 <= other["stage_variation"]["confidence"] <= 1
-    calls = A._stage_calls(np.array([0.34, 0.33, 0.33]), ["Batch_1", "Batch_2", "Batch_3"], "Batch_3")
+    low, high = other["stage_baseline"]["interval"]           # the range of "not Batch_3", not of p(Batch_3)
+    assert 0 <= low <= other["stage_baseline"]["confidence"] <= high <= 1
+    calls = A._stage_calls(np.array([0.34, 0.33, 0.33]), ["Batch_1", "Batch_2", "Batch_3"], "Batch_3", (0.2, 0.4))
     assert calls["stage_baseline"]["call"] == "not Batch_3" and abs(calls["stage_variation"]["confidence"] - 0.34 / 0.67) < 1e-9
+    assert np.allclose(calls["stage_baseline"]["interval"], [0.6, 0.8])
 
 
 def test_unfamiliar_is_measured_against_the_assigned_batch(table):
@@ -259,6 +283,22 @@ def test_staged_model_roundtrips_and_multiplies_its_stages(deep_table, tmp_path)
     assert cv["balanced_accuracy"] > null["p95"]
 
 
+def test_importance_says_what_each_stage_leans_on(deep_table):
+    model = A.fit_model(deep_table, "Batch_3", staged=(F.MATERIAL_FAMILIES, ("deep",)))
+    imp = model["explain"]["importance"]
+    assert set(imp) == {"baseline", "variation"}
+    for role, part in imp.items():
+        assert abs(sum(part["families"].values()) - 1) < 1e-3 and len(part["features"]) <= A.IMPORTANCE_TOP
+        shares = [f["share"] for f in part["features"]]
+        assert shares == sorted(shares, reverse=True) and all(f["higher_means"] in model["stages"][role]["classes"] for f in part["features"])
+    assert set(imp["variation"]["families"]) == {"deep"} and "deep" not in imp["baseline"]["families"]
+    top = imp["variation"]["features"][0]
+    assert top["label"].startswith("DINOv2 image pattern") and all({"feature", "label", "r"} <= set(t) for t in top["related"])
+    assert all(t["feature"].startswith("img_") and abs(t["r"]) >= A.TRANSLATE_MIN_R for t in top["imaging"])   # named, never a model input
+    assert not any(f.startswith("img_") for f in model["features"])
+    assert all(f["label"] != f["feature"] for f in imp["baseline"]["features"])
+
+
 def test_repeated_dry_runs_report_spread_and_held_out_confidence(table):
     res = A.dry_runs(table, "Batch_3", per_batch=2, repeats=3)
     assert res["repeats"] == 3 and 1 <= res["distinct_draws"] <= 3
@@ -274,3 +314,4 @@ def test_describe_gives_plain_names():
     assert F.describe("tex_bse_si_lbp4") == "BSE fine texture inside silicon: share of straight edges"
     assert F.describe("par_d50_um") == "median silicon particle size (D50)" and F.describe("par_solidity_iqr") == "spread of silicon particle compactness"
     assert F.describe("deep_pc03") == "deep_pc03"
+    assert F.describe("img_inlens_p1") == "InLens imaging: darkest grey level" and F.describe("img_bse_noise") == "BSE imaging: noise"

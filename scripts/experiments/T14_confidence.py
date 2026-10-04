@@ -18,6 +18,14 @@ BASELINE = "Batch_3"
 CLASSES = ["Batch_1", "Batch_2", "Batch_3"]
 ALPHA = 0.2
 MAP_C = 2.5**2
+TEMPERATURES = np.geomspace(0.02, 20, 121)   # the grid qc.attribute used until the model dropped its temperature (T14 adoption)
+
+
+def temper(probs: np.ndarray, t: float) -> np.ndarray:
+    """Temperature scaling of probabilities: p ** (1 / T), renormalised."""
+    logp = np.log(np.clip(probs, 1e-12, None)) / t
+    out = np.exp(logp - logp.max(axis=1, keepdims=True))
+    return out / out.sum(axis=1, keepdims=True)
 
 
 def oof(df: pd.DataFrame, feats, C: float | None) -> np.ndarray:
@@ -35,15 +43,15 @@ def oof(df: pd.DataFrame, feats, C: float | None) -> np.ndarray:
 
 
 def temperature(P, truth) -> float:
-    losses = [-np.log(np.clip(A._temper(P, t)[np.arange(len(truth)), truth], 1e-12, None)).mean() for t in A.TEMPERATURES]
-    return float(A.TEMPERATURES[int(np.argmin(losses))])
+    losses = [-np.log(np.clip(temper(P, t)[np.arange(len(truth)), truth], 1e-12, None)).mean() for t in TEMPERATURES]
+    return float(TEMPERATURES[int(np.argmin(losses))])
 
 
 def loo_temper(P, truth) -> np.ndarray:
     out = np.zeros_like(P)
     for i in range(len(P)):
         m = np.arange(len(P)) != i
-        out[i] = A._temper(P[i:i + 1], temperature(P[m], truth[m]))[0]
+        out[i] = temper(P[i:i + 1], temperature(P[m], truth[m]))[0]
     return out
 
 
@@ -102,7 +110,7 @@ def main() -> None:
     p0, p1 = venn_abers(Pt[:, 2], yb)
     pva = p1 / (1 - p0 + p1)
     res["2 stage 1"] = {"temperature": binary_metrics(Pt[:, 2], yb), "venn_abers": binary_metrics(pva, yb) | {"mean_width": float((p1 - p0).mean())}}
-    Pin = A._temper(P, temperature(P, truth))
+    Pin = temper(P, temperature(P, truth))
     res["3 sets"] = {"today_split_in_sample": conformal(Pin, truth, loo=False), "loo_cross_conformal": conformal(Pt, truth, loo=True)}
     Pm = oof(df, feats, MAP_C)
     res["4 MAP prior C=6.25 (raw)"] = three_way_metrics(Pm, truth)
