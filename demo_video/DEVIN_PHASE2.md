@@ -46,11 +46,15 @@ Environment (the system node is broken), from `demo_video/`:
 
   Read `web/src/router.ts`, `web/src/components/*` and `web/src/slab/*` (read-only) for labels and ARIA. The UI is still being polished, so locate everything by visible text and ARIA, never by pixel position. We'll re-run your capture when the UI settles.
 - **The lawsuit sound is wired:** `public/sfx/lawsuit.mp3` (2.08 s, mix 1.0) fires 0.75 s after the word "button" in `audit`, with a `click` at 0.6 s. Move the cursor's click exactly onto it.
-- **News: upgrade our own typeset news cards** (the current fact cards in `script.json`), and keep the `$1.9 billion` count-up, which we love. Make them feel like real headlines: an editorial headline style, a dateline, and a small "Source: BBC News, 24 Feb 2021" (etc.) credit line. **No outlet logos, mastheads or anything that imitates a real outlet's page.** Optional: if `public/news/*.png` real article screenshots ever appear, use them unedited (cropping is fine), credited.
+- **News: a generic "BREAKING NEWS" treatment in our own style.** Build on the current fact cards in `script.json`:
+  - a bold **BREAKING NEWS** banner or ticker (generic news-broadcast energy, no real outlet's name, logo or look);
+  - big headline type for each story, with the year shown, e.g. "BREAKING NEWS · 2021";
+  - keep the `$1.9 billion` count-up, which we love;
+  - credits go **small, at the bottom**, e.g. "Sources: CNBC, NBC News (2021); BBC News, 24 Feb 2021". Credits are text only; never show a logo.
 
 ## Creative direction
 
-**The hook (0–5 s) decides everything.** Big, confident motion type, plus the news cards, plus a camera that's already moving on frame 1. For example: the Bolt card slides in tilted in 3D, the camera pushes into the headline, and "EVERY CHEVY BOLT. RECALLED." lands as huge Geist type on the empty side of the frame. `$1.9 BILLION` counts up big. Make a viewer with the sound off want to keep watching.
+**The hook (0–5 s) decides everything.** Big, confident motion type, plus the news cards, plus a camera that's already moving on frame 1. For example: a BREAKING NEWS banner slams in, the Bolt card slides in tilted in 3D, the camera pushes into the headline, and "EVERY CHEVY BOLT. RECALLED." lands as huge Geist type on the empty side of the frame. `$1.9 BILLION` counts up big. Make a viewer with the sound off want to keep watching.
 
 **Text as a motion-graphics layer, with variance.** Text holds attention. Most of the time the narration shows as clean subtitles (the current `Captions.tsx`, refined). At 6–8 **hero moments**, the line, or its key phrase, becomes big kinetic type composed into the shot, and the subtitle steps aside. Compose those shots for it: the window shifts to one side and the type owns the clean side. Candidates:
 - the hook: "every Chevy Bolt", "$1.9 billion", "82,000 cars"
@@ -89,7 +93,7 @@ Rhyme the ending with the opening.
 
 | Scene | What happens | Cat |
 |---|---|---|
-| **news** | The hook (above). Dark, dim plate. The news cards fly in as tilted glass cards stacked in depth; the camera pushes into each headline; an orange marker sweep on the key phrase. "GM": Bolt. "billion": `$1.9 BILLION` counts up big. "Hyundai": the Hyundai card lands on top, "82,000" big. Note 7 optional, behind, no narration. Fix Phase 1's card overlap | Off screen |
+| **news** | The hook (above). Dark, dim plate. A BREAKING NEWS banner or ticker first. Then the news cards fly in as tilted glass cards stacked in depth; the camera pushes into each headline; an orange marker sweep on the key phrase. "GM": Bolt. "billion": `$1.9 BILLION` counts up big. "Hyundai": the Hyundai card lands on top, "82,000" big. Note 7 optional, behind, no narration. Fix Phase 1's card overlap | Off screen |
 | **science** | "I'm Catalyst": the cards slide away, the mark draws in, and the dive goes car → pack → cell → anode. Reveal the bright micrograph on "anode" (fixes Phase 1's 1.5 s dark gap). "Grey", "Orange", "swells", "Blue": the phase reveals and the swell inset. **New:** "plate out as metal": silver lithium needles grow from the top (self-drawing SVG). "short": a sharp arc flash (2–3 bright frames). "fire": warm ember glow from below, a few rising sparks, big "FIRE" type optional, then it burns down to dark as the window rises. Tasteful, not cartoonish | Waves on "I'm Catalyst"; magnifier; startled on "swells"; ears back and eyes wide on "fire" |
 | **compare** | The window rises on `#/compare/<batch>`. "promised": the baseline. "row": the camera glides down the "what moved" rows, top row spotlit. "investigate": the verdict pill lifts off in 2.5D (hero type). "held": the next step. "tabs … operator to manager": the cursor clicks all four explain tabs in rhythm and the text cross-fades | Pointer; small shrug on "investigate" |
 | **identify** | The cursor clicks Identify in the sidebar. "single image": the cat tosses a tile card onto the drop zone. "closest": the real result card lifts out; the bars grow. "sure": spotlight the confidence. "unfamiliar": the unfamiliar flag (hero type) | Carries the tile; proud, then surprised |
