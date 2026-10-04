@@ -1,4 +1,4 @@
-"""Provenance for one evidence file: input hashes, git state, config hash, timestamp (PLAN_v4 §3.11)."""
+"""Provenance for one evidence file: input hashes, git state, config hash, timestamp (PLAN §3.11)."""
 
 import hashlib
 import json

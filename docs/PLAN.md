@@ -1,10 +1,12 @@
-# Track 4 · Batch QC for electrode microstructure: Plan v4
+# Track 4 · Batch QC for electrode microstructure: the plan
 
 Team Batch Size 2. ML: Pat. Software: Patrik. State: 3 Oct 2026, 21:00.
 
-This is the only plan. It contains everything that still holds from PLAN_v0 to v3 (now deleted; they are in git history), the changes made after the task designer's clarifications of 3 Oct, and what has been built and measured since. Sections 1 to 3 keep the section numbers of v3, so older references such as "§3.5" still point at the right place. **What to do next is in §4.** Results on the real data are in §12, the glossary in §11, the evidence for each decision in §13, references in §14.
+This is the only plan (earlier versions, v0 to v3, are in git history; this file was `PLAN_v4.md`). It contains everything that still holds from them, the changes made after the task designer's clarifications of 3 Oct, and what has been built and measured since. Sections 1 to 3 keep the section numbers of v3, so older references such as "§3.5" still point at the right place. **What to do next is in §4.** Results on the real data are in §12, the glossary in §11, the evidence for each decision in §13, references in §14.
 
 Written on Pat's side; Patrik has agreed to it (3 Oct).
+
+> **Status.** This file records the plan as agreed on 3 Oct 2026 and is kept as written. What was built, the results after that date and the places where the code differs from this plan are in the [README](../README.md) ("Where the code differs from the plan"), [MODEL.md](MODEL.md) and [SUBMISSION.md](SUBMISSION.md).
 
 ## In short
 
@@ -152,7 +154,7 @@ Field ─ segment ─ mask ─┬─ kpis(), particles(), imaging()  ──► o
                                                 predict on a folder ────┴──► out/attribution/<drop>.json  (B, C)
 ```
 
-How each module works, every command and every output file: [README](../README.md). What consumers of the ML outputs can rely on: [AGENT_HANDOVER.md](AGENT_HANDOVER.md).
+How each module works, every command and every output file: [README](../README.md). The attribution model and what its output guarantees: [MODEL.md](MODEL.md).
 
 ### 3.1 Contract
 
@@ -447,7 +449,7 @@ Reading, for an incoming image or batch:
 | Batch_1 or Batch_2 | outside the baseline, not unfamiliar | A **known** variation: we have seen this before and can name it | Explanation names the batch and the drivers; verdict from A and δ |
 | any batch (the call still stands) | unfamiliar, low tier or a prediction set of two or three | A **weak call**: the nearest known batch, and how unlike it the image is | At least INVESTIGATE; the next action is "get more images" or "ask the supplier about …" |
 
-Known weaknesses (§12.2, PAT_SUMMARY §4): the baseline distance flags only 1 of the 14 Batch_1 and Batch_2 images, so "different from the baseline" rests on the classifier's first stage; and *unfamiliar* has never been tested on a truly foreign image.
+Known weaknesses (§12.2): the baseline distance flags only 1 of the 14 Batch_1 and Batch_2 images, so "different from the baseline" rests on the classifier's first stage; and *unfamiliar* has never been tested on a truly foreign image.
 
 ### 3.17 Evaluation protocol (before anything is trusted or frozen)
 
@@ -511,7 +513,7 @@ In this order. Steps 1 to 5 are the critical path for the judged test.
 | When to freeze | Tonight after a time-boxed step 2, or now | Step 2 is the only work that can still improve the scored result; it must not run into the morning |
 | Which model | Flat `deep` (0.63 in rehearsals; tiers 67% / 67% / 60%, so not informative) or staged `material > deep` (0.55; tiers 91% / 62% / 40%) | Both the call and the confidence are judged (§12.2) |
 
-**Drop protocol** (unchanged; README "Held-out protocol"):
+**Drop protocol** (unchanged; README "Scoring a new held-back folder"):
 
 1. New images go in their own folder under `data/`, never inside the known batch folders.
 2. Nothing is fitted or tuned after `rules-frozen`.

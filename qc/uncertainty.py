@@ -1,4 +1,4 @@
-"""Sampling and segmentation uncertainty for the descriptors (PLAN_v4 §3.6).
+"""Sampling and segmentation uncertainty for the descriptors (PLAN §3.6).
 
 The integral range of a phase (area under its 2D normalised autocorrelation) predicts how much
 the measured phase fraction varies with imaged area -- the "how many images are enough" estimate.

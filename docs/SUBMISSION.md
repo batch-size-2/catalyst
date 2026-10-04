@@ -46,7 +46,7 @@ From the literature review ([MODEL_LITERATURE_REVIEW.md](MODEL_LITERATURE_REVIEW
 
 | Method | Verdict | Reason |
 |---|---|---|
-| **CNN or ViT trained or fine-tuned on the images** | No | 31 images from 13 strips. A network memorises strip appearance, which is exactly the leak above. Training on tiles with a per-image vote was tried and reached 0.50–0.64 three-way (PLAN_v4 §12.2). The organisers also noted that an LLM could describe the images but not group them |
+| **CNN or ViT trained or fine-tuned on the images** | No | 31 images from 13 strips. A network memorises strip appearance, which is exactly the leak above. Training on tiles with a per-image vote was tried and reached 0.50–0.64 three-way (PLAN §12.2). The organisers also noted that an LLM could describe the images but not group them |
 | **Random forest, boosting, SVM, small MLP** | No | They overfit at this size and give no exact per-feature reasons |
 | **TabPFN** (tabular foundation model) [L20, L21] | No | A black box with no coefficients. Its benchmarks start well above 7 samples per class |
 | **QDA, Gaussian mixtures per class, GP with an RBF kernel** [L13, L14, L16] | No | A 10 × 10 covariance per class from 7 images is singular, and kernel length-scales cannot be identified from 31 points |

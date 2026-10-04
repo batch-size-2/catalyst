@@ -1,4 +1,4 @@
-"""Per-image feature table for batch attribution (PLAN_v4 §3.14). Owned by the ML engineer.
+"""Per-image feature table for batch attribution (PLAN §3.14). Owned by the ML engineer.
 
 One row per image, `META_COLUMNS` plus features in six families (seven with deep_), each with its own prefix so a
 family can be switched on or off in qc/attribute.py:
@@ -13,7 +13,7 @@ family can be switched on or off in qc/attribute.py:
     img_   imaging descriptors per channel: acquisition, not material. Kept apart on purpose
     deep_  optional: pretrained DINOv2 tile embeddings, added by qc/deep.py (not computed here)
 
-Leakage rule (PLAN_v4 §2, Rule 2): strip_id, image height or width, px_um and XResolution are
+Leakage rule (PLAN §2, Rule 2): strip_id, image height or width, px_um and XResolution are
 never features. `assert_no_leakage()` enforces it on every table this module writes.
 
 Usage: uv run python -m qc.features [data/Batch_1 ...]   # default: every folder in data/ -> out/features.csv

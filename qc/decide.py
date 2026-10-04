@@ -1,4 +1,4 @@
-"""Backend side: KPI tables -> verdict. Owned by the backend engineer (PLAN_v4 §3.5).
+"""Backend side: KPI tables -> verdict. Owned by the backend engineer (PLAN §3.5).
 
 Usage (no images needed): uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline
 """
@@ -182,7 +182,7 @@ def min_achievable_p(n1: int, n2: int) -> float:
 
 
 def power(n1: int, n2: int, alpha: float) -> Power:
-    """How far a label-shuffle test on n1 vs n2 units can go (PLAN_v4 §3.5)."""
+    """How far a label-shuffle test on n1 vs n2 units can go (PLAN §3.5)."""
     min_p = min_achievable_p(n1, n2)
     limited = min_p >= alpha
     extra = 0 if not limited else next(

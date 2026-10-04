@@ -1,4 +1,4 @@
-"""Batch attribution and baseline distance (PLAN_v4 §3.15-3.16). Owned by the ML engineer.
+"""Batch attribution and baseline distance (PLAN §3.15-3.16). Owned by the ML engineer.
 
 Answers two questions, kept apart from the QC verdict in qc/decide.py:
 
@@ -12,7 +12,7 @@ Answers two questions, kept apart from the QC verdict in qc/decide.py:
      the baseline strip segments, a root-mean-square z distance, and an `outside_baseline` flag
      calibrated on the baseline's own leave-one-strip-out distances.
 
-Every image is always assigned to a batch (the task designer's rule, PLAN_v4 Rule 11): a weak call
+Every image is always assigned to a batch (the task designer's rule, PLAN Rule 11): a weak call
 is reported as a weak call, never as a non-answer. What says how weak:
 
   - `stage_baseline` and `stage_variation`: "different from the baseline?" and "in what way?", each
@@ -35,7 +35,7 @@ Reasons carry a plain-language `text`: named features are stated against the bas
 deep_pcNN component is translated into the named material features it moves with on the training set.
 `explain.importance` says which inputs each stage leans on over all training images.
 
-Rule 2 of PLAN_v4 allows a classifier on batch labels for this track
+Rule 2 of PLAN allows a classifier on batch labels for this track
 only: the accept/reject verdict is still the statistical comparison in qc/decide.py.
 
 Usage:
@@ -87,7 +87,7 @@ def strip_group(strip_id) -> str:
 
 
 def segments_of(df: pd.DataFrame) -> pd.Series:
-    """(batch, strip) segment label per row: the unit for permutations (PLAN_v4 §3.5)."""
+    """(batch, strip) segment label per row: the unit for permutations (PLAN §3.5)."""
     return df["batch"].astype(str) + "|" + df["strip_id"].map(strip_group)
 
 

@@ -1,4 +1,4 @@
-"""Texts from one Evidence by fixed templates (PLAN_v4 §3.8). No language model.
+"""Texts from one Evidence by fixed templates (PLAN §3.8). No language model.
 
 explain() gives the answer sentence, the next steps and four audience texts, each a list of sentences.
 """
