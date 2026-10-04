@@ -18,6 +18,7 @@ import pandas as pd
 from skimage.exposure import rescale_intensity
 from skimage.io import imsave
 
+from qc.control_check import load_controls
 from qc.decide import evaluate, split_tables
 from qc.explain import explain, load_dictionary
 from qc.io import field_paths, load_field, tile_geometry
@@ -78,9 +79,10 @@ def run(batch_dirs: list[Path], cfg: dict, progress: Progress | None = None) -> 
     measured = measure([baseline_dir, *(d for d in batch_dirs if d.name != baseline_dir.name)], progress)
     save_tables(measured)
     tables = split_tables(measured.kpis, measured.particles, measured.imaging)
+    controls = load_controls(cfg)
     results = []
     for batch_dir in batch_dirs:
-        evidence = evaluate(tables, batch_dir.name, cfg)
+        evidence = evaluate(tables, batch_dir.name, cfg, controls)
         evidence.explanations = explain(evidence, load_dictionary())
         tiffs = sorted({p for d in (baseline_dir, batch_dir) for p in d.iterdir()
                         if p.suffix.lower() in TIFF_SUFFIXES})
@@ -235,6 +237,43 @@ def _replace_batch_rows(new: pd.DataFrame, path: Path) -> None:
 
 
 TABLES_LOCK = threading.Lock()  # the API may measure a drop while a comparison runs
+
+
+def identify_ready() -> dict:
+    """Whether a live Identify drop can run offline: model file, deep import, cached DINOv2 weights."""
+    model_present = ATTRIBUTION_MODEL_PATH.is_file()
+    deep_ok = True
+    try:
+        import qc.deep  # noqa: F401
+        import torch  # noqa: F401
+        import transformers  # noqa: F401
+    except Exception:
+        deep_ok = False
+    cached = False
+    if deep_ok:
+        try:
+            from huggingface_hub import try_to_load_from_cache
+            from qc.deep import MODEL_ID, MODEL_REVISION
+            cached = any(
+                isinstance(try_to_load_from_cache(MODEL_ID, name, revision=MODEL_REVISION), str)
+                for name in ("model.safetensors", "pytorch_model.bin")
+            )
+        except Exception:
+            cached = False
+    missing = []
+    if not model_present:
+        missing.append("the attribution model file is missing")
+    if not deep_ok:
+        missing.append("the image-model library isn't installed")
+    elif not cached:
+        missing.append("the DINOv2 weights aren't cached on this machine")
+    return {
+        "ok": not missing,
+        "model_present": model_present,
+        "deep_importable": deep_ok,
+        "dinov2_cached": cached,
+        "message": None if not missing else "Identify isn't ready: " + "; ".join(missing) + ".",
+    }
 
 
 def save_tables(tables: Tables) -> None:

@@ -211,6 +211,7 @@ Hard rules:
    Then do the same through the app's Identify screen. Time each step.
    - The predictions are in-sample: this is a plumbing and timing check only.
 2. Check:
+   - `GET /api/health` is all true before the upload (model file, deep import, DINOv2 weights cached). The Identify screen refuses the drop until it is. See `docs/RUNBOOK_DROP.md`;
    - the provenance in the output shows `rules-frozen` and the model sha;
    - the run works with the network off;
    - the app shows the bet, the tier and record, the two stages, the prediction set, the reasons as sentences, `predicted_distance` and `predicted_threshold`.

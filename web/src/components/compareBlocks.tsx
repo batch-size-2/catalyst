@@ -85,13 +85,16 @@ function reasonCards(ctx: Ctx): ReasonCard[] {
       title: "Controls haven't run",
       text: "Catalyst only says Accept after its known-answer controls pass.",
     });
-  else if (evidence.controls.passed === false)
-    cards.push({
-      key: "controls",
-      title: "Controls failed",
-      text: "The method isn't validated on this data.",
-    });
   return cards.slice(0, 3);
+}
+
+function controlsLine(evidence: Evidence): string | null {
+  const controls = evidence.controls;
+  if (!controls.ran || !controls.results.length) return null;
+  const passed = controls.results.filter((result) => result.passed).length;
+  const failed = controls.results.filter((result) => !result.passed).map((result) => result.name);
+  const line = `Controls: ${passed} of ${controls.results.length} passed`;
+  return failed.length ? `${line} (${failed.join(", ")})` : line;
 }
 
 export function VerdictBlock({
@@ -122,6 +125,7 @@ export function VerdictBlock({
           <VerdictPill verdict={evidence.verdict} />
           <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-2">
             <p className="m-0 text-2xl leading-snug font-medium tracking-[-0.02em] text-cx-text-strong">{evidence.explanations.summary}</p>
+            {controlsLine(evidence) && <p className="m-0 text-[13px] text-cx-muted">{controlsLine(evidence)}</p>}
             {line && <p className="mono m-0 text-[13px] text-cx-muted">{line}</p>}
           </div>
           <button className="btn shrink-0" type="button" data-walkthrough-start disabled={!guide?.steps.length || touring} onClick={onWalk}>

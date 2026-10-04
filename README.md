@@ -34,7 +34,8 @@ uv run python -m qc.measure                                               # ML: 
 uv run python -m qc.run --batch data/Batch_2 data/Batch_3                 # end to end -> out/evidence/<baseline>/<batch>.json
 uv run python -m qc.decide tests/fixtures/kpis_fake.csv --baseline fake_baseline   # backend only, no images
 uv run python -m qc.types [--exclude Batch_2] [--porous-rule]             # fit particle types on out/particles.csv
-uv run python -m qc.controls --baseline data/Batch_3                      # controls -> out/controls/summary.csv
+uv run python -m qc.controls --baseline data/Batch_3                      # controls -> out/controls/summary.csv (KPI shifts only)
+uv run python -m qc.control_check                                        # run controls through compare() -> out/controls.json
 uv run python -m qc.uncertainty --batch data/Batch_3                      # -> out/uncertainty/*.csv
 uv run python -m qc.features                                              # per-image feature table -> out/features.csv
 uv run python -m qc.deep                                                  # DINOv2 deep_ columns merged into out/features.csv (CPU, local)
@@ -83,6 +84,7 @@ flowchart LR
   subgraph TYPES["ML · qc/types.py · controls.py · uncertainty.py"]
     TYP["fit_types / assign_types → particle types<br/>GMM + leave-one-strip-out k selection · frozen in config/particle_types.json"]
     CTL["make_controls / shared_strip_controls → Control fields<br/>negative + positive batches with a known answer"]
+    CHK["qc/control_check.py · run_controls<br/>iter_controls, one at a time → Controls"]
     UNC["threshold_variants · integral_range<br/>segmentation + sampling uncertainty"]
   end
 
@@ -94,7 +96,7 @@ flowchart LR
   end
 
   subgraph BE["Backend · qc/decide.py"]
-    J["evaluate(tables, batch, cfg) → compare(ref, batch, cfg) → Evidence<br/>image + strip units → differences → verdict"]
+    J["evaluate(tables, batch, cfg, controls) → compare → Evidence<br/>image + strip units → differences → verdict"]
     EXPLAIN["qc/explain.py · explain(evidence, dictionary) → Explanations<br/>answer sentence · rules fired · next steps · 4 audiences"]
   end
 
@@ -114,12 +116,13 @@ flowchart LR
     AT["attribution/evaluation.json · feature_ranking.csv<br/>attribution/{run}.json"]
     P["masks/{batch}/{id}.png"]
     CR["crops/{type}/{n}.png<br/>example crops per particle type"]
+    CJ["controls.json<br/>pass/fail per control, baseline + config hash"]
   end
 
-  API["qc/api.py · FastAPI :8000<br/>GET config · settings · batches · evidence · guide · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation · slab<br/>GET particles · layers · POST upload · run (?baseline one-off) · measure · attribution · guide · verify (NDJSON progress) · PUT settings/baseline"]
+  API["qc/api.py · FastAPI :8000<br/>GET health · config · settings · batches · evidence · guide · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation · slab<br/>GET particles · layers · POST upload · run (?baseline one-off) · measure · attribution · guide · verify (NDJSON progress) · PUT settings/baseline"]
   CLAUDE["Claude API<br/>reads evidence + dictionary, never images"]
   WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile (stage progress, region peek, result URLs) · compare batch (focus + walkthrough) · library + viewer (phase layers) · audit log + batch passport + parody lawsuit button · settings<br/>wear & impact · anode lab (Experimental, three.js, lazy-loaded)"]
-  CLI["python -m qc.run / qc.measure / qc.features / qc.attribute"]
+  CLI["python -m qc.run / qc.control_check / qc.measure / qc.features / qc.attribute"]
   IMPACT["qc/impact.py · impact_report(kpis, particles, batch, baseline)<br/>Experimental: indicative cell impact + worst cases · config/impact.yaml<br/>never feeds the verdict"]
 
   D --> IO --> RUN
@@ -130,6 +133,7 @@ flowchart LR
   RUN --> T --> J
   RUN --> PT --> J
   RUN --> IT --> J
+  CTL --> CHK --> CJ --> RUN
   CTL -. "out/controls/summary.csv" .-> RUN
   UNC -. "out/uncertainty/*.csv" .-> RUN
   CFG --> J
@@ -203,7 +207,8 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `out/previews/<batch>/<image_id>_<detector>_<size>.png` | no | Cached detector previews (512/2048 px) served by `GET /api/images` |
 | `out/impact/<baseline>/<batch>.json` | no | `python -m qc.impact` output (the API computes the same report on request) |
 | `out/crops/<type>/<n>.png` | no | Example particle crops per type, for the UI gallery |
-| `out/controls/summary.csv` | no | Measured KPI shifts for every control |
+| `out/controls/summary.csv` | no | Measured KPI shifts for every control (`python -m qc.controls`) |
+| `out/controls.json` | no | Whether each control passed `compare()`, plus the baseline name and the decision-config hash. `run()` passes it to `evaluate()` only when both still match |
 | `out/uncertainty/` | no | `threshold_variants.csv` (KPIs at thresholds ±5) and `integral_range.csv` (per image and phase) |
 | `out/evidence/<baseline>/<batch>.json` | no | The verdict and everything behind it, one file per batch *and* baseline, so a one-off baseline never overwrites the default comparison (PLAN_v4 still says `out/evidence/<batch>.json`; files at that old path are still read). The UI reads this, attribution output and masks |
 | `out/guide/<baseline>/<batch>.json` | no | Claude's checked summary and walkthrough for one comparison, cached by a hash of model, prompt and input |
@@ -227,6 +232,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 
 | Endpoint | Returns |
 |---|---|
+| `GET /api/health` | `{ok, model_present, deep_importable, dinov2_cached, message}`: whether Identify can run a drop offline (model file, `qc.deep` import, cached DINOv2 weights). The Identify screen blocks upload while `ok` is false |
 | `GET /api/config` | `config/decision.yaml` as JSON |
 | `GET /api/settings` | `{baseline, rules_frozen_commit, rules_frozen_date, rules_frozen_config, claude: {available, model, reason}}`; `rules_frozen_config` has each frozen file's sha256 under the tag and now, so a change since the freeze shows in the Audit banner |
 | `PUT /api/settings/baseline` | Body `{baseline}`: writes the default `baseline` line of `config/decision.yaml`. 409 once the `rules-frozen` tag exists, 404 for a missing folder |
@@ -322,7 +328,7 @@ A KPI that isn't computed, or an image whose segmentation crashes, is written as
 
 **Particle types (step 6, `qc/types.py`).** `fit_types` standardises `log_d, contrast_ratio, inlens_ratio, void_frac, texture, solidity`, fits `GaussianMixture` for k = 2, 3, 4 and picks k by leave-one-strip-out stability (ARI against the full fit, preferring smaller k within 0.02), merges types that differ only in size (< 0.5 z on every feature but `log_d`), and names each type from its features in units. `assign_types` assigns the nearest type by Mahalanobis distance; beyond the 99th percentile of training distances → `unassigned`; with `--porous-rule`, `void_frac > 0.1` → `porous`. `uv run python -m qc.types` fits on `out/particles.csv` (optionally excluding batches), writes `config/particle_types.json`, rewrites the `type` column and saves example crops to `out/crops/`.
 
-**Controls (`qc/controls.py`, PLAN_v4 §3.7 + §3.13).** `make_controls` builds negative controls (brightness/contrast ±20%, black +20, noise σ5, synthetic curtaining) and positive controls (donor Si pasted to +50%/+100%, voids punched into 30% of particles, non-border Si scaled 1.5× with 1/2.25 thinning to hold Si amount constant) from a random choice of reference strips. `shared_strip_controls` splits reference strips between a test batch and the reference (`kept_in_reference` holds the image_ids that stay) to test both readings of shared strips. `uv run python -m qc.controls` measures every control against its untransformed originals and writes `out/controls/summary.csv`.
+**Controls (`qc/controls.py`, `qc/control_check.py`, PLAN_v4 §3.7 + §3.13).** `make_controls` builds negative controls (brightness/contrast ±20%, black +20, noise σ5, synthetic curtaining) and positive controls (donor Si pasted to +50%/+100%, voids punched into 30% of particles, non-border Si scaled 1.5× with 1/2.25 thinning to hold Si amount constant) from a random choice of reference strips. `shared_strip_controls` splits reference strips between a test batch and the reference (`kept_in_reference` holds the image_ids that stay). Shared-strip controls are not part of the verdict. `uv run python -m qc.controls` measures every control against its untransformed originals and writes `out/controls/summary.csv`. `uv run python -m qc.control_check` runs `iter_controls` one at a time (not the shared-strip set), measures each with `measure_field`, and compares it with the baseline minus that control's source strips (`kept_in_reference` image ids stay). A negative passes when no used key quantity is DIFFERENT. A positive passes when at least one is, and the first DIFFERENT driver equals `expected_driver`. The result is `out/controls.json` (`Controls` plus `baseline`, `config_sha256` of the decision config, `created_at`). `run()` loads it into `evaluate()` only when the baseline and that hash match; otherwise controls count as not run.
 
 **Features (`qc/features.py`, PLAN_v4 §3.14).** `image_features(field)` returns one row per image: regional descriptors per ~15 µm tile summarised over tiles (mean, SD, CV, p10/p50/p90, normalised depth slope, top/bottom ratio), the ignored top/bottom 5% bands measured separately, uniform-LBP histograms per channel (and BSE inside graphite and inside Si) plus GLCM statistics at 0.05 and 0.2 µm, image-level particle aggregates (incl. type shares if `config/particle_types.json` exists), the 15 KPIs, and the imaging descriptors. `assert_no_leakage()` refuses any column whose name mentions strip, height, width, px_um, xres or shape. `uv run python -m qc.features` writes `out/features.csv`.
 
@@ -342,7 +348,7 @@ Pure statistics on KPI, particle and imaging tables; it never sees image pixels.
 
 **2. Quantities.** `key_descriptors` in config order, then type-share quantities sorted by name, `KPI_UNITS`, then other numeric columns. Type shares count as keys when `key_type_shares` is true. `used` = key and measured on both sides (`note: "not measured"` otherwise).
 
-**3. Particle types and imaging.** Per image, `type_share:<type>` = Si area of that type / all typed Si area (border particles included), and `unassigned_share` likewise; `new_type_share` pools the unassigned share over the batch. Type shares become keys when `key_type_shares` is true, and `fingerprint.type_shares` reports their driving-unit values, intervals and strip values. Strip shares are area-weighted means of the images' shares, not pooled particles. The imaging check flags baseline images whose black level in any channel differs from that channel's median by more than `imaging_black_outlier`, then compares each metric with the non-outlier baseline min–max range widened by `imaging_widen` and at least `imaging_min_pad`. Any batch image outside a range sets `imaging.changed`; `imaging_sensitive` keys are then unused. When `curtaining_max` is not null, BSE `curtaining_index` above it blanks `curtaining_sensitive` descriptors on both sides; null leaves them untouched.
+**3. Particle types and imaging.** Per image, `type_share:<type>` = Si area of that type / all typed Si area (border particles included), and `unassigned_share` likewise; `new_type_share` pools the unassigned share over the batch. Type shares become keys when `key_type_shares` is true, and `fingerprint.type_shares` reports their driving-unit values, intervals and strip values. Strip shares are area-weighted means of the images' shares, not pooled particles. The imaging check flags baseline images whose black level in any channel differs from that channel's median by more than `imaging_black_outlier`, then compares each metric with the non-outlier baseline min–max range widened by `imaging_widen` and at least `imaging_min_pad`. A metric counts as outside only when the batch's median is outside that padded range, or at least two images are. Only acquisition metrics (`black_level`, `p50`, `noise`, per channel) set `imaging.changed` and pause `imaging_sensitive` keys; other metrics that are outside go on `imaging.report_metrics` and do not change the verdict. The next action names at most the three most out-of-range acquisition metrics. When `curtaining_max` is not null, BSE `curtaining_index` above it blanks `curtaining_sensitive` descriptors on both sides; null leaves them untouched.
 
 **4. Units.** `unit` is `image` or `strip` (default `image`). `analyze` runs at both units with nothing dropped; `Evidence.other_unit` holds the other unit's power and used-key statuses. A used key quantity that is DIFFERENT at one unit and SIMILAR at the other is a contradiction: INVESTIGATE, not REJECT, because images from one strip are correlated and an image-level p can be too small.
 
@@ -352,7 +358,7 @@ Pure statistics on KPI, particle and imaging tables; it never sees image pixels.
 
 **7. Power.** `power.n_arrangements` = C(n1 + n2, n1) on the driving unit counts; `min_p` = 2/N for equal counts else 1/N; `limited` when `min_p ≥ alpha`; `extra_needed` = the extra batch units that would lift the limit (≤ 20).
 
-**8. Odd units, verdict, next action.** `odd_units` flags batch images or strips outside the baseline mean ± `odd_sd` × SD of baseline values at that unit (at least 3 baseline values); `odd_images` and `odd_strips` are both reported, but only the driving unit's list triggers the verdict. The verdict follows the precedence in the deviations below (controls → new type → DIFFERENT not contradicted by the other unit → imaging → odd units → contradictions → power → UNCLEAR → controls missing → nothing measured), with `reasons` listing every trigger that fired. `next_action` is computed from the first trigger: quarantine/check-supplier on REJECT, more units on power limit, `units_to_settle` (the extra units that push the top UNCLEAR quantity's interval fully inside or outside ±δ) on UNCLEAR, "Release the batch" on ACCEPT.
+**8. Odd units, verdict, next action.** `odd_units` flags batch images or strips outside the baseline mean ± `odd_sd` × SD of baseline values at that unit (at least 3 baseline values); `odd_images` and `odd_strips` are both reported, but only the driving unit's list triggers the verdict. The reported range is clipped at 0, and at 1 for fractions; the flag itself still uses the raw mean ± k SD. The verdict follows the precedence in the deviations below (new type → DIFFERENT not contradicted by the other unit → imaging → odd units → contradictions → power → UNCLEAR → controls missing or failed → nothing measured), with `reasons` listing every trigger that fired. Failed controls are the same gate as controls that have not run: they block ACCEPT, they are not an earlier trigger, and they do not replace the next action. `next_action` is computed from the first trigger: quarantine/check-supplier on REJECT, more units on power limit, `units_to_settle` (the extra units that push the top UNCLEAR quantity's interval fully inside or outside ±δ) on UNCLEAR, "Release the batch" on ACCEPT.
 
 **9. Fingerprint and provenance.** `fingerprint.segments` stays at strip level for the image gallery; each descriptor's value and t-interval use the driving unit, with `by_strip` values from the strip segments. Type shares are listed separately in `fingerprint.type_shares`; `imaging`, `controls` and `explanations` remain available. Nearest batch, image groups and variance split were dropped: batch attribution (Pat's `qc/attribute.py`) replaces them. `qc/provenance.py` fills `provenance` (§3.11): SHA-256 per input TIFF, git commit + dirty flag, a canonical hash of the config plus hashes of `config/particle_types.json`/`config/kpi_dictionary.yaml` when present, the `rules-frozen` tag if it exists, and a timestamp — the only field that differs between identical runs.
 
@@ -374,7 +380,7 @@ Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real s
 - **Shared-strip variants removed (§3.5, §3.13).**
 - **Nearest batch, image groups and variance split dropped (§3.5):** batch attribution replaces them.
 - **Odd check (new), at both units.** A batch image or strip outside baseline mean ± `odd_sd` × the baseline SD at that unit, on a used key quantity, is listed and triggers INVESTIGATE only at the driving unit: the FDA tier-2 quality range from the same framework [R7]. `odd_sd: null` turns it off.
-- **Verdict precedence (not specified in the plan).** Controls failed → INVESTIGATE. New particle type → REJECT, or INVESTIGATE if imaging changed (type features are brightness-based). A key quantity DIFFERENT and not contradicted by the other unit → REJECT. Any UNCLEAR, power limit, imaging change, odd unit or unit contradiction → INVESTIGATE. Otherwise ACCEPT. `reasons` lists every trigger that fired.
+- **Verdict precedence (not specified in the plan).** New particle type → REJECT, or INVESTIGATE if imaging changed (type features are brightness-based). A key quantity DIFFERENT and not contradicted by the other unit → REJECT. Any UNCLEAR, power limit, imaging change, odd unit or unit contradiction → INVESTIGATE. Otherwise ACCEPT, and only when the controls ran and passed. Controls that failed or never ran only block ACCEPT: the verdict and the next action stay what they would be without that gate, and the reason names the failures (`Controls failed (…): ACCEPT needs passed controls.`). `reasons` lists every trigger that fired.
 - **Structure.** `compare(ref, batch, cfg)` stays a two-sample comparison; provenance lives in `qc/provenance.py` instead of `qc/run.py`. `kpis.csv` gains `area_um2` (analysed area) so strip values can be area-weighted.
 
 **Config (`config/decision.yaml`)**
@@ -402,7 +408,7 @@ Decided by Patrik on 3 Oct after checking the v3 plan's §3.5 against the real s
 | `n_resamples`, `seed` | `5000`, `0` | Resampling budget and seed |
 | `odd_sd` | `3.0` | Odd range = baseline mean ± this × baseline SD at each unit; `null` turns it off |
 
-**Not built yet:** running the controls (§3.7) inside `run()`, so `Evidence.controls` stays empty. The verdict logic already reacts to it, to `new_type_share` and to `imaging.changed`.
+`run()` loads `out/controls.json` when its `baseline` and `config_sha256` match the config in use. Until that file exists, `Evidence.controls.ran` stays false and ACCEPT stays closed. The verdict also reacts to `new_type_share` and to `imaging.changed`.
 
 ### Evidence JSON (`schema.Evidence`)
 
@@ -451,7 +457,7 @@ All numbers come from the evidence or the stated formulas. Causes are worded "po
 
 ### Summary and walkthrough (`qc/guide.py`)
 
-On Compare, the verdict card's "Walk me through it" opens `guide(evidence)` (the fixed template, or Claude's cached version when one exists). The leave-them-out line and whether the odd-tile block sits above "What moved" come from the template what-if only: the block moves up when a summary sentence says the shift comes from those tiles. Catalyst decides; Claude only points and explains (design/README.md, "Claude as a guide"):
+On Compare, the verdict card's "Walk me through it" opens `guide(evidence)` (the fixed template, or Claude's cached version when one exists). The model is `claude-opus-5-5` unless `CATALYST_CLAUDE_MODEL` is set. `output_config.effort` is `high` (Opus 5.5 would otherwise use medium; a live medium-vs-high comparison was not run). `thinking` is left unset. A `stop_reason` of `refusal` is cached as the template, not parsed as JSON. `available()` builds an Anthropic client and reports its error; credentials are `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, or an `ant auth login` profile. Settings shows that status. `PROMPT_VERSION` is 3, so older cached answers are not reused. The leave-them-out line and whether the odd-tile block sits above "What moved" come from the template what-if only: the block moves up when a summary sentence says the shift comes from those tiles. Catalyst decides; Claude only points and explains (design/README.md, "Claude as a guide"):
 
 - **In:** the evidence in plain fields, the dictionary entries it touches and a list of slots. Never images.
 - **Out:** JSON (structured output): `summary` (≤ 3 sentences) and `steps` (≤ 4, each targeting `verdict`, `moved`, `tiles` or `next`, ≤ 2 sentences).
@@ -464,7 +470,7 @@ On Compare, the verdict card's "Walk me through it" opens `guide(evidence)` (the
   Two drops, no key or any error → the fixed template (same slots). Evidence text is passed as data, never as instructions.
 - **What-if:** per property with odd tiles, the batch re-compared without exactly those tiles (`decide.compare` on `out/kpis.csv`), only while the table still holds the evidence's tiles and means.
 - **Cost:** reading the page never calls Claude. "Ask Claude for a summary" does (`POST /api/guide`), once per evidence; the checked answer (or an unusable one's fallback) is cached in `out/guide/`, written atomically, and a broken cache file is a miss.
-- **Config:** `ANTHROPIC_API_KEY` (off without it), `CATALYST_CLAUDE_MODEL` (default `claude-opus-5`).
+- **Config:** `ANTHROPIC_API_KEY` (off without it), `CATALYST_CLAUDE_MODEL` (default `claude-opus-5-5`), `output_config.effort` `high`.
 
 Deviation from PLAN_v4 §3.10 ("optional review … not in the demo"): the Claude part is a summary and walkthrough on Compare rather than a separate review command, and it is shown in the app. It stays after the output, off without a key, and can't change the verdict or any number. Not built from the design's what-if menu: "other baseline" (a one-off comparison is a click on Compare instead) and what-ifs Claude picks itself.
 
@@ -504,9 +510,11 @@ PLAN_v4 §3.8 says "no cell simulation". This page has no electrochemical model 
 
 ## Batch attribution (Pat's `qc/attribute.py`)
 
+`GET /api/health` reports whether a live drop can run offline: the attribution model file is present, `qc.deep` imports (torch and transformers), and the pinned DINOv2 weights are already in the Hugging Face cache. The Identify screen shows that as a banner and does not upload while it is false. See [docs/RUNBOOK_DROP.md](docs/RUNBOOK_DROP.md).
+
 The software reads Pat's output as written; it defines no classifier or attribution schema. `load_model()` reads the model, and `attribute_images(image_dir, model, balanced=None)` writes `out/attribution/<folder>.json`. `qc.run.attribute()` calls those functions and sanitizes NaN/Infinity to JSON null.
 
-The per-run file contains the model summary and one record per image; the fields are listed under Folders above and explained in [docs/AGENT_HANDOVER.md](docs/AGENT_HANDOVER.md) §3.4. The Identify result follows the design's focus layout: the answer (the bet, its probability bar, "when it's this sure, it was right n of m times" from `confidence_record`, the range of "baseline or not" from `stage_baseline.interval`, "can't rule out …" from `prediction_set`, "Which variation: not established" when `stage_variation.record.established` is false, familiar or unfamiliar, the model's held-out accuracy next to chance), then "Look here first" (up to three reasons with Pat's `text`, each against the baseline's ±1σ/±2σ band: the strongest for the call, with the strongest against it in third place only when it weighs at least as much), then folded rows: all reasons with the named measurements each image pattern moves with, "What the model leans on overall" (`model.importance`: the family shares and the five heaviest inputs of each stage), the tile's KPIs against the baseline (measured in the background with `POST /api/measure`, since attribution doesn't write `out/kpis.csv`), and "Model and run" (the stages, how the confidence was checked, the held-out coverage of the sets, the distance to the baseline labelled as such, and Pat's family evaluation, shown only when it covers every part of the model in use). A result has its own URL, `#/identify/<drop>[/<image_id>]`, so reload, back and links keep it; the browser checks a drop (each tile id needs BSE, ETD or SE, and InLens) before anything is uploaded. "Unfamiliar" means outside the range of the *predicted* batch. While it runs, the scan line follows the stage events (upload, segmentation and features, DINOv2, scoring) and reveals the scanned side behind it; without events it sweeps on a loop. On the result, the tile's largest silicon particles are marked at their real centroids (`GET /api/particles`); hovering or focusing a spot, or any tile thumbnail on Compare, peeks a magnified crop with a scale bar beside it, and a click pins an inspector (detector switch, silicon and pore layers over the chosen detector, ← →, "Open full tile"). Nothing is drawn that the data doesn't back: no texture or patchiness boxes until the model returns heatmaps. Its accuracy panel and the sidebar's "model differs from the frozen one" warning read `GET /api/attribution-model`, so they describe the model file in use. `--evaluate` writes `out/attribution/evaluation.json` with family-set LOSO scores, confusion, permutation nulls, shared-strip checks and the feature ranking.
+The per-run file contains the model summary and one record per image; the fields are listed under Folders above and explained in [docs/AGENT_HANDOVER.md](docs/AGENT_HANDOVER.md) §3.4. The Identify result follows the design's focus layout: the answer (the bet, its probability bar, "when it's this sure, it was right n of m times" from `confidence_record`, the range of "baseline or not" from `stage_baseline.interval`, "can't rule out …" from `prediction_set`, "Which variation: not established" when `stage_variation.record.established` is false, familiar or unfamiliar, the model's held-out accuracy next to chance). When `prediction_set` holds more than one batch the headline is those batches ("Batch 1 or 2") and one sentence from the overall probabilities ("Not Batch 3 (99%). Batch 1 vs Batch 2 is close to a coin flip."); the stage ratio is not repeated beside them. Then the tile, with its largest silicon particles marked P1–P6 (dashed rings, their own heading, not the reason numbers). Then "Look here first" (up to three reasons with Pat's `text`, each against the baseline's ±1σ/±2σ band: the strongest for the call, with the strongest against it in third place only when it weighs at least as much; two reasons that are the same texture at two scales share one card, "at 0.05 and 0.2 µm", so the third slot stays free). Then folded rows: all reasons with the named measurements each image pattern moves with, "What the model leans on overall" (`model.importance`: the family shares and the five heaviest inputs of each stage), the tile's KPIs against the baseline (measured in the background with `POST /api/measure`, since attribution doesn't write `out/kpis.csv`), and "Model and run" (the stages, how the confidence was checked, the held-out coverage of the sets, the distance to the baseline labelled as such, and Pat's family evaluation, shown only when it covers every part of the model in use). A result has its own URL, `#/identify/<drop>[/<image_id>]`, so reload, back and links keep it; the browser checks a drop (each tile id needs BSE, ETD or SE, and InLens) before anything is uploaded. "Unfamiliar" means outside the range of the *predicted* batch. While it runs, the scan line follows the stage events (upload, segmentation and features, DINOv2, scoring) and reveals the scanned side behind it; without events it sweeps on a loop. On the result, the tile's largest silicon particles are marked at their real centroids (`GET /api/particles`); hovering or focusing a spot, or any tile thumbnail on Compare, peeks a magnified crop with a scale bar beside it, and a click pins an inspector (detector switch, silicon and pore layers over the chosen detector, ← →, "Open full tile"). Nothing is drawn that the data doesn't back: no texture or patchiness boxes until the model returns heatmaps. Its accuracy panel and the sidebar's "model differs from the frozen one" warning read `GET /api/attribution-model`, so they describe the model file in use. `--evaluate` writes `out/attribution/evaluation.json` with family-set LOSO scores, confusion, permutation nulls, shared-strip checks and the feature ranking.
 
 The API passes Pat's data through: `GET /api/attribution`, `GET /api/attribution/{name}`, `GET /api/attribution-model`, `GET /api/attribution-evaluation`, and `POST /api/attribution/{name}?balanced={k}`.
 
@@ -539,7 +547,7 @@ The first model was frozen on 3 Oct at 22:10 (tag `rules-frozen`, staged `materi
 | `docs/PLAN_v4.md` | **Both** |
 | `config/particle_types.json` | ML (Pat), **frozen at `rules-frozen`** |
 | `qc/explain.py`, `qc/guide.py`, `tests/test_explain.py`, `tests/test_guide.py` | Software (Patrik) |
-| `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
+| `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/control_check.py`, `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik). `control_check` calls Pat's `iter_controls` and does not change `qc/controls.py` |
 | `qc/api.py`, `web/` | Software (Patrik) |
 | `qc/impact.py`, `config/impact.yaml`, `tests/test_impact.py` (experimental) | Software (Patrik) |
 | `qc/slab.py`, `tests/test_slab.py`, `web/src/slab/` | Software (Patrik). Experimental: deleting these, the `/api/slab` route and the `anode` flag, route and nav item removes the anode lab |

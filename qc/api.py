@@ -22,8 +22,8 @@ from qc.explain import load_dictionary
 from qc.io import DETECTOR_ALIASES, LAYER_RGB, PREVIEW_SIZES, field_paths, layer_png, preview_png
 from qc.provenance import frozen_config, model_status, rules_frozen, verify
 from qc.run import (
-    Progress, RulesFrozen, attribute, attribution_module, load_evidence, measure_folder, read_json, run, set_baseline,
-    tile_particles,
+    Progress, RulesFrozen, attribute, attribution_module, identify_ready, load_evidence, measure_folder, read_json,
+    run, set_baseline, tile_particles,
 )
 from qc.schema import (
     ATTRIBUTION_DIR, EVIDENCE_DIR, KPI_TABLE, KPI_UNITS, OUT_DIR, Evidence, Verdict,
@@ -101,6 +101,12 @@ def summary_of(path: Path) -> dict:
     created = (raw.get("provenance") or {}).get("created_at") if isinstance(raw.get("provenance"), dict) else None
     baseline = raw.get("baseline") if isinstance(raw.get("baseline"), str) else None
     return {"baseline": baseline, "verdict": verdict, "created_at": created if isinstance(created, str) else None}
+
+
+@app.get("/api/health")
+def health() -> dict:
+    """Model file, deep stack, and cached DINOv2 weights. The Identify screen reads this before an upload."""
+    return identify_ready()
 
 
 @app.get("/api/config")

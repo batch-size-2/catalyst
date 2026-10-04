@@ -55,8 +55,17 @@ export interface Odd {
 export interface ImagingCheck {
   changed: boolean;
   changed_metrics: string[];
+  report_metrics?: string[];
   outliers_in_reference: string[];
   curtained_images: string[];
+}
+
+export interface Health {
+  ok: boolean;
+  model_present: boolean;
+  deep_importable: boolean;
+  dinov2_cached: boolean;
+  message: string | null;
 }
 
 export interface ControlResult {

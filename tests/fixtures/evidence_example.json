@@ -59,7 +59,7 @@
      "value": 0.186, "range": [0.066, 0.114]}
   ],
   "new_type_share": 0.013,
-  "imaging": {"changed": false, "changed_metrics": [], "outliers_in_reference": ["exr10", "exr11"], "curtained_images": []},
+  "imaging": {"changed": false, "changed_metrics": [], "report_metrics": [], "outliers_in_reference": ["exr10", "exr11"], "curtained_images": []},
   "controls": {
     "ran": true,
     "passed": true,

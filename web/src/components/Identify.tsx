@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  getAttribution, getModelStatus, imageUrl, listAttributions, runAttribution, uploadBatch,
+  getAttribution, getHealth, getModelStatus, imageUrl, listAttributions, runAttribution, uploadBatch,
 } from "../api";
 import { batchLabel, isFixture, joinAnd, localTime, plural, record, uploadName, useApi } from "../lib";
 import { href } from "../router";
@@ -56,6 +56,9 @@ export default function Identify({ routeDrop, routeImage }: { routeDrop?: string
   const picker = useRef<HTMLInputElement>(null);
   const runId = useRef(0);  // reset() bumps it, so a cancelled run's late events are ignored
   const model = useApi(getModelStatus, []);
+  const health = useApi(getHealth, []);
+  const notReady = useRef<string | null>(null);
+  notReady.current = health.data && !health.data.ok ? health.data.message : null;
   const saved = useApi(() => (routeDrop ? getAttribution(routeDrop) : Promise.resolve(null)), [routeDrop]);
   const recent = useApi(async () => {
     const names = (await listAttributions()).filter((n) => !isFixture(n)).sort((a, b) => stampOf(b).localeCompare(stampOf(a)));
@@ -111,6 +114,7 @@ export default function Identify({ routeDrop, routeImage }: { routeDrop?: string
   }, [idle]);
 
   async function start(files: File[]) {
+    if (notReady.current) return setError({ text: notReady.current });
     const drop = readDrop(files);
     if (typeof drop === "string") return setError({ text: drop });
     const name = uploadName();
@@ -186,6 +190,16 @@ export default function Identify({ routeDrop, routeImage }: { routeDrop?: string
         intro="Drop the three detector images of one tile. Catalyst segments it, measures every silicon particle and tells you which known batch it matches, and how sure it is."
       />
 
+      {health.data && !health.data.ok && health.data.message && (
+        <div role="alert" className="flex items-start gap-3 rounded-[14px] border border-cx-investigate/25 bg-cx-investigate/[0.05] px-4 py-3 text-sm">
+          <span className="mt-0.5 text-cx-investigate"><IconWarn size={16} /></span>
+          <span>
+            <span className="font-medium">This machine can't identify a tile yet.</span>{" "}
+            <span className="text-cx-text-2">{health.data.message} The upload stays closed until that's fixed.</span>
+          </span>
+        </div>
+      )}
+
       <div className="relative pt-11">
         <img
           src={CAT.peeking}
@@ -242,7 +256,7 @@ export default function Identify({ routeDrop, routeImage }: { routeDrop?: string
                   e.target.value = "";
                 }}
               />
-              <button className="btn pri" type="button" onClick={() => picker.current?.click()}>
+              <button className="btn pri" type="button" disabled={!!notReady.current} onClick={() => picker.current?.click()}>
                 Choose files
               </button>
             </div>

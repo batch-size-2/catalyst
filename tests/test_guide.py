@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -10,7 +11,7 @@ import qc.guide as guide_module
 from qc.api import app
 from qc.decide import evaluate, read_tables
 from qc.explain import explain
-from qc.guide import SLOT, check, guide, problem, slots, template, whatifs
+from qc.guide import SLOT, call_claude, check, guide, parse_claude, problem, slots, template, whatifs
 from qc.schema import Evidence, evidence_path, load_config
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -152,8 +153,47 @@ def test_whatif_recomputes_without_exactly_the_named_tiles(in_tmp):
 
 def test_without_a_key_the_template_answers(evidence, monkeypatch, in_tmp):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
     out = guide(evidence, "claude", ask=True)
     assert out["source"] == "template" and "ANTHROPIC_API_KEY" in out["fallback_reason"]
+
+
+def test_refusal_is_cached_as_the_template(evidence, monkeypatch, in_tmp):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    response = SimpleNamespace(stop_reason="refusal", content=[])
+    with pytest.raises(ValueError, match="refused"):
+        parse_claude(response)
+    monkeypatch.setattr(guide_module, "call_claude", lambda body: parse_claude(response))
+    out = guide(evidence, "claude", ask=True)
+    assert out["source"] == "template" and "refused" in out["fallback_reason"]
+    monkeypatch.setattr(guide_module, "call_claude", lambda body: (_ for _ in ()).throw(AssertionError("cached")))
+    again = guide(evidence, "claude")
+    assert again["fallback_reason"] == out["fallback_reason"]
+
+
+def test_call_sets_effort_and_does_not_disable_thinking(monkeypatch):
+    captured = {}
+
+    class Messages:
+        @staticmethod
+        def create(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                stop_reason="end_turn",
+                content=[SimpleNamespace(type="text", text='{"summary": ["Hi."], "steps": []}')],
+            )
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.messages = Messages()
+
+    monkeypatch.setitem(__import__("sys").modules, "anthropic", SimpleNamespace(Anthropic=Client))
+    out = call_claude({"slots": []})
+    assert out == {"summary": ["Hi."], "steps": []}
+    assert captured["model"] == guide_module.MODEL
+    assert captured["output_config"]["effort"] == "high"
+    assert captured["output_config"]["format"]["type"] == "json_schema"
+    assert "thinking" not in captured
 
 
 def test_claude_is_called_only_when_asked_then_cached(evidence, monkeypatch, in_tmp):
