@@ -205,16 +205,18 @@ export function Folds({
   rows,
   open,
   onToggle,
+  bare = false,
 }: {
   rows: { id: string; title: string; summary: ReactNode; body: () => ReactNode }[];
   open: Record<string, boolean>;
   onToggle: (id: string) => void;
+  bare?: boolean;
 }) {
   return (
     <section aria-label="Everything else" className="overflow-hidden rounded-[22px] border border-cx-line bg-cx-surface">
-      <div className="lbl px-5 pt-4 pb-2.5">Everything else</div>
-      {rows.map((row) => (
-        <div key={row.id} className="border-t border-cx-line-soft">
+      {!bare && <div className="lbl px-5 pt-4 pb-2.5">Everything else</div>}
+      {rows.map((row, i) => (
+        <div key={row.id} className={bare && i === 0 ? "" : "border-t border-cx-line-soft"}>
           <button
             type="button"
             aria-expanded={!!open[row.id]}
