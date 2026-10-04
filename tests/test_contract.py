@@ -222,8 +222,9 @@ def test_end_to_end_run(tmp_path, monkeypatch):
     fake_batch(Path("data/base"), 4)
     fake_batch(Path("data/new"), 2)
     first, second = run([Path("data/new")], CFG), run([Path("data/new")], CFG)
-    assert Evidence.model_validate_json(evidence_path("new").read_text()) == second[0]
-    assert second[0].explanations.operator.startswith(second[0].verdict)
+    assert Evidence.model_validate_json(evidence_path("new", "base").read_text()) == second[0]
+    assert second[0].explanations.summary and second[0].explanations.next_steps
+    assert all(isinstance(s, str) for s in second[0].explanations.engineer)
 
     assert "area_um2" in pd.read_csv("out/kpis.csv").columns
     image_ids = [i for s in second[0].fingerprint.segments for i in s.image_ids]
@@ -257,6 +258,11 @@ def test_api_upload_run_and_read(tmp_path, monkeypatch):
     assert {b["name"]: b["verdict"] for b in client.get("/api/batches").json()}["new"] == evidence.verdict
     image_id = evidence.fingerprint.segments[0].image_ids[0]
     assert client.get(f"/api/masks/new/{image_id}.png").status_code == 200
+    layer = client.get(f"/api/layers/new/{image_id}/silicon")
+    assert layer.status_code == 200 and layer.content.startswith(b"\x89PNG")
+    assert client.get(f"/api/layers/new/{image_id}/graphite").status_code == 400
+    assert client.get("/api/layers/new/nope/pore").status_code == 404
+    assert next(t for t in client.get("/api/tiles").json() if t["image_id"] == image_id)["has_layers"] is True
 
 
 def test_api_tiles_joins_kpis(tmp_path, monkeypatch):
@@ -330,8 +336,148 @@ def test_api_survives_stale_v1_evidence(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path("config").mkdir()
     Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
-    Path("out/evidence").mkdir(parents=True)
-    Path("out/evidence/old.json").write_text(json.dumps({"verdict": "ACCEPT", "tiles": []}))
+    Path("out/evidence/base").mkdir(parents=True)
+    Path("out/evidence/base/old.json").write_text(json.dumps({"verdict": "ACCEPT", "tiles": []}))
     client = TestClient(app)
     assert client.get("/api/batches").json() == [{"name": "old", "has_images": False, "verdict": "ACCEPT"}]
     assert client.get("/api/evidence/old").status_code == 409
+
+
+def test_one_off_baseline_is_stored_apart_from_the_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake_batch(Path("data/base"), 3)
+    fake_batch(Path("data/other"), 3)
+    fake_batch(Path("data/new"), 2)
+    client = TestClient(app)
+    for baseline in ("", "?baseline=other"):
+        events = [json.loads(line) for line in client.post(f"/api/runs/new{baseline}").text.splitlines()]
+        assert events[-1]["type"] == "done"
+    assert evidence_path("new", "base").exists() and evidence_path("new", "other").exists()
+    assert client.get("/api/evidence/new").json()["baseline"] == "base"
+    assert client.get("/api/evidence/new?baseline=other").json()["baseline"] == "other"
+    assert client.get("/api/evidence/new?baseline=../x").status_code == 400
+    assert {(d["batch"], d["baseline"]) for d in client.get("/api/evidence").json()} == {("new", "base"), ("new", "other")}
+    assert client.post("/api/verify/new?baseline=other").json()["ok"] is True
+    assert load_config()["baseline"] == "base"  # the default didn't move
+
+
+def test_settings_change_the_default_baseline_until_frozen(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text("version: t\ndata_dir: data\nbaseline: base\nunit: image\n")
+    fake_batch(Path("data/base"), 1)
+    fake_batch(Path("data/other"), 1)
+    client = TestClient(app)
+    assert client.put("/api/settings/baseline", json={"baseline": "other"}).status_code == 409  # no git here: refuse
+    monkeypatch.setattr(run_module, "git", lambda *args: ".git")
+    settings = client.get("/api/settings").json()
+    assert settings["baseline"] == "base" and settings["rules_frozen_commit"] is None
+    assert set(settings["claude"]) == {"available", "model", "reason"}
+    assert client.put("/api/settings/baseline", json={"baseline": "missing"}).status_code == 404
+    assert client.put("/api/settings/baseline", json={"baseline": "x\nalpha: 0.99"}).status_code == 400
+    assert client.put("/api/settings/baseline", json={"baseline": "other"}).json() == {"baseline": "other"}
+    assert Path("config/decision.yaml").read_text() == "version: t\ndata_dir: data\nbaseline: other\nunit: image\n"
+
+    monkeypatch.setattr(run_module, "rules_frozen", lambda: ("5d1ccfb1cc28", "2026-10-03"))
+    response = client.put("/api/settings/baseline", json={"baseline": "base"})
+    assert response.status_code == 409 and "frozen" in response.json()["detail"]
+    assert load_config()["baseline"] == "other"
+
+
+def test_api_measures_a_drop_folder(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake_batch(Path("data/drop_x"), 1)
+    client = TestClient(app)
+    events = [json.loads(line) for line in client.post("/api/measure/drop_x").text.splitlines()]
+    assert events[-1] == {"type": "done", "measured": 1}
+    assert next(t for t in client.get("/api/tiles").json() if t["batch"] == "drop_x")["kpis"] is not None
+    assert client.post("/api/measure/missing").status_code == 404
+
+
+def test_api_reads_old_and_broken_evidence_files(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    raw = json.loads((FIXTURES / "evidence_example.json").read_text()) | {"batch": "old", "baseline": "base"}
+    raw["explanations"] = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in raw["explanations"].items()
+                           if k in ("operator", "engineer", "scientist", "manager")}  # texts were strings then
+    Path("out/evidence/base").mkdir(parents=True)
+    Path("out/evidence/old.json").write_text(json.dumps(raw))  # before evidence was keyed by baseline
+    Path("out/evidence/base/broken.json").write_text("{not json")
+    Path("out/evidence/base/list.json").write_text("[1, 2]")
+    client = TestClient(app)
+    decisions = {(d["batch"], d["baseline"]): d for d in client.get("/api/evidence").json()}
+    assert decisions[("old", "base")]["verdict"] == raw["verdict"] and ("broken", "base") in decisions
+    old = client.get("/api/evidence/old").json()["explanations"]  # old texts are rewritten from the evidence's own numbers
+    assert old["summary"] and old["ranked"] == ["si_graphite_ratio", "si_d50_um"]
+    assert client.get("/api/evidence/old?baseline=other").status_code == 404
+
+
+def test_api_names_are_strict(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    client = TestClient(app)
+    for bad in ("..", ".hidden", "a b", "a%0Ab"):
+        assert client.get(f"/api/evidence/{bad}").status_code in (400, 404), bad
+    assert client.get("/api/evidence/ok?baseline=a%0Ab").status_code == 400
+
+
+def test_api_particles_of_a_tile(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    fake_batch(Path("data/base"), 1)
+    client = TestClient(app)
+    empty = client.get("/api/particles/base/base0").json()
+    assert empty["width"] == 160 - 16 and empty["height"] == 96 and empty["particles"] == []
+    Path("out").mkdir()
+    pd.DataFrame([{"batch": "base", "image_id": "base0", "d_um": d, "type": "T1", "x_px": 10.0, "y_px": 5.0, "border": b}
+                  for d, b in ((1.0, False), (3.0, False), (9.0, True))]).to_csv("out/particles.csv", index=False)
+    parts = client.get("/api/particles/base/base0?top=5").json()["particles"]
+    assert [p["d_um"] for p in parts] == [3.0, 1.0]  # largest first, edge particles left out
+    assert client.get("/api/particles/base/nope").status_code == 404
+
+
+def test_attribution_streams_stage_progress_when_supported(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    template = json.loads((FIXTURES / "attribution_example.json").read_text())
+    fake = ModuleType("qc.attribute")
+
+    def attribute_images(image_dir, model, balanced=None, progress=None):
+        for stage in ("features", "deep", "predict"):
+            progress(stage, 1, 1, "t0")
+        path = Path("out/attribution") / f"{image_dir.name}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(template | {"run": image_dir.name}))
+
+    fake.load_model = lambda: {"x": 1}
+    fake.attribute_images = attribute_images
+    monkeypatch.setitem(sys.modules, "qc.attribute", fake)
+    events = [json.loads(line) for line in TestClient(app).post("/api/attribution/drop").text.splitlines()]
+    assert [e.get("stage") for e in events if e["type"] == "progress"] == ["features", "deep", "predict"]
+    assert events[-1]["type"] == "done"
+
+
+def test_upload_refuses_file_names_the_app_cant_serve(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("config").mkdir()
+    Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
+    response = TestClient(app).post("/api/batches/new/files", files=[("files", ("img a_BSE.tif", b"x", "image/tiff"))])
+    assert response.status_code == 400 and not Path("data/new").exists()
+
+
+def test_phase_layer_is_transparent_except_its_phase(tmp_path):
+    from skimage.io import imread, imsave
+
+    from qc.io import layer_png
+    labels = np.array([[Phase.SI, Phase.PORE], [Phase.GRAPHITE, Phase.SI]], dtype=np.uint8)
+    imsave(tmp_path / "t.phases.png", labels, check_contrast=False)
+    rgba = imread(layer_png(tmp_path / "t.phases.png", "silicon"))
+    assert rgba.shape == (2, 2, 4) and (rgba[..., 3] > 0).tolist() == [[True, False], [False, True]]

@@ -1,4 +1,4 @@
-/** Types and fetch for GET /api/impact/{batch} (qc/impact.py Report). Labs, behind the "impact" flag. */
+/** Types and fetch for GET /api/impact/{batch} (qc/impact.py Report). Experimental feature "impact" (web/src/flags.ts). */
 
 export interface Interval {
   value: number | null;

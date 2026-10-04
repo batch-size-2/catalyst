@@ -65,7 +65,7 @@ export default function Impact({ routeBatch, routeBaseline }: { routeBatch?: str
     <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-7 px-10 py-10">
       <div className="flex flex-col gap-2.5">
         <div className="lbl flex items-center gap-2 text-cx-orange-text">
-          Labs · Wear &amp; impact
+          Wear &amp; impact
           <span className="mono rounded-md border border-cx-orange/40 px-1.5 py-0.5 text-[10px]">EXPERIMENTAL</span>
         </div>
         <h1 className="m-0 text-[40px] leading-[1.1] font-semibold tracking-[-0.03em]">

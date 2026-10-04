@@ -40,7 +40,14 @@ const ICONS = {
     </>
   ),
   wear: <path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z" />,
-  sample: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  settings: (
+    <>
+      <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
+      <circle cx="15" cy="6" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="17" cy="18" r="2" />
+    </>
+  ),
   lock: (
     <>
       <rect x="5" y="11" width="14" height="9" rx="2" />
@@ -53,7 +60,7 @@ export interface ShellInfo {
   baseline: string | null;
   baselineTiles: number | null;
   totalTiles: number | null;
-  frozen: string | null;        // commit of rules-frozen, when the model file is the tagged one
+  frozen: string | null;        // commit of the rules-frozen tag
   modelChanged: boolean;        // the model file differs from the one under rules-frozen
 }
 
@@ -74,9 +81,6 @@ export default function Shell({
       {label}
       {extra}
     </a>
-  );
-  const soon = (
-    <span className="mono ml-auto rounded-md border border-cx-line px-1.5 py-0.5 text-[10px]">SOON</span>
   );
   return (
     <div className="cx flex min-h-screen items-stretch">
@@ -101,43 +105,43 @@ export default function Shell({
           )}
           <div className="lbl px-2.5 pt-5 pb-2">Trust</div>
           {navItem("audit", "Audit log", ICONS.audit, href.audit())}
-          <div className="lbl px-2.5 pt-5 pb-2">Labs</div>
-          {flagOn("impact") ? (
-            navItem("impact", "Wear & impact", ICONS.wear, href.impact(),
-              <span className="mono ml-auto rounded-md border border-cx-orange/40 px-1.5 py-0.5 text-[10px] text-cx-orange-text">LABS</span>)
-          ) : (
-            <span className="nav text-cx-faint" aria-disabled="true">
-              <NavIcon>{ICONS.wear}</NavIcon>Wear &amp; impact{soon}
-            </span>
+          {flagOn("impact") && (
+            <>
+              <div className="lbl px-2.5 pt-5 pb-2">Experimental</div>
+              {navItem("impact", "Wear & impact", ICONS.wear, href.impact(),
+                <span className="mono ml-auto rounded-md border border-cx-orange/40 px-1.5 py-0.5 text-[10px] text-cx-orange-text"
+                  title="Experimental feature: indicative, never part of the verdict">EXP</span>)}
+            </>
           )}
-          <span className="nav text-cx-faint" aria-disabled="true">
-            <NavIcon>{ICONS.sample}</NavIcon>Sample size{soon}
-          </span>
         </nav>
         <div className="mt-auto flex flex-col gap-2.5">
+          {navItem("settings", "Settings", ICONS.settings, href.settings())}
           {info.baseline && (
-            <div className="glass flex flex-col gap-2 rounded-[14px] p-3.5">
-              <div className="lbl">Baseline</div>
-              <div className="flex items-center gap-2 text-sm font-medium">
+            <a href={href.settings()} className="glass flex flex-col gap-2 rounded-[14px] p-3.5 text-inherit no-underline">
+              <div className="lbl">Default baseline</div>
+              <div className="flex items-center gap-2 text-sm font-medium text-cx-text">
                 <BatchDot name={info.baseline} />
                 {batchLabel(info.baseline)}
                 {info.baselineTiles != null && (
-                  <span className="ml-auto text-xs text-cx-faint">{info.baselineTiles} tiles</span>
+                  <span className="ml-auto text-xs font-normal text-cx-faint">{info.baselineTiles} tiles</span>
                 )}
               </div>
-              <div className="text-xs leading-snug text-cx-muted">What the supplier promised.</div>
-            </div>
+              <div className="text-xs leading-snug text-cx-muted">
+                What the supplier promised.{" "}
+                {info.frozen ? <span className="text-cx-faint">Locked</span> : <span className="text-cx-orange-text">Change</span>}
+              </div>
+            </a>
           )}
           <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-cx-muted">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               {ICONS.lock}
             </svg>
-            {info.frozen ? (
+            {info.modelChanged ? (
+              <span className="text-cx-investigate-text">Model differs from the frozen one</span>
+            ) : info.frozen ? (
               <>
                 Rules frozen · <span className="mono">{shortHash(info.frozen, 7)}</span>
               </>
-            ) : info.modelChanged ? (
-              <span className="text-cx-investigate-text">Model differs from the frozen one</span>
             ) : (
               "Rules not frozen yet"
             )}

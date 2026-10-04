@@ -1,27 +1,31 @@
-import { getConfig, getModelStatus, getTiles } from "./api";
+import { getModelStatus, getSettings, getTiles } from "./api";
 import Audit from "./components/Audit";
 import Compare from "./components/Compare";
 import Identify from "./components/Identify";
 import Impact from "./components/Impact";
 import Library from "./components/Library";
+import { PeekProvider } from "./components/Peek";
+import Settings from "./components/Settings";
 import Shell, { type ShellInfo } from "./components/Shell";
 import { flagOn } from "./flags";
-import { batchLabel, isUploadBatch, useApi } from "./lib";
+import { batchLabel, libraryTiles, useApi } from "./lib";
+import { useState } from "react";
 import { useHashRoute } from "./router";
 
 export default function App() {
   const route = useHashRoute();
   const page = route[0];
-  const config = useApi(getConfig);
-  const tiles = useApi(getTiles, [route.join("/")]);
-  const baseline = config.data?.baseline ?? null;
-  const model = useApi(getModelStatus, [route.join("/")]);
+  const [saved, setSaved] = useState(0);
+  const settings = useApi(getSettings, [route.join("/"), saved], { keep: true });
+  const tiles = useApi(getTiles, [route.join("/")], { keep: true });
+  const baseline = settings.data?.baseline ?? null;
+  const model = useApi(getModelStatus, [route.join("/")], { keep: true });
 
   const info: ShellInfo = {
     baseline,
     baselineTiles: baseline ? (tiles.data?.filter((t) => t.batch === baseline).length ?? null) : null,
-    totalTiles: tiles.data?.filter((t) => !isUploadBatch(t.batch)).length ?? null,
-    frozen: model.data?.matches_frozen ? model.data.rules_frozen_commit : null,
+    totalTiles: tiles.data ? libraryTiles(tiles.data).length : null,
+    frozen: settings.data?.rules_frozen_commit ?? null,
     modelChanged: model.data?.matches_frozen === false,
   };
 
@@ -32,24 +36,29 @@ export default function App() {
       route[1] && route[2]
         ? ["Library", batchLabel(route[1]), <span key="id" className="mono">{route[2]}</span>]
         : ["Library"],
-    impact: ["Labs", "Wear & impact"],
+    impact: ["Experimental", "Wear & impact"],
     audit: ["Trust", "Audit log"],
+    settings: ["Settings", "Baseline"],
   };
 
   return (
+    <PeekProvider>
     <Shell page={page} crumbs={crumbs[page] ?? ["Catalyst"]} info={info}>
       {page === "identify" && <Identify />}
-      {page === "compare" && <Compare routeBatch={route[1]} />}
+      {page === "compare" && <Compare routeBatch={route[1]} routeBaseline={route[2]} />}
       {page === "library" && <Library routeBatch={route[1]} routeImage={route[2]} />}
       {page === "impact" &&
         (flagOn("impact") ? (
           <Impact routeBatch={route[1]} routeBaseline={route[2]} />
         ) : (
           <p className="mx-auto max-w-[640px] px-10 py-16 text-cx-muted">
-            Wear &amp; impact is a Labs feature. Open <code className="mono">/?flags=impact</code> to switch it on.
+            Wear &amp; impact is an experimental feature and is switched off here. Open{" "}
+            <code className="mono">/?flags=</code> to switch it back on.
           </p>
         ))}
       {page === "audit" && <Audit />}
+      {page === "settings" && <Settings onSaved={() => setSaved((n) => n + 1)} />}
     </Shell>
+    </PeekProvider>
   );
 }
