@@ -137,8 +137,9 @@ When the window shifts aside for hero type, the cat moves to the free margin. Ca
 - **news:** the hero type follows the spoken order ("GM recalled every Chevy Bolt"). 82,000 is spoken "eighty-two" (beat `at: "eighty-two"`). Start the `$1.9 billion` count-up on "nearly" so it lands on "billion". Illustrative art with no numbers (cars, cells, needles, fire) is fine. Data shown as data must be real.
 - **compare:**
   - The verdict is `section[aria-label="Answer"]` and the next step is `section[aria-label="Next steps"]`.
-  - "What moved" is `section[aria-label="Look here first"]` (three finding cards). The per-property rows are in the collapsed "All N properties" fold.
-  - The explain tabs are in a collapsed fold, "Explain it to an operator, engineer, scientist or manager", near the bottom. The tabs are `role="tab"`: Operator, Process engineer, Materials scientist, Manager.
+  - Compare is the new **v4 page** (PR #43). Top to bottom: the verdict (`section[aria-label="Answer"]`); `section[aria-label="What moved"]`, the rows for "Each row shows how far one measurement has moved" (it reads "Nothing moved beyond the tolerance" when nothing did); the tiles behind the shift; "Next steps"; then folds.
+  - Use **Batch 1 vs the default Batch 3 baseline**: it has properties that moved and odd tiles. Batch 2 vs 3 has nothing moved. All comparisons are INVESTIGATE.
+  - The explain fold is titled "Explain it for an operator, engineer, scientist or manager". Inside, a segmented control (not `role="tab"`) has Operator, Process engineer, Materials scientist and Manager. Process engineer is the default.
   - Open the fold on "tabs". Spread the four clicks evenly from "explain" to "manager", with Manager landing on "manager". Hold for reading.
   - Use a batch whose verdict is INVESTIGATE (`GET /api/batches`); never hard-code batch names or image ids.
 - **identify:**
@@ -158,7 +159,7 @@ When the window shifts aside for hero type, the cat moves to the free margin. Ca
   - `?warnings=` goes **before** the hash (`/?warnings=ladder#/impact/<batch>/<baseline>`). It persists in localStorage; the default is cards.
   - "What rules it out" shows only when a chain is open (the ladder opens the worst one).
 - **lab / aged:**
-  - The controls are a button "Charge at 1.0C" (it becomes "Pause") and sliders "State of charge", "Charge rate" (log scale 0.25–8C) and "Ageing (cycles)". The ageing slider can't land on exactly 800.
+  - The controls are a button "Charge at 1.0C" (it becomes "Pause") and sliders "State of charge", "Charge rate" (log scale 0.25–8C) and "Ageing". The ageing slider can't land on exactly 800.
   - URL params `?soc=&c=&cycles=` set states deterministically: use `cycles=800` for the end state.
   - There's no auto-rotate, so rotate with a scripted mouse drag.
   - A charge at 8C takes about 3 s. "Silicon cracked / lost contact" is inside the collapsed "All measurements" fold.
