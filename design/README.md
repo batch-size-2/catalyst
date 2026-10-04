@@ -43,8 +43,9 @@ Every page starts the same way: the breadcrumb bar (parents are links), then a 4
 | `Settings-Baseline` | v2: default baseline, baseline tiles to leave out, who picks the highlights |
 | `Compare-Guided` | v3: Claude as a guide. Summary and walkthrough over Catalyst's verdict |
 | `Identify-Result-Peek` | Region peek and pin: look closer at an image region without leaving the page |
+| `Compare-Clear` | v4: Compare rebuilt around three questions: the call and why, what moved, what to do. Replaces `Compare-Focus` |
 
-v2 and v3 are designs only. They wait until Pat's evaluation tells us which findings matter.
+v2 and v3 are built (#33). v4 (`Compare-Clear`) is the next Compare layout.
 
 ## Focus: where the reviewer looks first (v2)
 
@@ -56,6 +57,17 @@ Every analysis screen has the same four levels, top to bottom:
 4. **Everything else, folded.** One row per section with a one-line summary.
 
 The UI renders the top three of a ranked list the backend sends. Who ranks is a setting, so it can change without UI work: statistics (`compare()` drivers, today), Pat's feature ranking, or Claude (below).
+
+## Compare, clearer (v4)
+
+Compare answers three questions in order, and says each thing once.
+
+1. **The call and why.** Verdict pill, one sentence with its numbers, and "Why it isn't Accept": the evidence's reasons grouped into at most three cards (odd tiles, imaging, controls). These replace the caveat banners. No "Why it isn't Accept" block on Accept.
+2. **What moved.** One panel, one row per property, ranked by `explanations.ranked`, at most four rows. Each row: plain name, `baseline → batch`, the batch's 90% interval in baseline σ against the ±1.5σ tolerance zone, and a status chip. "Not settled" needs no extra words: the interval crosses the tolerance edge. A legend says what the dot, bar and teal zone are. A row expands to the dictionary's "why it matters", its supplier check, and the odd tiles behind it. The rest fold into one line of counts.
+3. **The tiles behind it.** The odd tiles shown once, with their values, plus the leave-them-out number (the guide's what-if) next to the baseline.
+4. **Next steps,** then everything else folded: all properties tile by tile, explanations, run details.
+
+No code names on screen (`type_share:T2` is "Mid-grey silicon share"). The Claude walkthrough is a secondary button.
 
 ## Baseline
 
