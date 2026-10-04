@@ -116,7 +116,7 @@ flowchart LR
 
   API["qc/api.py · FastAPI :8000<br/>GET config · settings · batches · evidence · guide · tiles · images · kpis · masks · attribution · attribution-model · attribution-evaluation<br/>GET particles · layers · POST upload · run (?baseline one-off) · measure · attribution · guide · verify (NDJSON progress) · PUT settings/baseline"]
   CLAUDE["Claude API<br/>reads evidence + dictionary, never images"]
-  WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile (stage progress, region peek) · compare batch (focus + walkthrough) · library + viewer · audit log + batch passport · settings"]
+  WEB["web/ · Vite + React :5173 · Catalyst design<br/>identify tile (stage progress, region peek) · compare batch (focus + walkthrough) · library + viewer · audit log + batch passport + parody lawsuit button · settings"]
   CLI["python -m qc.run / qc.measure / qc.features / qc.attribute"]
   IMPACT["qc/impact.py · impact_report(kpis, particles, batch, baseline)<br/>Experimental: indicative cell impact + worst cases · config/impact.yaml<br/>never feeds the verdict"]
 
