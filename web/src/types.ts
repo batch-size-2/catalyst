@@ -185,11 +185,20 @@ export interface TierRecord {
   n: number;
 }
 
+/** A stage's held-out record and whether it beats guessing (one-sided binomial p < 0.05). */
+export interface StageRecord extends TierRecord {
+  chance: number;
+  p_value: number;
+  established: boolean;
+}
+
 export interface StageCall {
   call: string;
   confidence: number;
   p_baseline?: number;
   interval?: [number, number];  // stage_baseline only: the range of `confidence` the held-out tiles allow (Venn–Abers)
+  record?: StageRecord;         // this stage's held-out record; established = false means the call is a lean, not a finding
+  note?: string;                // plain-language reason when the stage is not established
 }
 
 export interface AttributedImage {

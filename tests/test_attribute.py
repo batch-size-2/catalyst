@@ -241,6 +241,25 @@ def test_stage_calls_say_different_from_baseline_then_in_what_way(table):
     assert np.allclose(calls["stage_baseline"]["interval"], [0.6, 0.8])
 
 
+def test_a_stage_no_better_than_guessing_is_marked_and_cannot_rule_out_its_options(table):
+    classes, p = ["Batch_1", "Batch_2", "Batch_3"], np.array([0.46, 0.43, 0.11])
+    weak = A._stage_calls(p, classes, "Batch_3", stages={"baseline": {"right": 26, "n": 31}, "variation": {"right": 8, "n": 12}})
+    assert weak["stage_baseline"]["record"]["established"] and weak["stage_baseline"]["record"]["p_value"] < 0.001
+    second = weak["stage_variation"]
+    assert second["call"] == "Batch_1" and second["record"] == {"right": 8, "n": 12, "chance": 0.5, "p_value": 0.1938, "established": False}
+    assert "lean, not a finding" in second["note"]
+    strong = A._stage_calls(p, classes, "Batch_3", stages={"variation": {"right": 12, "n": 12}})["stage_variation"]
+    assert strong["record"]["established"] and "note" not in strong
+    assert "record" not in A._stage_calls(p, classes, "Batch_3")["stage_variation"]           # no record, nothing claimed
+    model = A.fit_model(table, "Batch_3")
+    model["calibration"]["stages"]["variation"] = {"right": 1, "n": 2}
+    out = A.predict(model, table)
+    for _, row in out[out["stage_variation"].notna()].iterrows():
+        assert {"Batch_1", "Batch_2"} <= set(row["prediction_set"]) and row["prediction_set"][0] == row["predicted"]
+        assert row["confidence_tier"] == "low"                                                # a guess is never shown as confident
+        assert {r["stage"] for r in row["reasons"]} <= {"baseline", "all"}                     # explained by the part that is established
+
+
 def test_unfamiliar_is_measured_against_the_assigned_batch(table):
     model = A.fit_model(table, "Batch_3")
     assert set(model["batch_stats"]) == set(model["classes"]) and model["batch_stats"]["Batch_3"] == model["baseline_stats"]

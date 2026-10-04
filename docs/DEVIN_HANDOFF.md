@@ -22,6 +22,13 @@ Written 4 Oct 2026 by the previous agent (Claude) at the end of its session. Rea
 
 Numbers to remember: 22 of 31 with strips held out (balanced 0.66, null 0.51); rehearsal 0.66 (was 0.57 with the frozen call rule); tiers 9/9, 7/11, 6/11.
 
+## 2b. Devin session, 4 Oct afternoon: ground truth of the test samples
+
+- Truth: `3e122cbj` Batch_2, `fn0mhxef` Batch_1, `xrv9xvzb` Batch_3. Calls: 1 of 3 exact, 3 of 3 "Batch_3 or not", 3 of 3 inside the prediction set (`results/Hackathon-Polaron-test.ground-truth.json`).
+- Analysis in `docs/experiments/T18.md` (`scripts/experiments/T18_tiles.py`, `T18_ground_truth.py`): both test images sit edge to edge with images of the other label on one continuous strip; nine representations (including new DINOv2 BSE/ETD tiles, power spectrum, acquisition forensics) do not separate Batch_1 from Batch_2 across strips. One InLens within-strip direction (5 of 5 strips) is a hint only, not adopted.
+- Code: `stage_record` / `ESTABLISHED_P` in `qc/attribute.py`; each stage call carries `record` (right / n, binomial `p_value`, `established`) and a `note`; the prediction set keeps every variation when "which variation" is not established. Identify shows "Which variation: not established" and reworded hero sentence. Classifier unchanged; `results/Hackathon-Polaron-test.stage-records.json` matches the refit file on every number.
+- Not done, needs Pat: refit on all 34 labelled images (LOSO barely moves: 0.67 classifier, 29 of 34 baseline-or-not, 9 of 14 which-variation), and whether to test the within-strip candidate on new labelled strips.
+
 ## 3. What is next, in order
 
 1. **Move the `rules-frozen` tag, after Patrik agrees.** It also locks `config/decision.yaml` and the default baseline. Until it moves, the app says "model differs from the frozen one", which is correct. Command: `git tag -f rules-frozen <commit of config/attribution_model.json on main> && git push -f origin rules-frozen`. Do not move it on your own.

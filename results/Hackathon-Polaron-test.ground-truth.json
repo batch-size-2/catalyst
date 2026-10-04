@@ -1,0 +1,103 @@
+{
+ "truth": {
+  "3e122cbj": "Batch_2",
+  "fn0mhxef": "Batch_1",
+  "xrv9xvzb": "Batch_3"
+ },
+ "source": "given by the organisers on 4 Oct 2026, after the calls were committed",
+ "scored": {
+  "Hackathon-Polaron-test.json": {
+   "fitted_at": "2026-10-03T21:27:23",
+   "right": 1,
+   "n": 3,
+   "images": [
+    {
+     "image_id": "3e122cbj",
+     "predicted": "Batch_1",
+     "truth": "Batch_2",
+     "right": false,
+     "baseline_or_not_right": true,
+     "truth_in_prediction_set": true
+    },
+    {
+     "image_id": "fn0mhxef",
+     "predicted": "Batch_2",
+     "truth": "Batch_1",
+     "right": false,
+     "baseline_or_not_right": true,
+     "truth_in_prediction_set": true
+    },
+    {
+     "image_id": "xrv9xvzb",
+     "predicted": "Batch_3",
+     "truth": "Batch_3",
+     "right": true,
+     "baseline_or_not_right": true,
+     "truth_in_prediction_set": true
+    }
+   ]
+  },
+  "Hackathon-Polaron-test.refit.json": {
+   "fitted_at": "2026-10-04T10:57:27",
+   "right": 1,
+   "n": 3,
+   "images": [
+    {
+     "image_id": "3e122cbj",
+     "predicted": "Batch_1",
+     "truth": "Batch_2",
+     "right": false,
+     "baseline_or_not_right": true,
+     "truth_in_prediction_set": true
+    },
+    {
+     "image_id": "fn0mhxef",
+     "predicted": "Batch_2",
+     "truth": "Batch_1",
+     "right": false,
+     "baseline_or_not_right": true,
+     "truth_in_prediction_set": true
+    },
+    {
+     "image_id": "xrv9xvzb",
+     "predicted": "Batch_3",
+     "truth": "Batch_3",
+     "right": true,
+     "baseline_or_not_right": true,
+     "truth_in_prediction_set": true
+    }
+   ]
+  },
+  "Hackathon-Polaron-test.stage-records.json": {
+   "fitted_at": "2026-10-04T10:57:27",
+   "right": 1,
+   "n": 3,
+   "images": [
+    {
+     "image_id": "3e122cbj",
+     "predicted": "Batch_1",
+     "truth": "Batch_2",
+     "right": false,
+     "baseline_or_not_right": true,
+     "truth_in_prediction_set": true
+    },
+    {
+     "image_id": "fn0mhxef",
+     "predicted": "Batch_2",
+     "truth": "Batch_1",
+     "right": false,
+     "baseline_or_not_right": true,
+     "truth_in_prediction_set": true
+    },
+    {
+     "image_id": "xrv9xvzb",
+     "predicted": "Batch_3",
+     "truth": "Batch_3",
+     "right": true,
+     "baseline_or_not_right": true,
+     "truth_in_prediction_set": true
+    }
+   ]
+  }
+ }
+}
