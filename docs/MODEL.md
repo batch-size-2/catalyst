@@ -22,7 +22,7 @@ The accept / investigate / reject verdict of the Compare page is a separate, pur
 | Size | About 7,000 px wide and 1,612 to 2,316 px tall, at 25 nm per pixel (from the TIFF `XResolution` tag): about 175 µm × 40–58 µm of electrode cross-section |
 | What the detectors show | BSE: composition, silicon is bright. ETD: topography and edges. InLens: surface detail |
 | Training set | 31 samples: Batch_1 7, Batch_2 7, Batch_3 17 (the baseline), cut from 13 physical strips. Strips 2080, 2148 and 2156 appear in more than one batch folder |
-| Unseen so far | `Hackathon-Polaron-test`: 3 samples, true batches now known (§12). More arrive just before judging |
+| Unseen so far | `Hackathon-Polaron-test`: 3 samples, true batches now known (§12). `Hackathon-Polaron-eval`: 6 samples, scored in §13 |
 | Never an input | Strip id, image height or width, pixel size. `assert_no_leakage()` refuses any column whose name mentions them. The strip is only used to build held-out folds |
 
 ## 3. Preprocessing
@@ -382,3 +382,22 @@ The organisers gave the true batches after the calls were committed. Full analys
 **Is there a better feature?** Tried on the 34 labelled images (T18 §3–4): DINOv2 on BSE and ETD tiles, tile quantiles, a 7-octave power spectrum on all three detectors, acquisition forensics, and the existing families, each across strips and inside the five mixed strips. None separates the batches across strips (best 0.62 against a null p95 of 0.75). Inside the mixed strips one InLens DINOv2 direction puts the Batch_1 image on the same side in 5 of 5 strips (p = 0.03 uncorrected, best of nine tries after the truth was known, about 0.25 corrected), and it moves with detector brightness. Not adopted; it is the first thing to test on new labelled strips.
 
 **What the model now says.** "Which variation" is marked not established on every call (8 of 12 held out, p = 0.19), with a `note`, both variations in the prediction set, and "Which variation: not established" on the Identify page. For a QC decision the established part is "Batch_3 or not" (26 of 31; 29 of 34 with the test samples). Attribution to Batch_1 or Batch_2 should not be used to pick a root cause.
+
+## 13. The eval folder (4 Oct, evening)
+
+`HF_HUB_OFFLINE=1 uv run python -m qc.attribute --images data/Hackathon-Polaron-eval` on `main` at `7fb7c34`, nothing refit. Output committed unchanged: `results/Hackathon-Polaron-eval.json`. Explanations per image are in [SUBMISSION.md](SUBMISSION.md) §5.4.
+
+| Sample | Bet | Confidence, tier (record) | Batch_1 / Batch_2 / Batch_3 | Batch_3 or not (range) | Cannot rule out | Unfamiliar |
+|---|---|---|---|---|---|---|
+| `0eryguqq` | Batch_3 | 0.86, high (9 of 9) | 6.4 / 7.3 / 86.3% | Batch_3, 0.86 (0.84–1.00) | – | no |
+| `fhwrjtet` | Batch_3 | 0.86, high (9 of 9) | 6.6 / 7.1 / 86.3% | Batch_3, 0.86 (0.84–1.00) | – | no |
+| `4hq27w4c` | Batch_1 | 0.45, low (6 of 11) | 45.2 / 43.9 / 10.9% | not Batch_3, 0.89 (0.89–0.94) | Batch_2 | no |
+| `fspqbkxl` | Batch_2 | 0.47, low (6 of 11) | 42.3 / 46.8 / 10.9% | not Batch_3, 0.89 (0.89–0.94) | Batch_1 | no |
+| `soo2ax3r` | Batch_2 | 0.42, low (6 of 11) | 40.2 / 41.7 / 18.0% | not Batch_3, 0.82 (0.79–0.94) | Batch_1 | no |
+| `y59rxmxl` | Batch_1 | 0.46, low (6 of 11) | 46.0 / 43.1 / 10.9% | not Batch_3, 0.89 (0.89–0.94) | Batch_2 | no |
+
+**Robustness check (post-hoc, scripts not committed).** The six eval and three test samples were also scored under noise σ = 5, blur σ = 1 px, gain +20%, InLens shading and a horizontal flip (T1's perturbations), and with T8's arm-(b) augmented staged model fitted on all 31 images.
+
+- The augmented model gives the same bet on all nine samples.
+- In this model, blur moves every "not Batch_3" sample to 0.91 Batch_3; the other four perturbations change no "Batch_3 or not" answer. The augmented model changes none.
+- The augmented model is more confident on the two wrong test calls (0.61, 0.60 against 0.46) and has no calibration or stage cap, so it was not adopted. See [SUBMISSION.md](SUBMISSION.md) §4.1.

@@ -3,6 +3,8 @@
 **Team:** [Batch Size 2](https://github.com/batch-size-2) (ML: Pat · Software: Patrik)  
 **Hackathon track:** [Polaron — Track 4](https://www.polaron.ai/) — batch QC for electrode microstructure
 
+**Submission write-up and our answers for the held-back images: [docs/SUBMISSION.md](docs/SUBMISSION.md)** (problem, approach and literature, model, what did not work, training / validation / test / eval results).
+
 ## What we're building
 
 A decision layer on top of SEM microstructure analysis. Batch_3 is the material the supplier promised; Batch_1 and Batch_2 arrived later and show the kinds of variation the tool must pick up (they are *different*, not *worse*). Drop in a folder of microscope images and get, apart from each other:
@@ -223,7 +225,8 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 | `demo_video/` | yes | The 2-minute demo video. `PROMPT.md` is the one-shot brief for building it with Remotion + ElevenLabs |
 | `docs/TICKETS.md` | yes | Post-freeze experiment and implementation tickets (T1–T15). Report-only; T14 was adopted into the model on 4 Oct (docs/experiments/T14.md, "Adoption") |
 | `docs/MODEL.md` | yes | The attribution model, written up end to end: input, preprocessing, architecture step by step, output, performance, explainability and the most important features |
-| `results/` | yes | Scored unseen folders, committed unchanged: `Hackathon-Polaron-test.json` (frozen model, 3 Oct), `Hackathon-Polaron-test.refit.json` (v4.2, 4 Oct; same three bets) and `Hackathon-Polaron-test.stage-records.json` (same numbers, with the stage records). `Hackathon-Polaron-test.ground-truth.json`: the true batches given on 4 Oct and each file scored against them (1 of 3 exact, 3 of 3 Batch_3-or-not; docs/experiments/T18.md) |
+| `docs/SUBMISSION.md` | yes | The submission write-up: problem, approach with literature and the methods we ruled out, model, experiments that did not work (incl. augmentation), training / validation / test results and the eval answers with explanations |
+| `results/` | yes | Scored unseen folders, committed unchanged: `Hackathon-Polaron-eval.json` (v4.2, 4 Oct; 6 samples: 2 Batch_3 high, 4 "Batch_1 or Batch_2" low; docs/SUBMISSION.md §5.4), `Hackathon-Polaron-test.json` (frozen model, 3 Oct), `Hackathon-Polaron-test.refit.json` (v4.2, 4 Oct; same three bets) and `Hackathon-Polaron-test.stage-records.json` (same numbers, with the stage records). `Hackathon-Polaron-test.ground-truth.json`: the true batches given on 4 Oct and each file scored against them (1 of 3 exact, 3 of 3 Batch_3-or-not; docs/experiments/T18.md) |
 | `scripts/experiments/<ticket>_<slug>.py` | yes | One script per experiment ticket. Diagnostics and candidates only; never imported by `qc/`. `T14_adoption.py` is the check behind the 4 Oct calibration; `T18_tiles.py` and `T18_ground_truth.py` are the ground-truth analysis of the test samples (docs/experiments/T18.md) |
 | `docs/experiments/<ticket>.md` | yes | Pre-registered hypothesis and reading rules, then the results of each experiment ticket |
 | `out/experiments/<ticket>/` | no | Raw outputs of the experiment scripts (tables, caches such as T1's `perturbed_features.parquet`) |
@@ -531,6 +534,8 @@ The first model was frozen on 3 Oct at 22:10 (tag `rules-frozen`, staged `materi
 
 **Ground truth, 4 Oct afternoon.** The true batches of the three test samples are `3e122cbj` Batch_2, `fn0mhxef` Batch_1, `xrv9xvzb` Batch_3. The calls were 1 of 3 exact, 3 of 3 on "Batch_3 or not", and 3 of 3 inside the prediction set; both misses were 52:48 and 51:49 "Batch_1 or Batch_2" leans. Both test images sit edge to edge on one continuous cross-section with images of the other label, and no feature we built separates Batch_1 from Batch_2 in a way that holds up ([docs/experiments/T18.md](docs/experiments/T18.md), [docs/MODEL.md](docs/MODEL.md) §12). The classifier is unchanged; every "which variation" call is now marked not established, keeps both variations in its prediction set, and the app says so.
 
+**Eval folder, 4 Oct.** `Hackathon-Polaron-eval` (6 samples) was scored once with the v4.2 model, nothing refit: [results/Hackathon-Polaron-eval.json](results/Hackathon-Polaron-eval.json), committed unchanged. `0eryguqq` and `fhwrjtet` Batch_3 (86%, high); `4hq27w4c`, `fspqbkxl`, `soo2ax3r`, `y59rxmxl` not Batch_3 (82–89%) and "Batch_1 or Batch_2" at low confidence. A post-hoc check with T8's augmented model gave the same six answers; it was not adopted because it is uncalibrated and more confident on wrong Batch_1/Batch_2 calls ([docs/SUBMISSION.md](docs/SUBMISSION.md) §4.1, §5.4).
+
 ## Who owns what
 
 | File | Owner |
@@ -542,7 +547,7 @@ The first model was frozen on 3 Oct at 22:10 (tag `rules-frozen`, staged `materi
 | `qc/types.py`, `qc/controls.py`, `qc/uncertainty.py`, `config/kpi_dictionary.yaml`, `tests/test_ml.py` | ML (Pat) |
 | `qc/features.py`, `qc/deep.py`, `qc/attribute.py`, `tests/test_attribute.py` | ML (Pat). `attribute_images` gained an optional `progress` callback (replacing its two prints) for the Identify progress line; no other change |
 | `config/attribution_model.json` | ML (Pat). Refitted 4 Oct (v4.2); the `rules-frozen` tag still holds the 3 Oct file |
-| `docs/PAT_SUMMARY.md`, `docs/AGENT_HANDOVER.md`, `docs/MODEL.md`, `docs/MODEL_NEXT_STEPS.md`, `docs/DEVIN_HANDOFF.md` (where the 4 Oct session stopped; delete when its list is done), `docs/TICKETS.md`, `docs/experiments/`, `scripts/experiments/` | ML (Pat) |
+| `docs/SUBMISSION.md`, `docs/PAT_SUMMARY.md`, `docs/AGENT_HANDOVER.md`, `docs/MODEL.md`, `docs/MODEL_NEXT_STEPS.md`, `docs/DEVIN_HANDOFF.md` (where the 4 Oct session stopped; delete when its list is done), `docs/TICKETS.md`, `docs/experiments/`, `scripts/experiments/` | ML (Pat) |
 | `docs/HANDOFF.md`, `docs/APP.md` | Software (Patrik) |
 | `docs/PLAN_v4.md` | **Both** |
 | `config/particle_types.json` | ML (Pat), **frozen at `rules-frozen`** |
