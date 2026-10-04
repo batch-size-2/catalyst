@@ -1,6 +1,10 @@
 # ML handover (Pat's side)
 
-State on 3 Oct 2026, late evening. For anyone, person or agent, who picks up the ML work or builds on its outputs. It replaces the earlier `ML_HANDOVER.md` and the dated update sections this file used to have.
+State on 3 Oct 2026, late evening.
+
+> **Status, 4 Oct 2026 (after the refit and the ground truth).** This file is a dated record. Since it was written: the model was refitted (v4.2, Venn–Abers on "Batch_3 or not", no temperature; [MODEL.md](MODEL.md) §8); the three test samples were scored, then their true batches came back (1 of 3 exact, 3 of 3 "Batch_3 or not", 3 of 3 in the prediction set); "which variation" calls are now marked not established ([experiments/T18.md](experiments/T18.md)). The `rules-frozen` tag still holds the 3 Oct model. Current state: [MODEL.md](MODEL.md) and the README.
+
+For anyone, person or agent, who picks up the ML work or builds on its outputs. It replaces the earlier `ML_HANDOVER.md` and the dated update sections this file used to have.
 
 Where to read what:
 
@@ -20,9 +24,9 @@ Where to read what:
 | Pat's files | `qc/measure.py`, `qc/types.py`, `qc/controls.py`, `qc/uncertainty.py`, `qc/features.py`, `qc/deep.py`, `qc/attribute.py`, `tests/test_ml.py`, `tests/test_attribute.py`, `config/particle_types.json`, `config/kpi_dictionary.yaml`, `config/attribution_model.json`, `KPI_UNITS` in `qc/schema.py` |
 | Shared | `qc/schema.py` (the contract: additive changes only, tell the other owner), `qc/io.py`, `qc/run.py`, `README.md` |
 | Plan | PLAN_v4 is the team plan and is self-contained; both owners have agreed to it |
-| Python | `uv sync`, then `uv run pytest -q` (67 tests, about 80 s). Torch and transformers are regular dependencies since the freeze (the frozen model needs the deep features), so a plain `uv run …` works; `--extra deep` is still accepted |
+| Python | `uv sync`, then `uv run pytest -q` (144 tests, about 160 s; one needs Node ≥ 20.19). Torch and transformers are regular dependencies since the freeze (the frozen model needs the deep features), so a plain `uv run …` works; `--extra deep` is still accepted |
 | Data | `data/Batch_1`, `data/Batch_2`, `data/Batch_3`: 31 samples, each three 8-bit files (BSE, ETD or SE, InLens), 2316 × about 7000 px, 0.025 µm/px. Gitignored |
-| Unseen images | The first folder arrived on 3 Oct: `Hackathon-Polaron-test`, 9 files = 3 samples (`3e122cbj`, `fn0mhxef`, `xrv9xvzb`). More images come shortly before judging. Kept in their own folder, never inside a batch folder; not opened and not yet linked into `data/`. Unseen until the model is frozen with `git tag rules-frozen`; then scored once and the output committed unchanged (PLAN_v4 §1.3, §4) |
+| Unseen images | The first folder arrived on 3 Oct: `Hackathon-Polaron-test`, 9 files = 3 samples (`3e122cbj`, `fn0mhxef`, `xrv9xvzb`). More images come shortly before judging. Kept in their own folder, never inside a batch folder. Scored once after `git tag rules-frozen` (`results/Hackathon-Polaron-test.json`, committed unchanged) and rescored with the refit; true batches `3e122cbj` Batch_2, `fn0mhxef` Batch_1, `xrv9xvzb` Batch_3 (`results/Hackathon-Polaron-test.ground-truth.json`) |
 
 Rules that have held throughout:
 

@@ -53,7 +53,7 @@ From the literature review ([MODEL_LITERATURE_REVIEW.md](MODEL_LITERATURE_REVIEW
 | **LDA, shrunken centroids, GP with a linear kernel** [L8–L12] | Not needed | The same linear boundary as logistic regression. At our size they cannot be shown to differ [L8, L9] |
 | **Attention-based multiple-instance learning on tiles** [L22] | No | Attention overfits even at hundreds of slides; we have 14 bags for the hard question |
 | **Transductive methods using the test set** [L23] | No | They help only when the test class balance is known, and it is not |
-| **Larger or newer backbones** (DINOv3, MicroNet [L27]) | Not tried | Each one is another entry in the best-of-list and raises the bar. Vision foundation models are known to break across EM datasets that look alike [L25]. MicroNet is the most argued alternative (pretrained on micrographs), and it is listed as the next step |
+| **Larger or newer backbones** (DINOv3, MicroNet [L27]) | Not tried | Each one is another entry in the best-of-list and raises the bar. Vision foundation models are known to break across EM datasets that look alike [L25]. MicroNet is the most argued alternative (pretrained on micrographs), and it is listed as the next step. The planned try (T15) was not run: DINOv3 weights are gated, MicroNet needs new dependencies, and after T9 a new backbone was judged low value |
 | **Data augmentation in training** | Tested, not adopted | See §4.1 |
 
 The arithmetic behind "the classifier is not the bottleneck": with 14 images, a model that is truly right 75% of the time on Batch 1 against Batch 2 clears a fair null only about half the time. After seven models have been tried, that drops to about a quarter (review §2.1). Trying more classifiers makes it less likely that anything can be established.
@@ -135,7 +135,7 @@ Every row is a pre-registered experiment ([TICKETS.md](TICKETS.md); results on t
 | – | Each feature family alone, three-way | KPIs 0.35, particles 0.23, regions 0.31, texture 0.45, all 180 named 0.45: **none above its null**. DINOv2 0.64 against a null of 0.54: the only family that is | Staged design: named features for Batch 3 or not, DINOv2 for which variation |
 | – | Other image representations for Batch 1 against Batch 2: BSE and ETD DINOv2 tiles, silicon particle crops, two-point correlation curves, tile-level training with a vote | Best: ETD tiles at 11 of 14, which is not above the best-of-7 null (0.86). ETD imaging descriptors alone reach 0.64 | No |
 | T1 | **Augmentation as a test**: noise, blur, gain, contrast, gamma, shading, curtaining, left-right flip, darkened InLens graphite | Brightness, contrast, shading and flips: no effect. **Noise σ = 5 flips "Batch 3 or not" for 12 of 17 Batch 3 images; blur for 3.** Darkened graphite turns all 7 Batch 1 images into Batch 3 | Finding: stage 1 partly reads the microscope |
-| T2 | Dark-graphite share in InLens (a charging contrast, not a material) | Batch 1 0.04, Batch 2 0.13, Batch 3 0.17 (median); two DINOv2 components track it (r ≈ 0.6). Regressing it out costs 0.03 | Reported, not removed |
+| T2 | Dark-graphite share in InLens (a charging contrast, not a material) | Batch 1 0.04, Batch 2 0.13, Batch 3 0.17 (median); two DINOv2 components track it (r ≈ 0.6). Regressing it out costs 0.02–0.03 and stays above the null | Reported, not removed |
 | T3 | Do Batch 1 and Batch 2 tiles from the **same strip** differ more than same-batch pairs? | No (p = 0.58 and 0.91). The positive control also failed, so this "no" is weak | Finding: no visible label inside a strip |
 | **T8** | **Augmentation in training**: 7 imaging copies plus a dark-graphite copy per training image, inside each fold | Same accuracy (0.675 against 0.675); noise flips 11 → 2, dark-graphite flips 7 → 0. Feature-space jitter failed | **Not adopted**, see §4.1 |
 | T9 | Remove everything the measured imaging predicts (in-fold residualisation, LEACE-style [L41]) | **Every signal drops to chance**: Batch 3 or not 0.88 → 0.50, three-way 0.66 → 0.46. A shuffled-covariate control costs only 0.07 | Finding: signal and acquisition cannot be separated with these 31 images |
@@ -204,9 +204,11 @@ Is the confidence honest? Held out:
 | Tier | Right, 31 known images | Right, 270 rehearsal calls |
 |---|---|---|
 | High (≥ 75%) | **9 of 9** | 56 of 58 |
-| Medium (50–75%) | 7 of 11 | 25 of 52 |
-| Low (< 50%) | 6 of 11 | 97 of 160 |
+| Medium (50–75%) | 5 of 7 | 25 of 52 |
+| Low (< 50%) | 8 of 15 | 97 of 160 |
 | Prediction set holds the truth | 87% (1.5 batches) | 95% (2.1 batches) |
+
+These records include the cap that keeps every "Batch 1 or 2" call at low confidence. They were recomputed on 4 Oct with the current code from the same held-out probabilities. The model file still stores the pre-cap record for the 31 images (medium 7 of 11, low 6 of 11) until its next fit; the rehearsal numbers are the same with and without the cap.
 
 ### 5.3 Test (`Hackathon-Polaron-test`, truth given after our calls)
 
@@ -235,12 +237,14 @@ So every image that is not Batch 3 is reported as **"Batch 1 or Batch 2", low co
 |---|---|---|---|---|---|---|---|
 | `0eryguqq` | **Batch 3** | **High** (right 9 of 9 times at this level) | 6.4% | 7.3% | **86.3%** | – | 5 of 5 |
 | `fhwrjtet` | **Batch 3** | **High** (9 of 9) | 6.6% | 7.1% | **86.3%** | – | 5 of 5 |
-| `4hq27w4c` | Batch 1 or 2 (leans **Batch 1**) | Low (6 of 11) | 45.2% | 43.9% | 10.9% | Batch 2 | 4 of 5 (blur) |
-| `fspqbkxl` | Batch 1 or 2 (leans **Batch 2**) | Low (6 of 11) | 42.3% | 46.8% | 10.9% | Batch 1 | 4 of 5 (blur) |
-| `soo2ax3r` | Batch 1 or 2 (leans **Batch 2**) | Low (6 of 11) | 40.2% | 41.7% | 18.0% | Batch 1 | 4 of 5 (blur) |
-| `y59rxmxl` | Batch 1 or 2 (leans **Batch 1**) | Low (6 of 11) | 46.0% | 43.1% | 10.9% | Batch 2 | 4 of 5 (blur) |
+| `4hq27w4c` | Batch 1 or 2 (leans **Batch 1**) | Low (8 of 15) | 45.2% | 43.9% | 10.9% | Batch 2 | 4 of 5 (blur) |
+| `fspqbkxl` | Batch 1 or 2 (leans **Batch 2**) | Low (8 of 15) | 42.3% | 46.8% | 10.9% | Batch 1 | 4 of 5 (blur) |
+| `soo2ax3r` | Batch 1 or 2 (leans **Batch 2**) | Low (8 of 15) | 40.2% | 41.7% | 18.0% | Batch 1 | 4 of 5 (blur) |
+| `y59rxmxl` | Batch 1 or 2 (leans **Batch 1**) | Low (8 of 15) | 46.0% | 43.1% | 10.9% | Batch 2 | 4 of 5 (blur) |
 
 All six are within the familiarity limit of their assigned batch (none unfamiliar). The augmented model of §4.1 gives the same answer for all six.
+
+The tier records are the corrected held-out values (§5.2). The committed output file still shows the low-tier record stored in the model file, 6 of 11, which was computed before the low-confidence cap. The answers and probabilities do not depend on it.
 
 **Why each answer**
 

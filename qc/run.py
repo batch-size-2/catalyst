@@ -26,6 +26,7 @@ from qc.measure import imaging, kpis, particles, segment
 from qc.provenance import git, provenance, rules_frozen
 from qc.schema import (
     ATTRIBUTION_MODEL_PATH, CONFIG_PATH, IMAGING_COLUMNS, IMAGING_TABLE, KPI_TABLE, KPI_TABLE_COLUMNS, KPI_UNITS,
+    SAMPLING_COLUMNS,
     PARTICLE_COLUMNS, PARTICLE_TABLE, Evidence, Field, Phase, Tables, attribution_path, evidence_path, phases_path,
     load_config, mask_path,
 )
@@ -183,12 +184,17 @@ def measure(batch_dirs: list[Path], progress: Progress | None = None) -> Tables:
 def measure_field(field: Field) -> tuple[dict, pd.DataFrame, list[dict]]:
     """A tile that fails to segment or measure gets NaN KPIs instead of crashing the run."""
     base = {"batch": field.batch, "image_id": field.image_id, "strip_id": field.strip_id}
-    kpi_row = base | {"px_um": field.px_um, "area_um2": np.nan} | {k: np.nan for k in KPI_UNITS}
+    kpi_row = base | {"px_um": field.px_um, "area_um2": np.nan} | {k: np.nan for k in (*KPI_UNITS, *SAMPLING_COLUMNS)}
     table = pd.DataFrame(columns=[c for c in PARTICLE_COLUMNS if c not in base])
     irows = [base | {"channel": ch} | {k: np.nan for k in IMAGING_COLUMNS[4:]} for ch in field.channels]
     try:
         mask = segment(field.channels, field.px_um)
         kpi_row.update(kpis(mask, field.px_um, field.channels))
+        try:
+            from qc.uncertainty import attach_sampling
+            attach_sampling(kpi_row, mask, field.px_um)
+        except Exception as error:
+            print(f"  ! {field.batch}/{field.image_id} sampling: {error!r}")
         save_overlay(field, mask)
         if np.isfinite(field.px_um):
             kpi_row["area_um2"] = float((mask != Phase.IGNORE).sum() * field.px_um**2)

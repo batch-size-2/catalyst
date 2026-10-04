@@ -9,7 +9,7 @@ The accept / investigate / reject verdict of the Compare page is a separate, pur
 - **Question.** "Is this image different from the baseline (Batch_3), and if so, in what way (Batch_1 or Batch_2)?" Every image always gets a batch.
 - **Model.** Two small logistic regressions in sequence. Stage 1 decides "Batch_3 or not" from 180 named measurements. Stage 2 decides "Batch_1 or Batch_2" from 10 principal components of frozen DINOv2 image features. Nothing is fine-tuned; the only fitted numbers are 190 coefficients, their scalers and one projection.
 - **Performance.** With whole strips held out: 22 of 31 images right, balanced accuracy 0.66 (chance 0.33, shuffled-label 95th percentile 0.51). "Batch_3 or not" is right for 26 of 31. "Batch_1 or Batch_2" is right for 8 of 12 and is not reliably separable. On 30 rehearsal draws of 9 unseen images: 0.66 on average, from 3 of 9 to 8 of 9.
-- **Confidence.** Checked on held-out images: calls stated at 75% or more were right 9 of 9 times; 50–75%: 7 of 11; below 50%: 6 of 11. The model never says more than about 90%, because 31 images cannot support more.
+- **Confidence.** Checked on held-out images: calls stated at 75% or more were right 9 of 9 times; 50–75%: 5 of 7; below 50%: 8 of 15 (with the low-confidence cap on "which variation", §7.4). The model never says more than about 90%, because 31 images cannot support more.
 - **What matters most.** For "Batch_3 or not": fine texture (61% of the weight), spread over many small inputs. For "Batch_1 or Batch_2": four image patterns carry 74% of the weight, and all four also track an imaging descriptor (brightness or black level), so part of that signal may be the microscope and not the material.
 - **Changed on 4 Oct.** Only the confidence and the call rule. The classifier's coefficients are identical to the model frozen on 3 Oct (§8).
 - **Ground truth of the 3 test samples (§12).** 1 of 3 exact, 3 of 3 on "Batch_3 or not", 3 of 3 inside the prediction set. Both misses were "Batch_1 or Batch_2" coin flips (52:48, 51:49), and both test images sit edge to edge between images of the other label on one continuous cross-section. No feature we built, including new ones, tells Batch_1 from Batch_2 in a way that holds up, so every "which variation" call is now marked **not established** and keeps both variations in its prediction set.
@@ -192,8 +192,8 @@ One rehearsal of nine images means little: single draws range from 3 of 9 to 8 o
 | | 31 known images, held out | Rehearsal, 270 unseen calls |
 |---|---|---|
 | High tier (≥ 0.75) right | 9 of 9 | 56 of 58 |
-| Medium tier (0.5–0.75) right | 7 of 11 | 25 of 52 |
-| Low tier (< 0.5) right | 6 of 11 | 97 of 160 |
+| Medium tier (0.5–0.75) right | 5 of 7 (stored in the model file before the cap: 7 of 11) | 25 of 52 |
+| Low tier (< 0.5) right | 8 of 15 (stored before the cap: 6 of 11) | 97 of 160 |
 | Log loss, three-way (uncalibrated in brackets) | 0.72 (0.79) | 0.84 (0.77) |
 | Prediction set holds the true batch | 87%, 1.5 batches on average | 95%, 2.1 batches on average |
 | Mean width of the "Batch_3 or not" range | 0.20 | – |
@@ -203,6 +203,7 @@ Reading:
 - A high-tier call can be trusted. All high-tier calls are Batch_3 calls.
 - Medium and low do not separate in the rehearsal. There, medium is the weak Batch_3 calls and low is every Batch_1 or Batch_2 call, which is close to a coin flip with a lean.
 - The prediction sets hold their promise (at least 80%) in both views.
+- The 31-image tiers were recomputed on 4 Oct with the current `calibrate`, which keeps every unestablished "which variation" call at low (T18). The model file still stores the pre-cap record until its next fit, so run outputs show "6 of 11" on low calls. A rehearsal rerun with the cap gives the same 56/58, 25/52, 97/160.
 - The stated probabilities stop near 0.9 (0.91 with all 31 points). With so few calibration points, nothing higher can be supported.
 
 ## 8. What changed on 4 Oct: unfreeze and T14
@@ -391,10 +392,12 @@ The organisers gave the true batches after the calls were committed. Full analys
 |---|---|---|---|---|---|---|
 | `0eryguqq` | Batch_3 | 0.86, high (9 of 9) | 6.4 / 7.3 / 86.3% | Batch_3, 0.86 (0.84–1.00) | – | no |
 | `fhwrjtet` | Batch_3 | 0.86, high (9 of 9) | 6.6 / 7.1 / 86.3% | Batch_3, 0.86 (0.84–1.00) | – | no |
-| `4hq27w4c` | Batch_1 | 0.45, low (6 of 11) | 45.2 / 43.9 / 10.9% | not Batch_3, 0.89 (0.89–0.94) | Batch_2 | no |
-| `fspqbkxl` | Batch_2 | 0.47, low (6 of 11) | 42.3 / 46.8 / 10.9% | not Batch_3, 0.89 (0.89–0.94) | Batch_1 | no |
-| `soo2ax3r` | Batch_2 | 0.42, low (6 of 11) | 40.2 / 41.7 / 18.0% | not Batch_3, 0.82 (0.79–0.94) | Batch_1 | no |
-| `y59rxmxl` | Batch_1 | 0.46, low (6 of 11) | 46.0 / 43.1 / 10.9% | not Batch_3, 0.89 (0.89–0.94) | Batch_2 | no |
+| `4hq27w4c` | Batch_1 | 0.45, low (8 of 15) | 45.2 / 43.9 / 10.9% | not Batch_3, 0.89 (0.89–0.94) | Batch_2 | no |
+| `fspqbkxl` | Batch_2 | 0.47, low (8 of 15) | 42.3 / 46.8 / 10.9% | not Batch_3, 0.89 (0.89–0.94) | Batch_1 | no |
+| `soo2ax3r` | Batch_2 | 0.42, low (8 of 15) | 40.2 / 41.7 / 18.0% | not Batch_3, 0.82 (0.79–0.94) | Batch_1 | no |
+| `y59rxmxl` | Batch_1 | 0.46, low (8 of 15) | 46.0 / 43.1 / 10.9% | not Batch_3, 0.89 (0.89–0.94) | Batch_2 | no |
+
+Tier records are the corrected held-out values of §7.4. The committed file shows the low-tier record stored in the model file (6 of 11), which predates the low-confidence cap.
 
 **Robustness check (post-hoc, scripts not committed).** The six eval and three test samples were also scored under noise σ = 5, blur σ = 1 px, gain +20%, InLens shading and a horizontal flip (T1's perturbations), and with T8's arm-(b) augmented staged model fitted on all 31 images.
 

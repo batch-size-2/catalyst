@@ -129,6 +129,20 @@ def imaging_words(metrics: list[str]) -> str:
     return ", ".join([head, *(f"{join_and(k)}{on(c)}" for c, k in rest)])
 
 
+def sampling_line(evidence: Evidence, quantity: str, name: str) -> str | None:
+    """How the tile-to-tile spread compares with one tile's sampling band. Never a verdict input."""
+    check = evidence.sampling_check.get(quantity)
+    if check is None or check.ratio is None:
+        return None
+    ratio = check.ratio
+    if ratio >= 1.5:
+        return (f"{name} varies {ratio:.1f}× more between tiles than one tile's sampling explains: "
+                "the batch is uneven, not just under-sampled.")
+    if ratio <= 0.75:
+        return f"{name} varies less between tiles than one tile's sampling explains."
+    return f"The spread in {name.lower()} between tiles is about what one tile's sampling explains."
+
+
 def causes(d, dictionary: dict) -> str | None:
     field = "if_higher" if d.difference is not None and d.difference > 0 else "if_lower"
     text = entry(d.name, dictionary).get(field)
@@ -336,6 +350,8 @@ def explain(evidence: Evidence, dictionary: dict) -> Explanations:
     if (evidence.new_type_share is not None
             and any(reason.startswith("Contains a particle type not seen before") for reason in evidence.reasons)):
         engineer.append(f"{evidence.new_type_share:.1%} of the silicon area is a particle type not seen in the baseline.")
+    if (line := sampling_line(evidence, "si_area_frac", "Silicon")):
+        engineer.append(line)
     engineer.append(f"Next: {plain(evidence.next_action, evidence, dictionary)}")
 
     n1, n2 = evidence.power.n_segments
@@ -378,6 +394,10 @@ def explain(evidence: Evidence, dictionary: dict) -> Explanations:
     else:
         names = ", ".join(r.name for r in evidence.controls.results if not r.passed)
         scientist.append(f"Controls failed: {names}.")
+    if (line := sampling_line(evidence, "si_area_frac", "Silicon")):
+        scientist.append(line)
+    if (line := sampling_line(evidence, "porosity_apparent", "Apparent porosity")):
+        scientist.append(line)
     scientist.append("Images of one strip are correlated, so the image-level p can be too small; "
                      "the strip view is reported alongside.")
 

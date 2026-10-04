@@ -145,8 +145,26 @@ export interface Evidence {
   fingerprint: Fingerprint;
   n_images: Record<string, number>;
   explanations: Explanations;
+  image_uncertainty?: ImageUncertainty[];
+  sampling_check?: Partial<Record<"si_area_frac" | "porosity_apparent", SamplingQuantity>>;
   provenance: Provenance | null;
   config_version: string;
+}
+
+export interface ImageUncertainty {
+  image_id: string;
+  strip_id: string | null;
+  si_area_frac: number | null;
+  si_area_frac_sd: number | null;
+  porosity_apparent: number | null;
+  porosity_apparent_sd: number | null;
+}
+
+export interface SamplingQuantity {
+  observed_sd: number | null;
+  predicted_sd: number | null;
+  ratio: number | null;
+  area_for_half_point_um2: number | null;
 }
 
 export interface ReasonClause {
@@ -372,12 +390,18 @@ export interface GuideStep {
   source: string | null;
 }
 
+export interface GuideAudience {
+  source: "claude" | "template";
+  sentences: string[];
+}
+
 export interface Guide {
   source: "claude" | "template";
   model: string | null;
   fallback_reason: string | null;
   summary: string[];
   steps: GuideStep[];
+  audiences?: Partial<Record<"operator" | "engineer" | "scientist" | "manager", GuideAudience>>;
   slots: Record<string, GuideSlot>;
   checks: { numbers: number; dropped: string[] };
 }
@@ -389,6 +413,7 @@ export interface Tile {
   strip_id: string | null;
   detectors: string[];
   kpis: Record<string, number | null> | null;
+  sampling?: { si_area_frac_sd: number | null; porosity_apparent_sd: number | null } | null;
   has_mask: boolean;
   has_layers: boolean;  // per-phase layers exist (GET /api/layers/{batch}/{image_id}/{silicon|pore|binder})
 }

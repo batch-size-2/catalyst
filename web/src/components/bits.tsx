@@ -301,6 +301,9 @@ export function TileKpiGrid({
         .map(([kpi, v]) => {
           const band = baseline ? baselineBand(tiles, baseline, kpi) : null;
           const z = band && band.sd > 0 ? (v! - band.mean) / band.sd : null;
+          const samplingSd = kpi === "si_area_frac" ? tile.sampling?.si_area_frac_sd
+            : kpi === "porosity_apparent" ? tile.sampling?.porosity_apparent_sd : null;
+          const pp = samplingSd != null && Number.isFinite(samplingSd) ? 1.96 * samplingSd * 100 : null;
           return (
             <div key={kpi} className="flex flex-col gap-2 rounded-[14px] border border-cx-line-soft bg-black/20 p-3">
               <span className="line-clamp-2 min-h-[2lh] text-xs leading-snug text-cx-muted" title={dictEntry(kpi, dict).why_it_matters ?? quantityLabel(kpi, dict)}>
@@ -309,6 +312,14 @@ export function TileKpiGrid({
               <span className="mono text-[14px] whitespace-nowrap">
                 {fmt(v, dictEntry(kpi, dict).unit)}
                 {z != null && <span className="ml-1.5 text-[11px] text-cx-faint">{fmtSigma(z)}</span>}
+                {pp != null && (
+                  <span
+                    className="ml-1.5 text-[11px] text-cx-faint"
+                    title="Sampling uncertainty, 95%. How far this percentage could move if another patch of the same electrode had been imaged. Clipped to 0–100%. Separate from the baseline spread beside it."
+                  >
+                    ±{pp >= 1 ? pp.toFixed(1) : pp.toFixed(2)} pp
+                  </span>
+                )}
               </span>
               {z != null && <SigmaBand z={z} height={3} />}
             </div>
@@ -332,13 +343,17 @@ export function kpisBeyond(tile: Tile | undefined, tiles: Tile[], baseline: stri
 const SLOT = /\{(diff|shift|interval|tile|range|whatif|count):([^{}\s]+)\}/g;
 
 /** Guide text with its {slots} rendered as chips; Catalyst filled every one from the evidence. */
-export function SlotText({ text, slots }: { text: string; slots: Record<string, GuideSlot> }) {
+export function SlotText({ text, slots, plain = false }: { text: string; slots: Record<string, GuideSlot>; plain?: boolean }) {
   const parts: ReactNode[] = [];
   let last = 0;
   for (const m of text.matchAll(SLOT)) {
     parts.push(text.slice(last, m.index));
     const slot = slots[`${m[1]}:${m[2]}`];
-    parts.push(slot ? <SlotChip key={m.index} slot={slot} /> : "—");
+    parts.push(slot
+      ? (plain
+        ? <strong key={m.index} className="font-semibold text-cx-text-strong" title={slot.source}>{slot.text}</strong>
+        : <SlotChip key={m.index} slot={slot} />)
+      : "—");
     last = (m.index ?? 0) + m[0].length;
   }
   parts.push(text.slice(last));

@@ -166,7 +166,7 @@ def evidence(batch: str, baseline: str | None = None) -> Evidence:
 
 @app.get("/api/guide/{batch}")
 def guide(batch: str, baseline: str | None = None, source: str = "template") -> dict:
-    """Summary and walkthrough over the evidence (qc/guide.py). Free: the fixed template, or with
+    """Summary, walkthrough and four audience readings (qc/guide.py). Free: the fixed template, or with
     source=claude Claude's cached version (else the template with a fallback_reason)."""
     if source not in ("claude", "template"):
         raise HTTPException(400, "source must be claude or template")
@@ -175,7 +175,7 @@ def guide(batch: str, baseline: str | None = None, source: str = "template") -> 
 
 @app.post("/api/guide/{batch}")
 def ask_claude(batch: str, baseline: str | None = None) -> dict:
-    """Ask Claude for the summary and walkthrough (a paid call, cached per evidence). Never changes the verdict."""
+    """Ask Claude for the summary, walkthrough and audience readings (one paid call, cached per evidence). Never changes the verdict."""
     return guide_module.guide(read_evidence(batch, baseline), "claude", ask=True)
 
 
@@ -239,6 +239,10 @@ def tiles() -> list[dict]:
                 "kpis": None if row is None else {
                     k: (None if (v := getattr(row, k, None)) is None or pd.isna(v) else float(v))
                     for k in KPI_UNITS
+                },
+                "sampling": None if row is None else {
+                    k: (None if (v := getattr(row, k, None)) is None or pd.isna(v) else float(v))
+                    for k in ("si_area_frac_sd", "porosity_apparent_sd")
                 },
                 "has_mask": mask_path(folder.name, image_id).exists(),
                 "has_layers": phases_path(folder.name, image_id).exists(),

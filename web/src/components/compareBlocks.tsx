@@ -8,7 +8,7 @@ import {
 import { href } from "../router";
 import type { Config, Difference, Evidence, Guide, KpiDictionary, Tile } from "../types";
 import {
-  BatchDot, Folds, IconCheck, Seg, ShiftBand, VerdictPill,
+  BatchDot, Folds, IconCheck, Seg, ShiftBand, SlotText, VerdictPill,
 } from "./bits";
 import { Peekable, type PeekItem } from "./Peek";
 
@@ -514,7 +514,18 @@ function propertySummary(ctx: Ctx): string {
   ].filter(([count]) => count).map(([count, word]) => `${count} ${word}`).join(" · ");
 }
 
-export function FoldedBlock({ ctx, open, onToggle }: { ctx: Ctx; open: Record<string, boolean>; onToggle: (id: string) => void }) {
+export function FoldedBlock({
+  ctx, open, onToggle, guide, claudeOn, asking, askError, onAsk,
+}: {
+  ctx: Ctx;
+  open: Record<string, boolean>;
+  onToggle: (id: string) => void;
+  guide: Guide | null;
+  claudeOn: boolean;
+  asking: boolean;
+  askError: string | null;
+  onAsk: (() => void) | null;
+}) {
   const { evidence } = ctx;
   const shown = dropTwinShare(evidence.differences, evidence);
   const prov = evidence.provenance;
@@ -540,7 +551,7 @@ export function FoldedBlock({ ctx, open, onToggle }: { ctx: Ctx; open: Record<st
           id: "explain",
           title: "Explain it for an operator, engineer, scientist or manager",
           summary: "4 versions",
-          body: () => <Explain evidence={evidence} />,
+          body: () => <Explain evidence={evidence} guide={guide} claudeOn={claudeOn} asking={asking} askError={askError} onAsk={onAsk} />,
         },
         {
           id: "run",
@@ -750,13 +761,44 @@ const AUDIENCES = [
   ["manager", "Manager"],
 ] as const;
 
-function Explain({ evidence }: { evidence: Evidence }) {
+function Explain({
+  evidence, guide, claudeOn, asking, askError, onAsk,
+}: {
+  evidence: Evidence;
+  guide: Guide | null;
+  claudeOn: boolean;
+  asking: boolean;
+  askError: string | null;
+  onAsk: (() => void) | null;
+}) {
   const [audience, setAudience] = useState<(typeof AUDIENCES)[number][0]>("engineer");
   const sentences = evidence.explanations[audience];
+  const written = guide?.audiences?.[audience];
+  const byClaude = !!written && written.source === "claude" && written.sentences.length > 0;
   const textClass = audience === "scientist" ? "mono text-[13px] text-cx-text-2" : "text-[15px] text-cx-text";
   return (
     <div className="flex flex-col gap-4">
-      <Seg options={AUDIENCES.map(([value, label]) => ({ value, label }))} value={audience} onChange={setAudience} className="self-start" />
+      <div className="flex flex-wrap items-center gap-3">
+        <Seg options={AUDIENCES.map(([value, label]) => ({ value, label }))} value={audience} onChange={setAudience} className="self-start" />
+        {claudeOn && onAsk && (
+          <button className="btn" type="button" disabled={asking} onClick={onAsk}>
+            {asking ? "Asking Claude…" : "Ask Claude"}
+          </button>
+        )}
+      </div>
+      {askError && <p className="m-0 text-[13px] text-cx-investigate-text">{askError}</p>}
+      {byClaude ? (
+        <div className="flex max-w-[720px] flex-col gap-2">
+          <p className="m-0 text-[12px] tracking-wide text-cx-faint">Written by Claude · numbers checked</p>
+          {written.sentences.map((sentence, i) => (
+            <p key={i} className="m-0 text-[15px] leading-snug text-cx-text">
+              <SlotText text={sentence} slots={guide?.slots ?? {}} plain />
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="m-0 text-[12px] tracking-wide text-cx-faint">Fixed wording</p>
+      )}
       {sentences.length ? (
         <ul className="m-0 flex max-w-[900px] list-none flex-col gap-2 p-0">
           {sentences.map((sentence, i) => (
@@ -771,6 +813,15 @@ function Explain({ evidence }: { evidence: Evidence }) {
       )}
     </div>
   );
+}
+
+function samplingSpread(name: string, ratio: number): string {
+  if (ratio >= 1.5)
+    return `${name} varies ${ratio.toFixed(1)}× more between tiles than one tile's sampling explains.`;
+  if (ratio <= 0.75)
+    return `${name} varies less between tiles than one tile's sampling explains.`;
+  const label = name === "Silicon" ? "silicon" : "apparent porosity";
+  return `The spread in ${label} between tiles is about what one tile's sampling explains.`;
 }
 
 function RunDetails({ ctx }: { ctx: Ctx }) {
@@ -789,6 +840,17 @@ function RunDetails({ ctx }: { ctx: Ctx }) {
   ];
   if (evidence.imaging.outliers_in_reference.length)
     facts.push(["Left out of the imaging range", evidence.imaging.outliers_in_reference.join(", ")]);
+  const silicon = evidence.sampling_check?.si_area_frac;
+  const porosity = evidence.sampling_check?.porosity_apparent;
+  if (silicon?.ratio != null)
+    facts.push(["Silicon, tile to tile", samplingSpread("Silicon", silicon.ratio)]);
+  if (porosity?.ratio != null)
+    facts.push(["Porosity, tile to tile", samplingSpread("Apparent porosity", porosity.ratio)]);
+  if (silicon?.area_for_half_point_um2) {
+    const mm2 = silicon.area_for_half_point_um2 / 1e6;
+    const digits = mm2 >= 10 ? 0 : mm2 >= 1 ? 1 : 2;
+    facts.push(["Area for ±0.5 pp silicon", `${mm2.toFixed(digits)} mm² of the baseline`]);
+  }
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <dl className="m-0 grid grid-cols-[220px_minmax(0,1fr)] gap-x-6 gap-y-2 text-[13px]">
