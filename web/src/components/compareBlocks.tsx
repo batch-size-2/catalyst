@@ -405,7 +405,7 @@ export function TilesBlock({ ctx, guide, onSeeAll }: { ctx: Ctx; guide: Guide | 
             The {countWord(grouped.length)} {grouped.length === 1 ? "tile" : "tiles"} behind it
           </h2>
           <span className="text-[13px] text-cx-muted">
-            Outside the baseline range on {plural(quantities.length, "property")}. Click one to look closer.
+            Outside the baseline range on {quantities.length === 1 ? "1 property" : `${quantities.length} properties`}. Click one to look closer.
           </span>
         </div>
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))" }}>
