@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { flagOn } from "../flags";
 import { href } from "../router";
 import { BatchDot, CAT } from "./bits";
 import { batchLabel, shortHash } from "../lib";
@@ -38,6 +39,7 @@ const ICONS = {
       <path d="M9 12l2 2 4-4" />
     </>
   ),
+  wear: <path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z" />,
   settings: (
     <>
       <path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1" />
@@ -103,6 +105,14 @@ export default function Shell({
           )}
           <div className="lbl px-2.5 pt-5 pb-2">Trust</div>
           {navItem("audit", "Audit log", ICONS.audit, href.audit())}
+          {flagOn("impact") && (
+            <>
+              <div className="lbl px-2.5 pt-5 pb-2">Experimental</div>
+              {navItem("impact", "Wear & impact", ICONS.wear, href.impact(),
+                <span className="mono ml-auto rounded-md border border-cx-orange/40 px-1.5 py-0.5 text-[10px] text-cx-orange-text"
+                  title="Experimental feature: indicative, never part of the verdict">EXP</span>)}
+            </>
+          )}
         </nav>
         <div className="mt-auto flex flex-col gap-2.5">
           {navItem("settings", "Settings", ICONS.settings, href.settings())}

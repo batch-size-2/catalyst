@@ -23,6 +23,8 @@ export const href = {
     batch && imageId
       ? `#/library/${encodeURIComponent(batch)}/${encodeURIComponent(imageId)}`
       : "#/library",
+  impact: (batch?: string, baseline?: string) =>
+    `#/impact${batch ? `/${encodeURIComponent(batch)}` : ""}${batch && baseline ? `/${encodeURIComponent(baseline)}` : ""}`,
   audit: () => "#/audit",
   settings: () => "#/settings",
 };

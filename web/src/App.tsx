@@ -2,10 +2,12 @@ import { getModelStatus, getSettings, getTiles } from "./api";
 import Audit from "./components/Audit";
 import Compare from "./components/Compare";
 import Identify from "./components/Identify";
+import Impact from "./components/Impact";
 import Library from "./components/Library";
 import { PeekProvider } from "./components/Peek";
 import Settings from "./components/Settings";
 import Shell, { type ShellInfo } from "./components/Shell";
+import { flagOn } from "./flags";
 import { batchLabel, libraryTiles, useApi } from "./lib";
 import { useState } from "react";
 import { useHashRoute } from "./router";
@@ -34,6 +36,7 @@ export default function App() {
       route[1] && route[2]
         ? ["Library", batchLabel(route[1]), <span key="id" className="mono">{route[2]}</span>]
         : ["Library"],
+    impact: ["Experimental", "Wear & impact"],
     audit: ["Trust", "Audit log"],
     settings: ["Settings", "Baseline"],
   };
@@ -44,6 +47,15 @@ export default function App() {
       {page === "identify" && <Identify />}
       {page === "compare" && <Compare routeBatch={route[1]} routeBaseline={route[2]} />}
       {page === "library" && <Library routeBatch={route[1]} routeImage={route[2]} />}
+      {page === "impact" &&
+        (flagOn("impact") ? (
+          <Impact routeBatch={route[1]} routeBaseline={route[2]} />
+        ) : (
+          <p className="mx-auto max-w-[640px] px-10 py-16 text-cx-muted">
+            Wear &amp; impact is an experimental feature and is switched off here. Open{" "}
+            <code className="mono">/?flags=</code> to switch it back on.
+          </p>
+        ))}
       {page === "audit" && <Audit />}
       {page === "settings" && <Settings onSaved={() => setSaved((n) => n + 1)} />}
     </Shell>
