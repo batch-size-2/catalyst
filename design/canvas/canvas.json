@@ -107,6 +107,15 @@
       "w": 1440,
       "x": 2060,
       "y": 7900
+    },
+    "Compare-Clear.dc.html": {
+      "expand": "fill",
+      "h": 1800,
+      "is_interactive": true,
+      "title": "v4 · Compare — why, what moved, what to do",
+      "w": 1440,
+      "x": 0,
+      "y": 10260
     }
   },
   "createdOnFiles": {
@@ -197,6 +206,21 @@
       "x": 3580,
       "y": 7900,
       "text": "Region peek: look closer without leaving.\n\nHover or keyboard-focus a region (or its reason card): a glass peek opens beside it with a magnified crop, the region ringed, a scale bar and one line of what was measured there.\n\nClick pins it: an inspector panel on the right with detector switch (BSE / ETD / InLens), silicon and pore layers, ← → through all regions, and 'Open full tile' for the Library.\n\nSame component for any tile thumbnail or tile chip (Compare cards, guided summary). Regions stay marked PREVIEW until the model returns real heatmap regions."
+    },
+    "rowClear": {
+      "kind": "title1",
+      "maxW": 4480,
+      "text": "v4 · Compare, clearer: the call and why, what moved, what to do",
+      "w": 240,
+      "x": 0,
+      "y": 9960
+    },
+    "clearNote": {
+      "fill": "orange",
+      "w": 460,
+      "x": 1520,
+      "y": 10260,
+      "text": "Compare, clearer (v4). Replaces Compare-Focus.\n\n1. Answer: verdict, one sentence with its numbers, and 'Why it isn't Accept' (the evidence's reasons, grouped: odd tiles, imaging, controls). The two caveat banners fold into it.\n2. What moved: one chart, one row per property, the 90% range against the ±1.5σ tolerance, so 'not settled' is visible (the range crosses the edge). Click a row for why it matters, the supplier check and the tiles behind it.\n3. The two tiles behind it, shown once, with the without-them number.\n4. Next steps from next_action and the dictionary.\n5. Folded: all properties tile by tile, explanations, run details.\n\nNo code names (T2 = 'mid-grey silicon share'). Claude's walkthrough is a quiet button, not the loudest thing on the page."
     }
   },
   "order": [
@@ -211,7 +235,8 @@
     "Identify-Result-Focus.dc.html",
     "Settings-Baseline.dc.html",
     "Compare-Guided.dc.html",
-    "Identify-Result-Peek.dc.html"
+    "Identify-Result-Peek.dc.html",
+    "Compare-Clear.dc.html"
   ],
   "pages": [],
   "title": "Catalyst — App Redesign"
