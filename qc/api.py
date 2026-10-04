@@ -19,7 +19,7 @@ from pydantic import BaseModel, ValidationError
 
 from qc import guide as guide_module
 from qc.explain import load_dictionary
-from qc.io import DETECTOR_ALIASES, PREVIEW_SIZES, field_paths, preview_png
+from qc.io import DETECTOR_ALIASES, LAYER_RGB, PREVIEW_SIZES, field_paths, layer_png, preview_png
 from qc.provenance import frozen_config, model_status, rules_frozen, verify
 from qc.run import (
     Progress, RulesFrozen, attribute, attribution_module, load_evidence, measure_folder, read_json, run, set_baseline,
@@ -27,7 +27,7 @@ from qc.run import (
 )
 from qc.schema import (
     ATTRIBUTION_DIR, EVIDENCE_DIR, KPI_TABLE, KPI_UNITS, OUT_DIR, Evidence, Verdict,
-    attribution_path, evidence_path, legacy_evidence_path, load_config, mask_path,
+    attribution_path, evidence_path, legacy_evidence_path, load_config, mask_path, phases_path,
 )
 
 app = FastAPI(title="Catalyst QC")
@@ -235,6 +235,7 @@ def tiles() -> list[dict]:
                     for k in KPI_UNITS
                 },
                 "has_mask": mask_path(folder.name, image_id).exists(),
+                "has_layers": phases_path(folder.name, image_id).exists(),
             })
     return result
 
@@ -250,6 +251,18 @@ def image_preview(batch: str, image_id: str, detector: str, size: int = 512) -> 
     if not paths or detector not in paths:
         raise HTTPException(404, f"no {detector} image for {batch}/{image_id}")
     return FileResponse(preview_png(paths[detector], size))
+
+
+@app.get("/api/layers/{batch}/{image_id}/{layer}")
+def phase_layer(batch: str, image_id: str, layer: str) -> FileResponse:
+    """One segmentation phase (silicon, pore or binder) as a transparent PNG to lay over any detector."""
+    batch_dir(batch)
+    if layer not in LAYER_RGB:
+        raise HTTPException(400, f"layer must be one of {sorted(LAYER_RGB)}")
+    phases = phases_path(batch, clean_name(image_id))
+    if not phases.exists():
+        raise HTTPException(404, f"no phase layers for {batch}/{image_id}: measure it first")
+    return FileResponse(layer_png(phases, layer))
 
 
 @app.get("/api/particles/{batch}/{image_id}")

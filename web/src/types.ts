@@ -348,6 +348,7 @@ export interface Tile {
   detectors: string[];
   kpis: Record<string, number | null> | null;
   has_mask: boolean;
+  has_layers: boolean;  // per-phase layers exist (GET /api/layers/{batch}/{image_id}/{silicon|pore|binder})
 }
 
 /** config/kpi_dictionary.yaml entry: friendly name, unit and causes per descriptor. */

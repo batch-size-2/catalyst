@@ -4,7 +4,7 @@ import {
   runBatch, uploadBatch,
 } from "../api";
 import {
-  batchColor, batchLabel, baselineBand, dictEntry, dropTwinShare, fmt, fmtPair, fmtSigma, imagingWords, isFixture,
+  batchColor, batchLabel, baselineBand, dictEntry, dropTwinShare, fmt, fmtPair, fmtRange, fmtSigma, imagingWords, isFixture,
   joinAnd, isUploadBatch, MIN_BASELINE_TILES, oddByTile, plural, quantityLabel, quantityNote, rankedFindings, shortHash, sigmaOf, statusChip, useApi,
 } from "../lib";
 import { href } from "../router";
@@ -193,6 +193,14 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
             </div>
             <div className="mono text-xs text-cx-faint">
               {run.total ? `measuring ${run.done}/${run.total} · ${run.tile ?? ""}` : "starting up"}
+            </div>
+            {/* the same line as Identify's scan: real per-tile progress from /api/runs, indeterminate until the first tile */}
+            <div className="relative mt-2.5 h-1 overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-valuemin={0} aria-valuemax={run.total || undefined} aria-valuenow={run.total ? run.done : undefined}>
+              {run.total ? (
+                <div className="absolute inset-y-0 left-0 rounded-full bg-cx-orange transition-[width] duration-300" style={{ width: `${(100 * run.done) / run.total}%` }} />
+              ) : (
+                <div className="sweep absolute inset-y-0 w-1/5 rounded-full bg-cx-orange/70" />
+              )}
             </div>
           </div>
         </Panel>
@@ -862,8 +870,8 @@ function FindingCard({ ctx, d, n }: { ctx: Ctx; d: Difference; n: number }) {
                 batch: evidence.batch,
                 imageId: t,
                 title: `Tile ${t}`,
-                note: `${quantityLabel(d.name, dict)} ${fmt(x.value, unit)}, outside the baseline range ${fmt(Math.max(0, x.range[0]), unit)} – ${fmt(x.range[1], unit)}.`,
-                hasMask: ctx.tiles.find((tt) => tt.batch === evidence.batch && tt.image_id === t)?.has_mask,
+                note: `${quantityLabel(d.name, dict)} ${fmt(x.value, unit)}, outside the baseline range ${fmtRange(x.range[0], x.range[1], unit)}.`,
+                hasLayers: ctx.tiles.find((tt) => tt.batch === evidence.batch && tt.image_id === t)?.has_layers,
               }))}
               index={i}
               label={`Tile ${tile}: peek, click to pin`}
@@ -1185,7 +1193,7 @@ function peekItem(tile: Tile, ctx: Ctx, oddIds: Set<string>): PeekItem {
       ? `Outside the baseline range on ${joinAnd(odds.map((o) => `${quantityLabel(o.quantity, ctx.dict).toLowerCase()} (${fmt(o.value, unit(o.quantity))})`))}.`
       : `${batchLabel(tile.batch)}${tile.batch === ctx.evidence.baseline ? ", the baseline" : ""}.`,
     detectors: tile.detectors,
-    hasMask: tile.has_mask,
+    hasLayers: tile.has_layers,
   };
 }
 

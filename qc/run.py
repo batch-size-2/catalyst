@@ -25,7 +25,7 @@ from qc.measure import imaging, kpis, particles, segment
 from qc.provenance import git, provenance, rules_frozen
 from qc.schema import (
     ATTRIBUTION_MODEL_PATH, CONFIG_PATH, IMAGING_COLUMNS, IMAGING_TABLE, KPI_TABLE, KPI_TABLE_COLUMNS, KPI_UNITS,
-    PARTICLE_COLUMNS, PARTICLE_TABLE, Evidence, Field, Phase, Tables, attribution_path, evidence_path,
+    PARTICLE_COLUMNS, PARTICLE_TABLE, Evidence, Field, Phase, Tables, attribution_path, evidence_path, phases_path,
     load_config, mask_path,
 )
 from qc.types import assign_types, load_types
@@ -219,6 +219,7 @@ def save_overlay(field: Field, mask: np.ndarray, step: int = 4) -> None:
     path = mask_path(field.batch, field.image_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     imsave(path, rgb.astype(np.uint8), check_contrast=False)
+    imsave(phases_path(field.batch, field.image_id), small.astype(np.uint8), check_contrast=False)
 
 
 def _replace_batch_rows(new: pd.DataFrame, path: Path) -> None:

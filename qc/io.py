@@ -5,10 +5,10 @@ from pathlib import Path
 import numpy as np
 import tifffile
 from skimage.exposure import rescale_intensity
-from skimage.io import imsave
+from skimage.io import imread, imsave
 from skimage.transform import resize
 
-from qc.schema import Field, PREVIEWS_DIR
+from qc.schema import PREVIEWS_DIR, Field, Phase
 
 DETECTOR_ALIASES = {"bse": "BSE", "etd": "ETD", "se": "ETD", "inlens": "InLens"}
 EDGE_CROP_PX = 8
@@ -77,6 +77,22 @@ def load_field(batch: str, image_id: str, paths: dict[str, Path]) -> Field:
 def iter_fields(batch_dir: Path) -> Iterator[Field]:
     for image_id, paths in field_paths(batch_dir).items():
         yield load_field(batch_dir.name, image_id, paths)
+
+
+LAYER_RGB = {"silicon": (255, 140, 0), "pore": (40, 120, 255), "binder": (190, 90, 255)}  # as in the mask overlay
+
+
+def layer_png(phases: Path, layer: str) -> Path:
+    """One phase of a `Phase`-label PNG as a transparent RGBA layer, cached next to it (<id>.<layer>.png)."""
+    code = {"silicon": Phase.SI, "pore": Phase.PORE, "binder": Phase.BINDER}[layer]
+    cache = phases.with_name(phases.name.replace(".phases.png", f".{layer}.png"))
+    if cache.exists() and cache.stat().st_mtime >= phases.stat().st_mtime:
+        return cache
+    labels = imread(phases)
+    rgba = np.zeros((*labels.shape[:2], 4), dtype=np.uint8)
+    rgba[labels == code] = (*LAYER_RGB[layer], 200)
+    imsave(cache, rgba, check_contrast=False)
+    return cache
 
 
 def preview_png(path: Path, max_side: int) -> Path:

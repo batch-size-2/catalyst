@@ -258,6 +258,11 @@ def test_api_upload_run_and_read(tmp_path, monkeypatch):
     assert {b["name"]: b["verdict"] for b in client.get("/api/batches").json()}["new"] == evidence.verdict
     image_id = evidence.fingerprint.segments[0].image_ids[0]
     assert client.get(f"/api/masks/new/{image_id}.png").status_code == 200
+    layer = client.get(f"/api/layers/new/{image_id}/silicon")
+    assert layer.status_code == 200 and layer.content.startswith(b"\x89PNG")
+    assert client.get(f"/api/layers/new/{image_id}/graphite").status_code == 400
+    assert client.get("/api/layers/new/nope/pore").status_code == 404
+    assert next(t for t in client.get("/api/tiles").json() if t["image_id"] == image_id)["has_layers"] is True
 
 
 def test_api_tiles_joins_kpis(tmp_path, monkeypatch):
@@ -466,3 +471,13 @@ def test_upload_refuses_file_names_the_app_cant_serve(tmp_path, monkeypatch):
     Path("config/decision.yaml").write_text(yaml.safe_dump(CFG))
     response = TestClient(app).post("/api/batches/new/files", files=[("files", ("img a_BSE.tif", b"x", "image/tiff"))])
     assert response.status_code == 400 and not Path("data/new").exists()
+
+
+def test_phase_layer_is_transparent_except_its_phase(tmp_path):
+    from skimage.io import imread, imsave
+
+    from qc.io import layer_png
+    labels = np.array([[Phase.SI, Phase.PORE], [Phase.GRAPHITE, Phase.SI]], dtype=np.uint8)
+    imsave(tmp_path / "t.phases.png", labels, check_contrast=False)
+    rgba = imread(layer_png(tmp_path / "t.phases.png", "silicon"))
+    assert rgba.shape == (2, 2, 4) and (rgba[..., 3] > 0).tolist() == [[True, False], [False, True]]

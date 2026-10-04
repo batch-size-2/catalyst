@@ -286,5 +286,10 @@ def mask_path(batch: str, image_id: str) -> Path:
     return OUT_DIR / "masks" / batch / f"{image_id}.png"
 
 
+def phases_path(batch: str, image_id: str) -> Path:
+    """The same mask as `Phase` labels (uint8, same 4× downsampling), so the UI can show one phase as a layer."""
+    return OUT_DIR / "masks" / batch / f"{image_id}.phases.png"
+
+
 def load_config(path: Path = CONFIG_PATH) -> dict:
     return yaml.safe_load(path.read_text())

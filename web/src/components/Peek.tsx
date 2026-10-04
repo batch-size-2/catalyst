@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { getParticles, imageUrl, maskUrl } from "../api";
+import { getParticles, imageUrl, layerUrl } from "../api";
 import { batchLabel } from "../lib";
 import { href } from "../router";
 import type { TileParticles } from "../types";
-import { PHASE_LEGEND, Seg } from "./bits";
+import { Seg } from "./bits";
 
 /** "Look closer without leaving" (design/README.md): peek on hover or focus, pin on click.
  *  A region is a real particle centroid (particles.csv) or, without one, the whole tile. */
@@ -14,8 +14,14 @@ export interface PeekItem {
   note?: string;
   region?: { x: number; y: number; r: number };  // full-resolution px of the cropped tile
   detectors?: string[];
-  hasMask?: boolean;
+  hasLayers?: boolean;  // silicon and pore layers from the segmentation
 }
+
+type Layer = "silicon" | "pore";
+const LAYERS: { id: Layer; label: string; color: string }[] = [
+  { id: "silicon", label: "Silicon", color: "rgb(255,140,0)" },
+  { id: "pore", label: "Pore", color: "rgb(40,120,255)" },
+];
 
 type Geometry = Pick<TileParticles, "width" | "height" | "px_um">;
 const geometryCache = new Map<string, Promise<Geometry>>();
@@ -62,7 +68,9 @@ function crop(geo: Geometry, box: { w: number; h: number }, region?: PeekItem["r
   };
 }
 
-function Magnified({ item, detector = "BSE", mask = false, box: maxBox }: { item: PeekItem; detector?: string; mask?: boolean; box: { w: number; h: number } }) {
+function Magnified({ item, detector = "BSE", layers = [], opacity = 0.75, box: maxBox }: {
+  item: PeekItem; detector?: string; layers?: Layer[]; opacity?: number; box: { w: number; h: number };
+}) {
   const geo = useGeometry(item.batch, item.imageId);
   // a whole tile gets a box of its own shape, so it isn't letterboxed
   const box = geo && !item.region ? { w: maxBox.w, h: Math.min(maxBox.h, Math.round((maxBox.w * geo.height) / geo.width)) } : maxBox;
@@ -73,7 +81,9 @@ function Magnified({ item, detector = "BSE", mask = false, box: maxBox }: { item
       {c && (
         <>
           <img src={imageUrl(item.batch, item.imageId, detector, 2048)} alt="" style={img} />
-          {mask && <img src={maskUrl(item.batch, item.imageId)} alt="" style={{ ...img, opacity: 0.9 }} />}
+          {item.hasLayers && layers.map((layer) => (
+            <img key={layer} src={layerUrl(item.batch, item.imageId, layer)} alt="" style={{ ...img, opacity, imageRendering: "pixelated" }} />
+          ))}
           {c.ring && (
             <span
               className="absolute rounded-full border-2 border-cx-text-strong"
@@ -152,7 +162,7 @@ function Popover({ item, anchor }: { item: PeekItem; anchor: DOMRect }) {
   return (
     <div role="tooltip" className="glass font-cx pointer-events-none fixed z-50 flex flex-col gap-2 rounded-[16px] p-3.5 text-cx-text" style={{ left, top, width, background: "rgba(20,21,25,.92)" }}>
       <span className="text-[13px] font-medium">{item.title}</span>
-      <Magnified item={item} box={POP} />
+      <Magnified item={item} box={POP} layers={["silicon", "pore"]} opacity={0.45} />
       {item.note && <span className="text-xs leading-snug text-cx-text-2">{item.note}</span>}
       <span className="mono text-[10px] text-cx-faint">Click to pin · stays on this page</span>
     </div>
@@ -165,7 +175,7 @@ function Inspector({ pinned, onMove, onClose }: { pinned: Pinned; onMove: (index
   const item = pinned.items[pinned.index];
   const n = pinned.items.length;
   const [detector, setDetector] = useState("BSE");
-  const [mask, setMask] = useState(false);
+  const [layers, setLayers] = useState<Layer[]>([]);
   const close = useRef<HTMLButtonElement>(null);
   useEffect(() => close.current?.focus(), []);
   useEffect(() => {
@@ -193,34 +203,32 @@ function Inspector({ pinned, onMove, onClose }: { pinned: Pinned; onMove: (index
           ✕
         </button>
       </div>
-      <Magnified item={item} detector={detector} mask={mask && !!item.hasMask} box={PIN} />
+      <Magnified item={item} detector={detector} layers={layers} box={PIN} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Seg options={detectors.map((d) => ({ value: d, label: <span className="mono text-xs">{d}</span> }))} value={detectors.includes(detector) ? detector : detectors[0]} onChange={setDetector} />
-        <button
-          type="button"
-          role="switch"
-          aria-checked={mask}
-          disabled={!item.hasMask}
-          onClick={() => setMask((m) => !m)}
-          title={item.hasMask ? "Silicon, pore and binder from the segmentation" : "Not measured yet"}
-          className="flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-[13px] text-cx-text disabled:cursor-not-allowed disabled:opacity-45"
-        >
-          <span className="relative h-5 w-[34px] rounded-[10px]" style={{ background: mask ? "var(--cx-phase-si)" : "rgba(255,255,255,.14)" }}>
-            <span className="absolute top-0.5 h-4 w-4 rounded-full transition-all" style={{ left: mask ? 16 : 2, background: mask ? "#fff" : "var(--cx-muted)" }} />
-          </span>
-          Phases
-        </button>
+        <span className="flex items-center gap-3">
+          {LAYERS.map((l) => {
+            const on = layers.includes(l.id);
+            return (
+              <button
+                key={l.id}
+                type="button"
+                role="switch"
+                aria-checked={on}
+                disabled={!item.hasLayers}
+                onClick={() => setLayers((ls) => (on ? ls.filter((x) => x !== l.id) : [...ls, l.id]))}
+                title={item.hasLayers ? `${l.label} from the segmentation, over the detector image` : "Not measured yet"}
+                className="flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] text-cx-text disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <span className="relative h-5 w-[34px] rounded-[10px]" style={{ background: on ? l.color : "rgba(255,255,255,.14)" }}>
+                  <span className="absolute top-0.5 h-4 w-4 rounded-full transition-all" style={{ left: on ? 16 : 2, background: on ? "#fff" : "var(--cx-muted)" }} />
+                </span>
+                {l.label}
+              </button>
+            );
+          })}
+        </span>
       </div>
-      {mask && item.hasMask && (
-        <div className="flex flex-wrap gap-3 text-xs text-cx-muted">
-          {PHASE_LEGEND.map(([name, color]) => (
-            <span key={name} className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: color }} />
-              {name}
-            </span>
-          ))}
-        </div>
-      )}
       {item.note && <p className="m-0 text-[13px] leading-normal text-cx-text-2">{item.note}</p>}
       <div className="flex items-center gap-2">
         <button className="btn min-h-9 px-3" type="button" aria-label="Previous" disabled={n < 2} onClick={() => onMove((pinned.index - 1 + n) % n)}>←</button>

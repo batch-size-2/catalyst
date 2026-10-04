@@ -128,7 +128,7 @@ export default function IdentifyResult({
           <span aria-hidden className="absolute inset-0 grid place-items-center text-[13px] text-cx-faint">The images of this drop are no longer in data/{name}.</span>
           <img src={imageUrl(name, image.image_id, "BSE", 2048)} alt={`BSE micrograph of tile ${image.image_id}`} className="absolute inset-0 h-full w-full object-cover brightness-[0.85]"
             onError={(e) => (e.currentTarget.style.display = "none")} />
-          <Spots name={name} imageId={image.image_id} data={particles.data} dict={dict.data} hasMask={!!tile?.has_mask} detectors={tile?.detectors} />
+          <Spots name={name} imageId={image.image_id} data={particles.data} dict={dict.data} hasLayers={!!tile?.has_layers} detectors={tile?.detectors} />
           <span className="glass absolute right-3 bottom-3 rounded-[10px] px-2.5 py-1 text-[11px] text-cx-text-2" style={{ background: "rgba(14,15,18,.6)" }}>
             {particles.data?.particles.length
               ? "Largest silicon particles, as measured · hover to peek, click to pin"
@@ -202,8 +202,8 @@ export default function IdentifyResult({
 }
 
 /** Spots at the real centroids of the tile's largest silicon particles (out/particles.csv). */
-function Spots({ name, imageId, data, dict, hasMask, detectors }: {
-  name: string; imageId: string; data: import("../types").TileParticles | null; dict: KpiDictionary | null; hasMask: boolean; detectors?: string[];
+function Spots({ name, imageId, data, dict, hasLayers, detectors }: {
+  name: string; imageId: string; data: import("../types").TileParticles | null; dict: KpiDictionary | null; hasLayers: boolean; detectors?: string[];
 }) {
   if (!data?.particles.length) return null;
   if (!data.px_um) return null;  // without the pixel size, spot sizes would be a guess
@@ -216,7 +216,7 @@ function Spots({ name, imageId, data, dict, hasMask, detectors }: {
       title: `Silicon particle ${i + 1}`,
       note: `${p.d_um.toFixed(1)} µm across${p.type ? ` · type ${p.type}${kind ? ` (${prettyText(kind)})` : ""}` : ""}.`,
       region: { x: p.x, y: p.y, r: (p.d_um / px / 2) * 1.4 },
-      hasMask,
+      hasLayers,
       detectors,
     };
   });

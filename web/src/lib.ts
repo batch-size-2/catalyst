@@ -121,16 +121,19 @@ export function fmtSigma(s: number | null | undefined): string {
 }
 
 /** "reference → batch" with the same number of decimals on both sides (3 significant figures of the larger). */
-export function fmtPair(a: number | null | undefined, b: number | null | undefined, unit: string | undefined): string {
+export function fmtPair(a: number | null | undefined, b: number | null | undefined, unit: string | undefined, sep = " → "): string {
   const f = unit === "fraction" ? 100 : 1;
   const vals = [a, b].filter((v): v is number => v != null && Number.isFinite(v)).map((v) => Math.abs(v * f));
-  if (!vals.length) return `${fmt(a, unit)} → ${fmt(b, unit)}`;
+  if (!vals.length) return `${fmt(a, unit)}${sep}${fmt(b, unit)}`;
   const top = Math.max(...vals);
   const dec = top ? Math.min(6, Math.max(0, 2 - Math.floor(Math.log10(top)))) : 0;
   const one = (v: number | null | undefined) =>
     v == null || !Number.isFinite(v) ? "—" : `${v === 0 ? "0" : (v * f).toFixed(dec)}${unit === "fraction" ? "%" : unit === "um" ? " µm" : ""}`;
-  return `${one(a)} → ${one(b)}`;
+  return `${one(a)}${sep}${one(b)}`;
 }
+
+/** A baseline range, clipped at 0 (every measured quantity is non-negative), same decimals on both ends. */
+export const fmtRange = (lo: number, hi: number, unit: string | undefined) => fmtPair(Math.max(0, lo), hi, unit, " – ");
 
 const ACRONYMS: Record<string, string> = {
   bse: "BSE", etd: "ETD", se: "SE", inlens: "InLens", si: "Si", lbp: "LBP", glcm: "GLCM", cv: "CV",

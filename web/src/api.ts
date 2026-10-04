@@ -48,6 +48,8 @@ export const getKpiDictionary = () => getJson<KpiDictionary>("/api/kpis");
 
 export const maskUrl = (batch: string, imageId: string) =>
   `/api/masks/${enc(batch)}/${enc(imageId)}.png`;
+export const layerUrl = (batch: string, imageId: string, layer: "silicon" | "pore" | "binder") =>
+  `/api/layers/${enc(batch)}/${enc(imageId)}/${layer}`;
 export const imageUrl = (batch: string, imageId: string, detector: string, size = 512) =>
   `/api/images/${enc(batch)}/${enc(imageId)}/${enc(detector)}?size=${size}`;
 
