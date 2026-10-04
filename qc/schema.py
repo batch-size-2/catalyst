@@ -62,7 +62,13 @@ KPI_UNITS: dict[str, str] = {
     "pore_connectivity": "fraction",
 }
 
-KPI_TABLE_COLUMNS = ["batch", "image_id", "strip_id", "px_um", "area_um2", *KPI_UNITS]
+# Sampling (representativity) uncertainty. Not descriptors: absent from KPI_UNITS, so they are not
+# features, differences or verdict inputs. A 95% band is value ± 1.96 × sd, clipped to [0, 1].
+SAMPLING_COLUMNS = [
+    "si_area_frac_sd", "porosity_apparent_sd",
+    "si_integral_range_um2", "pore_integral_range_um2",
+]
+KPI_TABLE_COLUMNS = ["batch", "image_id", "strip_id", "px_um", "area_um2", *KPI_UNITS, *SAMPLING_COLUMNS]
 PARTICLE_COLUMNS = ["batch", "image_id", "strip_id", "particle_id", "d_um", "area_um2", "contrast_ratio",
                     "inlens_ratio", "void_frac", "texture", "solidity", "border", "type", "y_px", "x_px"]
 IMAGING_COLUMNS = ["batch", "image_id", "strip_id", "channel", "black_level", "p1", "p50", "p99",
@@ -186,6 +192,31 @@ class Fingerprint(BaseModel):
     type_shares: list[Descriptor] = []
 
 
+class ImageUncertainty(BaseModel):
+    """One tile's silicon fraction and apparent porosity, with the sampling SD of each.
+
+    The SD is how far the fraction would move on another patch of the same electrode
+    (integral range). It is not segmentation-threshold uncertainty, and it does not
+    enter the verdict. A 95% band is value ± 1.96 × sd, clipped to [0, 1].
+    """
+
+    image_id: str
+    strip_id: str | None = None
+    si_area_frac: float | None = None
+    si_area_frac_sd: float | None = None
+    porosity_apparent: float | None = None
+    porosity_apparent_sd: float | None = None
+
+
+class SamplingQuantity(BaseModel):
+    """Image-to-image spread compared with the RMS of the per-image sampling SDs. Report only."""
+
+    observed_sd: float | None = None
+    predicted_sd: float | None = None
+    ratio: float | None = None
+    area_for_half_point_um2: float | None = None  # imaged area for a ±0.5 percentage-point band
+
+
 class Explanations(BaseModel):
     """Fixed-template texts (qc/explain.py). Each audience text is a list of sentences."""
 
@@ -241,6 +272,8 @@ class Evidence(BaseModel):
     fingerprint: Fingerprint
     n_images: dict[str, int]             # {"batch": n, "baseline": n}
     explanations: Explanations = Explanations()
+    image_uncertainty: list[ImageUncertainty] = []
+    sampling_check: dict[str, SamplingQuantity] = {}
     provenance: Provenance | None = None
     config_version: str
 

@@ -240,6 +240,10 @@ def tiles() -> list[dict]:
                     k: (None if (v := getattr(row, k, None)) is None or pd.isna(v) else float(v))
                     for k in KPI_UNITS
                 },
+                "sampling": None if row is None else {
+                    k: (None if (v := getattr(row, k, None)) is None or pd.isna(v) else float(v))
+                    for k in ("si_area_frac_sd", "porosity_apparent_sd")
+                },
                 "has_mask": mask_path(folder.name, image_id).exists(),
                 "has_layers": phases_path(folder.name, image_id).exists(),
             })
