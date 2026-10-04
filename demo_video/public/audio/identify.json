@@ -1,7 +1,7 @@
 {
  "id": "identify",
- "text": "You can also drop in a single image. I measure the silicon, the particles and the pores, then tell you which batch it looks like and how sure I am, with the reasons. If it doesn't look like anything I've seen before, I'll say so.",
- "hash": "5f28324171eadaf0",
+ "text": "You can also give me a single image. I'll tell you which batch it looks closest to, and how sure I am. If it sits outside even that batch, I flag it as unfamiliar.",
+ "hash": "b710138e8d224615",
  "voice_id": "awmINsgxT6tx4sTpVomM",
  "model_id": "eleven_multilingual_v2",
  "voice_settings": {
@@ -11,232 +11,177 @@
   "use_speaker_boost": true,
   "speed": 1.15
  },
- "duration": 14.025,
+ "duration": 9.474,
  "words": [
   {
    "text": "You",
    "start": 0.0,
-   "end": 0.163
+   "end": 0.174
   },
   {
    "text": "can",
    "start": 0.221,
-   "end": 0.348
+   "end": 0.325
   },
   {
    "text": "also",
-   "start": 0.395,
-   "end": 0.65
+   "start": 0.372,
+   "end": 0.639
   },
   {
-   "text": "drop",
-   "start": 0.755,
-   "end": 1.022
+   "text": "give",
+   "start": 0.708,
+   "end": 0.859
   },
   {
-   "text": "in",
-   "start": 1.091,
-   "end": 1.173
+   "text": "me",
+   "start": 0.894,
+   "end": 0.975
   },
   {
    "text": "a",
-   "start": 1.231,
-   "end": 1.254
+   "start": 1.022,
+   "end": 1.057
   },
   {
    "text": "single",
-   "start": 1.358,
-   "end": 1.707
+   "start": 1.173,
+   "end": 1.602
   },
   {
    "text": "image.",
-   "start": 1.753,
-   "end": 2.218
-  },
-  {
-   "text": "I",
-   "start": 2.345,
-   "end": 2.415
-  },
-  {
-   "text": "measure",
-   "start": 2.601,
-   "end": 2.961
-  },
-  {
-   "text": "the",
-   "start": 2.995,
-   "end": 3.077
-  },
-  {
-   "text": "silicon,",
-   "start": 3.135,
-   "end": 3.715
-  },
-  {
-   "text": "the",
-   "start": 3.762,
-   "end": 3.866
-  },
-  {
-   "text": "particles",
-   "start": 3.936,
-   "end": 4.493
-  },
-  {
-   "text": "and",
-   "start": 4.528,
-   "end": 4.632
-  },
-  {
-   "text": "the",
-   "start": 4.667,
-   "end": 4.737
-  },
-  {
-   "text": "pores,",
-   "start": 4.772,
-   "end": 5.283
-  },
-  {
-   "text": "then",
-   "start": 5.329,
-   "end": 5.503
-  },
-  {
-   "text": "tell",
-   "start": 5.573,
-   "end": 5.851
-  },
-  {
-   "text": "you",
-   "start": 5.933,
-   "end": 6.037
-  },
-  {
-   "text": "which",
-   "start": 6.142,
-   "end": 6.362
-  },
-  {
-   "text": "batch",
-   "start": 6.432,
-   "end": 6.687
-  },
-  {
-   "text": "it",
-   "start": 6.722,
-   "end": 6.78
-  },
-  {
-   "text": "looks",
-   "start": 6.827,
-   "end": 7.036
-  },
-  {
-   "text": "like",
-   "start": 7.07,
-   "end": 7.256
-  },
-  {
-   "text": "and",
-   "start": 7.291,
-   "end": 7.43
-  },
-  {
-   "text": "how",
-   "start": 7.535,
-   "end": 7.755
-  },
-  {
-   "text": "sure",
-   "start": 7.883,
-   "end": 8.243
-  },
-  {
-   "text": "I",
-   "start": 8.313,
-   "end": 8.359
-  },
-  {
-   "text": "am,",
-   "start": 8.475,
-   "end": 8.789
-  },
-  {
-   "text": "with",
-   "start": 8.847,
-   "end": 9.021
-  },
-  {
-   "text": "the",
-   "start": 9.067,
-   "end": 9.149
-  },
-  {
-   "text": "reasons.",
-   "start": 9.195,
-   "end": 9.81
-  },
-  {
-   "text": "If",
-   "start": 10.019,
-   "end": 10.182
-  },
-  {
-   "text": "it",
-   "start": 10.24,
-   "end": 10.321
-  },
-  {
-   "text": "doesn't",
-   "start": 10.426,
-   "end": 10.797
-  },
-  {
-   "text": "look",
-   "start": 10.866,
-   "end": 11.064
-  },
-  {
-   "text": "like",
-   "start": 11.145,
-   "end": 11.331
-  },
-  {
-   "text": "anything",
-   "start": 11.377,
-   "end": 11.772
-  },
-  {
-   "text": "I've",
-   "start": 11.842,
-   "end": 12.016
-  },
-  {
-   "text": "seen",
-   "start": 12.051,
-   "end": 12.353
-  },
-  {
-   "text": "before,",
-   "start": 12.457,
-   "end": 12.991
+   "start": 1.637,
+   "end": 2.101
   },
   {
    "text": "I'll",
-   "start": 13.061,
-   "end": 13.281
+   "start": 2.206,
+   "end": 2.392
   },
   {
-   "text": "say",
-   "start": 13.351,
-   "end": 13.548
+   "text": "tell",
+   "start": 2.426,
+   "end": 2.577
   },
   {
-   "text": "so.",
-   "start": 13.63,
-   "end": 14.024
+   "text": "you",
+   "start": 2.647,
+   "end": 2.728
+  },
+  {
+   "text": "which",
+   "start": 2.786,
+   "end": 2.972
+  },
+  {
+   "text": "batch",
+   "start": 3.042,
+   "end": 3.309
+  },
+  {
+   "text": "it",
+   "start": 3.344,
+   "end": 3.413
+  },
+  {
+   "text": "looks",
+   "start": 3.448,
+   "end": 3.634
+  },
+  {
+   "text": "closest",
+   "start": 3.692,
+   "end": 4.122
+  },
+  {
+   "text": "to,",
+   "start": 4.156,
+   "end": 4.435
+  },
+  {
+   "text": "and",
+   "start": 4.47,
+   "end": 4.702
+  },
+  {
+   "text": "how",
+   "start": 4.783,
+   "end": 4.957
+  },
+  {
+   "text": "sure",
+   "start": 5.062,
+   "end": 5.375
+  },
+  {
+   "text": "I",
+   "start": 5.433,
+   "end": 5.468
+  },
+  {
+   "text": "am.",
+   "start": 5.573,
+   "end": 5.944
+  },
+  {
+   "text": "If",
+   "start": 6.072,
+   "end": 6.188
+  },
+  {
+   "text": "it",
+   "start": 6.223,
+   "end": 6.293
+  },
+  {
+   "text": "sits",
+   "start": 6.351,
+   "end": 6.56
+  },
+  {
+   "text": "outside",
+   "start": 6.594,
+   "end": 7.024
+  },
+  {
+   "text": "even",
+   "start": 7.059,
+   "end": 7.221
+  },
+  {
+   "text": "that",
+   "start": 7.268,
+   "end": 7.419
+  },
+  {
+   "text": "batch,",
+   "start": 7.477,
+   "end": 7.918
+  },
+  {
+   "text": "I",
+   "start": 7.976,
+   "end": 8.022
+  },
+  {
+   "text": "flag",
+   "start": 8.15,
+   "end": 8.406
+  },
+  {
+   "text": "it",
+   "start": 8.452,
+   "end": 8.522
+  },
+  {
+   "text": "as",
+   "start": 8.557,
+   "end": 8.626
+  },
+  {
+   "text": "unfamiliar.",
+   "start": 8.684,
+   "end": 9.474
   }
  ]
 }

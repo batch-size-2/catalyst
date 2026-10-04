@@ -1,0 +1,57 @@
+{
+ "id": "aged",
+ "text": "After eight hundred cycles, the silicon has cracked.",
+ "hash": "23b9b5ca842543b8",
+ "voice_id": "awmINsgxT6tx4sTpVomM",
+ "model_id": "eleven_multilingual_v2",
+ "voice_settings": {
+  "stability": 0.45,
+  "similarity_boost": 0.75,
+  "style": 0.3,
+  "use_speaker_boost": true,
+  "speed": 1.15
+ },
+ "duration": 2.972,
+ "words": [
+  {
+   "text": "After",
+   "start": 0.0,
+   "end": 0.337
+  },
+  {
+   "text": "eight",
+   "start": 0.464,
+   "end": 0.673
+  },
+  {
+   "text": "hundred",
+   "start": 0.708,
+   "end": 0.964
+  },
+  {
+   "text": "cycles,",
+   "start": 0.998,
+   "end": 1.451
+  },
+  {
+   "text": "the",
+   "start": 1.509,
+   "end": 1.614
+  },
+  {
+   "text": "silicon",
+   "start": 1.683,
+   "end": 2.101
+  },
+  {
+   "text": "has",
+   "start": 2.148,
+   "end": 2.264
+  },
+  {
+   "text": "cracked.",
+   "start": 2.334,
+   "end": 2.972
+  }
+ ]
+}

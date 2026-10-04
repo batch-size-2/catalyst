@@ -1,0 +1,127 @@
+{
+ "id": "lab",
+ "text": "The second turns the measurements into a 3D anode you can charge. Charge it too fast, and lithium plates out as metal.",
+ "hash": "7c7030827100ea58",
+ "voice_id": "awmINsgxT6tx4sTpVomM",
+ "model_id": "eleven_multilingual_v2",
+ "voice_settings": {
+  "stability": 0.45,
+  "similarity_boost": 0.75,
+  "style": 0.3,
+  "use_speaker_boost": true,
+  "speed": 1.15
+ },
+ "duration": 6.827,
+ "words": [
+  {
+   "text": "The",
+   "start": 0.0,
+   "end": 0.139
+  },
+  {
+   "text": "second",
+   "start": 0.267,
+   "end": 0.697
+  },
+  {
+   "text": "turns",
+   "start": 0.743,
+   "end": 0.998
+  },
+  {
+   "text": "the",
+   "start": 1.045,
+   "end": 1.115
+  },
+  {
+   "text": "measurements",
+   "start": 1.149,
+   "end": 1.567
+  },
+  {
+   "text": "into",
+   "start": 1.614,
+   "end": 1.788
+  },
+  {
+   "text": "a",
+   "start": 1.869,
+   "end": 1.904
+  },
+  {
+   "text": "3D",
+   "start": 2.009,
+   "end": 2.276
+  },
+  {
+   "text": "anode",
+   "start": 2.403,
+   "end": 2.74
+  },
+  {
+   "text": "you",
+   "start": 2.786,
+   "end": 2.902
+  },
+  {
+   "text": "can",
+   "start": 2.949,
+   "end": 3.065
+  },
+  {
+   "text": "charge.",
+   "start": 3.1,
+   "end": 3.576
+  },
+  {
+   "text": "Charge",
+   "start": 3.762,
+   "end": 4.063
+  },
+  {
+   "text": "it",
+   "start": 4.098,
+   "end": 4.168
+  },
+  {
+   "text": "too",
+   "start": 4.203,
+   "end": 4.342
+  },
+  {
+   "text": "fast,",
+   "start": 4.4,
+   "end": 4.83
+  },
+  {
+   "text": "and",
+   "start": 4.865,
+   "end": 4.992
+  },
+  {
+   "text": "lithium",
+   "start": 5.062,
+   "end": 5.422
+  },
+  {
+   "text": "plates",
+   "start": 5.468,
+   "end": 5.735
+  },
+  {
+   "text": "out",
+   "start": 5.793,
+   "end": 5.921
+  },
+  {
+   "text": "as",
+   "start": 5.956,
+   "end": 6.037
+  },
+  {
+   "text": "metal.",
+   "start": 6.095,
+   "end": 6.827
+  }
+ ]
+}

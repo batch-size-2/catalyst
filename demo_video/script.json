@@ -1,7 +1,7 @@
 {
   "note": "Beats per scene, keyed by the scene ids in narration.json. A beat fires at the first occurrence of its `at` word(s) at or after the previous beat (case and punctuation ignored); `offset` shifts it in seconds. Scene length = lead + audio duration + voice.gap_seconds + hold.",
   "music": { "file": "music/bed_v2_soft.mp3", "volume": 0.5, "fadeIn": 1.5, "fadeOut": 2.5 },
-  "sfxMix": { "click": 0.12, "done": 0.1, "drop": 0.28, "whoosh": 0.035, "stamp": 0.55, "mrrp": 0.14 },
+  "sfxMix": { "click": 0.12, "done": 0.1, "drop": 0.28, "whoosh": 0.035, "stamp": 0.55, "mrrp": 0.14, "lawsuit": 1.0 },
   "scenes": {
     "news": {
       "lead": 0.6,
@@ -75,11 +75,14 @@
     },
     "audit": {
       "hash": "sha256 17b8f934 · 8b1083c0 · 94eab635 …",
+      "hold": 2.4,
       "beats": [
         { "at": "Every", "shot": "audit", "url": "#/audit", "highlight": null, "sfx": "whoosh", "cat": { "anchor": "right-mid", "pose": "float", "item": "none", "expression": "curious", "goggles": "up" } },
         { "at": "logged", "highlight": "log_row", "zoom": 1.5, "fx": "hash", "dur": 1.6 },
         { "at": "check", "highlight": "verified", "zoom": 1.2, "fx": "verify", "cat": { "pose": "stamp", "item": "stamp", "expression": "proud" }, "callout": "nothing moved" },
-        { "at": "later", "offset": 0.1, "sfx": "stamp" }
+        { "at": "later", "offset": 0.1, "sfx": "stamp" },
+        { "at": "button", "offset": 0.6, "sfx": "click" },
+        { "at": "button", "offset": 0.75, "sfx": "lawsuit" }
       ]
     },
     "outro": {

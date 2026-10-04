@@ -1,7 +1,7 @@
 {
  "id": "audit",
- "text": "Every decision is logged with a fingerprint of its inputs, so anyone can check it later.",
- "hash": "e7c91674e153a368",
+ "text": "Every comparison is saved with a fingerprint of its images and settings. Press verify, and I check that nothing has changed. And if a batch turns out bad, there's one more button.",
+ "hash": "77de4313113d9e95",
  "voice_id": "awmINsgxT6tx4sTpVomM",
  "model_id": "eleven_multilingual_v2",
  "voice_settings": {
@@ -11,87 +11,167 @@
   "use_speaker_boost": true,
   "speed": 1.15
  },
- "duration": 4.969,
+ "duration": 10.728,
  "words": [
   {
    "text": "Every",
    "start": 0.0,
-   "end": 0.383
+   "end": 0.43
   },
   {
-   "text": "decision",
-   "start": 0.453,
-   "end": 0.882
+   "text": "comparison",
+   "start": 0.488,
+   "end": 1.033
   },
   {
    "text": "is",
-   "start": 0.94,
-   "end": 1.022
+   "start": 1.091,
+   "end": 1.231
   },
   {
-   "text": "logged",
-   "start": 1.103,
-   "end": 1.405
+   "text": "saved",
+   "start": 1.277,
+   "end": 1.614
   },
   {
    "text": "with",
-   "start": 1.44,
-   "end": 1.567
+   "start": 1.649,
+   "end": 1.788
   },
   {
    "text": "a",
-   "start": 1.602,
-   "end": 1.637
+   "start": 1.823,
+   "end": 1.858
   },
   {
    "text": "fingerprint",
-   "start": 1.741,
-   "end": 2.229
+   "start": 1.974,
+   "end": 2.543
   },
   {
    "text": "of",
-   "start": 2.264,
-   "end": 2.322
+   "start": 2.601,
+   "end": 2.67
   },
   {
    "text": "its",
-   "start": 2.357,
-   "end": 2.461
+   "start": 2.717,
+   "end": 2.821
   },
   {
-   "text": "inputs,",
-   "start": 2.496,
-   "end": 2.961
+   "text": "images",
+   "start": 2.879,
+   "end": 3.274
   },
   {
-   "text": "so",
-   "start": 2.995,
-   "end": 3.17
+   "text": "and",
+   "start": 3.309,
+   "end": 3.402
   },
   {
-   "text": "anyone",
-   "start": 3.274,
-   "end": 3.68
+   "text": "settings.",
+   "start": 3.448,
+   "end": 3.947
   },
   {
-   "text": "can",
-   "start": 3.715,
-   "end": 3.831
+   "text": "Press",
+   "start": 4.191,
+   "end": 4.447
+  },
+  {
+   "text": "verify,",
+   "start": 4.516,
+   "end": 5.097
+  },
+  {
+   "text": "and",
+   "start": 5.132,
+   "end": 5.294
+  },
+  {
+   "text": "I",
+   "start": 5.399,
+   "end": 5.433
   },
   {
    "text": "check",
-   "start": 3.889,
-   "end": 4.063
+   "start": 5.584,
+   "end": 5.851
   },
   {
-   "text": "it",
-   "start": 4.098,
-   "end": 4.156
+   "text": "that",
+   "start": 5.921,
+   "end": 6.072
   },
   {
-   "text": "later.",
-   "start": 4.203,
-   "end": 4.969
+   "text": "nothing",
+   "start": 6.177,
+   "end": 6.525
+  },
+  {
+   "text": "has",
+   "start": 6.583,
+   "end": 6.699
+  },
+  {
+   "text": "changed.",
+   "start": 6.757,
+   "end": 7.372
+  },
+  {
+   "text": "And",
+   "start": 7.454,
+   "end": 7.663
+  },
+  {
+   "text": "if",
+   "start": 7.732,
+   "end": 7.825
+  },
+  {
+   "text": "a",
+   "start": 7.895,
+   "end": 7.93
+  },
+  {
+   "text": "batch",
+   "start": 8.011,
+   "end": 8.324
+  },
+  {
+   "text": "turns",
+   "start": 8.371,
+   "end": 8.638
+  },
+  {
+   "text": "out",
+   "start": 8.684,
+   "end": 8.812
+  },
+  {
+   "text": "bad,",
+   "start": 8.87,
+   "end": 9.288
+  },
+  {
+   "text": "there's",
+   "start": 9.323,
+   "end": 9.555
+  },
+  {
+   "text": "one",
+   "start": 9.613,
+   "end": 9.799
+  },
+  {
+   "text": "more",
+   "start": 9.834,
+   "end": 9.996
+  },
+  {
+   "text": "button.",
+   "start": 10.031,
+   "end": 10.728
   }
  ]
 }

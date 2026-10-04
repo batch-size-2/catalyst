@@ -9,7 +9,7 @@
       "use_speaker_boost": true,
       "speed": 1.15
     },
-    "gap_seconds": 0.6
+    "gap_seconds": 0.3
   },
   "scenes": [
     {
@@ -18,27 +18,39 @@
     },
     {
       "id": "science",
-      "text": "I'm Catalyst, and I check battery material long before it gets near a car. This is an anode under a microscope. Grey is graphite. Orange is silicon: it holds much more lithium, but it swells every charge. Blue is space for the lithium to move. If the mix drifts, so does the battery."
+      "text": "I'm Catalyst, and I check battery material before it's made into cells. This is an anode under a microscope. Grey is graphite. Orange is silicon, which holds far more lithium but swells every charge. Blue is the space the lithium moves through. If the mix is off, lithium can plate out as metal, and in the worst case short the cell and start a fire."
     },
     {
       "id": "compare",
-      "text": "When a new delivery comes in, check it against what the supplier promised. You'll see what's changed, by how much, and how confident I am. You get a clear call: accept, investigate or reject. And I'll explain it in the right words for the operator, the engineer, the scientist and the manager."
+      "text": "When a batch arrives, I compare it with what the supplier promised. Each row shows how far one measurement has moved. This batch says investigate, so it's held for a closer look. The tabs explain it for each role, from operator to manager."
     },
     {
       "id": "identify",
-      "text": "You can also drop in a single image. I measure the silicon, the particles and the pores, then tell you which batch it looks like and how sure I am, with the reasons. If it doesn't look like anything I've seen before, I'll say so."
+      "text": "You can also give me a single image. I'll tell you which batch it looks closest to, and how sure I am. If it sits outside even that batch, I flag it as unfamiliar."
     },
     {
       "id": "inspect",
-      "text": "Don't just take my word for it. Open any image and see exactly which pixels I counted as silicon."
+      "text": "You can check my work. Open any image and turn on the overlay to see which pixels I counted as silicon and which as pores."
     },
     {
       "id": "audit",
-      "text": "Every decision is logged with a fingerprint of its inputs, so anyone can check it later."
+      "text": "Every comparison is saved with a fingerprint of its images and settings. Press verify, and I check that nothing has changed. And if a batch turns out bad, there's one more button."
+    },
+    {
+      "id": "impact",
+      "text": "Last, two experiments we're still testing. The first estimates what the differences I found could mean for the cell, like its capacity or how fast it can charge. It also shows the worst case, and what would rule it out."
+    },
+    {
+      "id": "lab",
+      "text": "The second turns the measurements into a 3D anode you can charge. Charge it too fast, and lithium plates out as metal."
+    },
+    {
+      "id": "aged",
+      "text": "After eight hundred cycles, the silicon has cracked."
     },
     {
       "id": "outro",
-      "text": "Catalyst. Catch the bad batch at the factory, before it makes the news. Made by Team Batch Size 2."
+      "text": "That's me, Catalyst. Send me your next batch. Made by Team Batch Size 2."
     }
   ]
 }

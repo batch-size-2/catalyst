@@ -1,0 +1,217 @@
+{
+ "id": "impact",
+ "text": "Last, two experiments we're still testing. The first estimates what the differences I found could mean for the cell, like its capacity or how fast it can charge. It also shows the worst case, and what would rule it out.",
+ "hash": "55c2b078c0996b0a",
+ "voice_id": "awmINsgxT6tx4sTpVomM",
+ "model_id": "eleven_multilingual_v2",
+ "voice_settings": {
+  "stability": 0.45,
+  "similarity_boost": 0.75,
+  "style": 0.3,
+  "use_speaker_boost": true,
+  "speed": 1.15
+ },
+ "duration": 12.725,
+ "words": [
+  {
+   "text": "Last,",
+   "start": 0.0,
+   "end": 0.453
+  },
+  {
+   "text": "two",
+   "start": 0.488,
+   "end": 0.766
+  },
+  {
+   "text": "experiments",
+   "start": 0.836,
+   "end": 1.393
+  },
+  {
+   "text": "we're",
+   "start": 1.428,
+   "end": 1.602
+  },
+  {
+   "text": "still",
+   "start": 1.637,
+   "end": 1.811
+  },
+  {
+   "text": "testing.",
+   "start": 1.858,
+   "end": 2.426
+  },
+  {
+   "text": "The",
+   "start": 2.67,
+   "end": 2.775
+  },
+  {
+   "text": "first",
+   "start": 2.844,
+   "end": 3.088
+  },
+  {
+   "text": "estimates",
+   "start": 3.146,
+   "end": 3.518
+  },
+  {
+   "text": "what",
+   "start": 3.564,
+   "end": 3.715
+  },
+  {
+   "text": "the",
+   "start": 3.762,
+   "end": 3.843
+  },
+  {
+   "text": "differences",
+   "start": 3.901,
+   "end": 4.319
+  },
+  {
+   "text": "I",
+   "start": 4.389,
+   "end": 4.412
+  },
+  {
+   "text": "found",
+   "start": 4.54,
+   "end": 4.807
+  },
+  {
+   "text": "could",
+   "start": 4.876,
+   "end": 5.062
+  },
+  {
+   "text": "mean",
+   "start": 5.108,
+   "end": 5.271
+  },
+  {
+   "text": "for",
+   "start": 5.329,
+   "end": 5.433
+  },
+  {
+   "text": "the",
+   "start": 5.48,
+   "end": 5.561
+  },
+  {
+   "text": "cell,",
+   "start": 5.608,
+   "end": 6.026
+  },
+  {
+   "text": "like",
+   "start": 6.107,
+   "end": 6.327
+  },
+  {
+   "text": "its",
+   "start": 6.362,
+   "end": 6.478
+  },
+  {
+   "text": "capacity",
+   "start": 6.525,
+   "end": 7.024
+  },
+  {
+   "text": "or",
+   "start": 7.094,
+   "end": 7.268
+  },
+  {
+   "text": "how",
+   "start": 7.349,
+   "end": 7.465
+  },
+  {
+   "text": "fast",
+   "start": 7.57,
+   "end": 7.825
+  },
+  {
+   "text": "it",
+   "start": 7.872,
+   "end": 7.93
+  },
+  {
+   "text": "can",
+   "start": 7.964,
+   "end": 8.081
+  },
+  {
+   "text": "charge.",
+   "start": 8.127,
+   "end": 8.731
+  },
+  {
+   "text": "It",
+   "start": 9.009,
+   "end": 9.137
+  },
+  {
+   "text": "also",
+   "start": 9.172,
+   "end": 9.497
+  },
+  {
+   "text": "shows",
+   "start": 9.567,
+   "end": 9.81
+  },
+  {
+   "text": "the",
+   "start": 9.857,
+   "end": 9.927
+  },
+  {
+   "text": "worst",
+   "start": 9.961,
+   "end": 10.159
+  },
+  {
+   "text": "case,",
+   "start": 10.217,
+   "end": 10.658
+  },
+  {
+   "text": "and",
+   "start": 10.786,
+   "end": 11.076
+  },
+  {
+   "text": "what",
+   "start": 11.181,
+   "end": 11.378
+  },
+  {
+   "text": "would",
+   "start": 11.424,
+   "end": 11.587
+  },
+  {
+   "text": "rule",
+   "start": 11.633,
+   "end": 11.854
+  },
+  {
+   "text": "it",
+   "start": 11.889,
+   "end": 11.958
+  },
+  {
+   "text": "out.",
+   "start": 12.005,
+   "end": 12.725
+  }
+ ]
+}
