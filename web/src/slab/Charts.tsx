@@ -33,7 +33,7 @@ interface Props {
 }
 
 const W = 340;
-const PAD = { l: 34, r: 8, t: 8, b: 22 };
+const PAD = { l: 40, r: 14, t: 8, b: 22 };
 
 export function Chart({
   title, caption, x, y, xTicks, yTicks, fx = String, fy = String, series = [], bands = [], shade = [],
@@ -43,12 +43,12 @@ export function Chart({
   const sy = (v: number) => height - PAD.b - ((Math.min(Math.max(v, y[0]), y[1]) - y[0]) / (y[1] - y[0])) * (height - PAD.t - PAD.b);
   const path = (xs: number[], ys: number[]) => xs.map((v, i) => `${i ? "L" : "M"}${sx(v).toFixed(1)},${sy(ys[i]).toFixed(1)}`).join("");
   return (
-    <figure className="mt-4">
-      <figcaption className="mb-1 flex items-baseline justify-between gap-2">
+    <figure className="mt-3 rounded-[14px] border border-cx-line-soft bg-black/20 p-2.5">
+      <figcaption className="mb-1.5 flex flex-col gap-0.5 px-0.5">
         <span className="text-[12px] font-medium text-cx-text-2">{title}</span>
-        {caption && <span className="text-right text-[11px] text-cx-faint">{caption}</span>}
+        {caption && <span className="text-[11px] text-cx-faint">{caption}</span>}
       </figcaption>
-      <svg viewBox={`0 0 ${W} ${height}`} className="w-full">
+      <svg viewBox={`0 0 ${W} ${height}`} className="block w-full overflow-hidden">
         {shade.map((s, i) => (
           <g key={i}>
             <rect x={sx(s.x0)} y={PAD.t} width={Math.max(0, sx(s.x1) - sx(s.x0))} height={height - PAD.t - PAD.b} fill={s.color} />
@@ -62,7 +62,8 @@ export function Chart({
           </g>
         ))}
         {xTicks.map((t) => (
-          <text key={`x${t}`} x={sx(t)} y={height - 8} fontSize={9} textAnchor="middle" fill="#8A8C92" className="mono">{fx(t)}</text>
+          <text key={`x${t}`} x={sx(t)} y={height - 8} fontSize={9} fill="#8A8C92" className="mono"
+            textAnchor={t === x[0] ? "start" : t === x[1] ? "end" : "middle"}>{fx(t)}</text>
         ))}
         {hlines.map((h) => (
           <g key={h.label}>

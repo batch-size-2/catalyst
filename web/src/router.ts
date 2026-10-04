@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 /** Tiny hash router: "#/identify", "#/compare/<batch>[/<baseline>]", "#/library[/<batch>/<image_id>]",
- *  "#/audit", "#/settings". A baseline in the compare route is a one-off; without it, the default applies. */
+ *  "#/audit", "#/settings", "#/anode" (experimental). A baseline in the compare route is a one-off; without it, the default applies. */
 export function useHashRoute(): string[] {
   const [hash, setHash] = useState(() => window.location.hash);
   useEffect(() => {
@@ -27,4 +27,5 @@ export const href = {
     `#/impact${batch ? `/${encodeURIComponent(batch)}` : ""}${batch && baseline ? `/${encodeURIComponent(baseline)}` : ""}`,
   audit: () => "#/audit",
   settings: () => "#/settings",
+  anode: () => "#/anode",
 };

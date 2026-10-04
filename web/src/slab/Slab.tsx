@@ -344,12 +344,12 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
         <meshBasicMaterial color={COLORS.electrolyte} side={THREE.BackSide} />
       </mesh>
       <lineSegments geometry={edges} position={[offsetX, H / 2, zMid]} scale={[W, H, zFront]}>
-        <lineBasicMaterial color={color} transparent opacity={0.55} />
+        <lineBasicMaterial color={color} transparent opacity={0.7} />
       </lineSegments>
 
       <mesh position={[offsetX, H + SEPARATOR_UM / 2, zMid]} scale={[W, SEPARATOR_UM, zFront]}>
         <boxGeometry />
-        <meshStandardMaterial color={COLORS.separator} transparent opacity={0.16} depthWrite={false} roughness={0.9} />
+        <meshStandardMaterial color={COLORS.separator} transparent opacity={0.1} depthWrite={false} roughness={0.9} />
       </mesh>
       <lineSegments geometry={edges} position={[offsetX, H + SEPARATOR_UM / 2, zMid]} scale={[W, SEPARATOR_UM, zFront]}>
         <lineBasicMaterial color={COLORS.separator} transparent opacity={0.25} />
@@ -367,27 +367,29 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
       )}
 
       <Html portal={labelRoot} position={[offsetX, H + SEPARATOR_UM + 5, zMid]} center>
-        <div className="pointer-events-none whitespace-nowrap text-center">
-          <div className="text-[13px] font-medium" style={{ color }}>{title}</div>
+        <div className="glass pointer-events-none whitespace-nowrap rounded-[10px] px-2.5 py-1 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-[13px] font-medium text-cx-text">
+            <span className="h-2 w-2 rounded-[3px]" style={{ background: color }} />{title}
+          </div>
           <div className="text-[11px] text-cx-faint">{subtitle}</div>
         </div>
       </Html>
       {labels && (
         <>
-          <Html portal={labelRoot} position={[offsetX - W / 2 - 2, H + SEPARATOR_UM / 2, front]} style={{ transform: "translateX(-100%)" }}>
+          <Html portal={labelRoot} position={[offsetX + W / 2 + 3, H + SEPARATOR_UM / 2, front]}>
             <div className={labelStyle}>separator</div>
           </Html>
-          <Html portal={labelRoot} position={[offsetX - W / 2 - 2, H / 2, front]} style={{ transform: "translateX(-100%)" }}>
+          <Html portal={labelRoot} position={[offsetX + W / 2 + 3, H / 2, front]}>
             <div className={labelStyle}>coating {H.toFixed(1)} µm</div>
           </Html>
-          <Html portal={labelRoot} position={[offsetX - W / 2 - 2, -COPPER_UM / 2, front]} style={{ transform: "translateX(-100%)" }}>
+          <Html portal={labelRoot} position={[offsetX + W / 2 + 3, -COPPER_UM / 2, front]}>
             <div className={labelStyle}>Cu current collector</div>
           </Html>
         </>
       )}
       {texture && drive.showSection && (
         <Html portal={labelRoot} position={[offsetX - W / 4, -COPPER_UM - 3, front]} center>
-          <div className={labelStyle}>real FIB-SEM section · {section!.image_id}</div>
+          <div className={labelStyle}>real SEM image · {section!.image_id}</div>
         </Html>
       )}
       <Html portal={labelRoot} position={[offsetX + (drive.showSection && texture ? W / 4 : 0), -COPPER_UM - 3, front]} center>

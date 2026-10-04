@@ -95,7 +95,7 @@ ASSUMPTIONS = [
      "source": "Scenario band, not a lifetime prediction: no cycling data exists for these batches"},
 ]
 
-U_GRID = np.linspace(0.0005, 0.8, 4000)
+U_GRID = np.linspace(0.0005, 1.0, 5000)
 GR_OCV = (np.array([0, .03, .08, .2, .25, .5, .55, .95, .99, 1]),
           np.array([.8, .3, .22, .20, .13, .115, .09, .08, .04, .0]))
 SI_OCV = (np.array([0, .05, .2, .4, .6, .8, .95, 1]), np.array([.9, .4, .28, .22, .15, .09, .05, .0]))

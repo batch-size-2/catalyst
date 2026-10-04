@@ -7,10 +7,13 @@ import Library from "./components/Library";
 import { PeekProvider } from "./components/Peek";
 import Settings from "./components/Settings";
 import Shell, { type ShellInfo } from "./components/Shell";
+import { Cat, Spinner } from "./components/bits";
 import { flagOn } from "./flags";
 import { batchLabel, libraryTiles, useApi } from "./lib";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useHashRoute } from "./router";
+
+const AnodeLab = lazy(() => import("./slab/SlabLab"));  // three.js stays out of the main bundle
 
 export default function App() {
   const route = useHashRoute();
@@ -39,6 +42,7 @@ export default function App() {
     impact: ["Experimental", "Wear & impact"],
     audit: ["Trust", "Audit log"],
     settings: ["Settings", "Baseline"],
+    anode: ["Experimental", "Anode lab"],
   };
 
   return (
@@ -58,6 +62,22 @@ export default function App() {
         ))}
       {page === "audit" && <Audit />}
       {page === "settings" && <Settings onSaved={() => setSaved((n) => n + 1)} />}
+      {page === "anode" &&
+        (flagOn("anode") ? (
+          <Suspense fallback={
+            <div className="grid flex-1 place-items-center gap-3 py-24 text-sm text-cx-muted">
+              <Cat mood="sniffing" size={48} />
+              <Spinner />
+            </div>
+          }>
+            <AnodeLab />
+          </Suspense>
+        ) : (
+          <p className="mx-auto max-w-[640px] px-10 py-16 text-cx-muted">
+            The anode lab is an experimental feature and is switched off here. Open{" "}
+            <code className="mono">/?flags=</code> to switch it back on.
+          </p>
+        ))}
     </Shell>
     </PeekProvider>
   );

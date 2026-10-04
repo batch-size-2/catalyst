@@ -182,7 +182,7 @@ Everything runs **locally and offline**: no cloud, no database, no network calls
 |---|---|---|---|
 | Pipeline (CLI) | `uv run python -m qc.run --batch …` | – | Measure → compare → write `out/`. This is what we freeze and run on the unseen batch |
 | API | `uv run uvicorn qc.api:app --reload` | 8000 | Thin FastAPI wrapper: reads `out/`, saves uploads to `data/`, calls `run()` / `attribute()`. No QC logic |
-| Web UI | `cd web && npm run dev` | 5173 | Vite + React + TypeScript + Tailwind. Talks only to `/api` (proxied to :8000 by `web/vite.config.ts`). Two pages: `/` (the app) and `/slab.html` (the anode lab) |
+| Web UI | `cd web && npm run dev` | 5173 | Vite + React + TypeScript + Tailwind. Talks only to `/api` (proxied to :8000 by `web/vite.config.ts`) |
 
 **Folders**
 
@@ -485,16 +485,16 @@ Effect per property: "about the same" if the whole relative-change interval is w
 
 `web/src/impact.ts` holds the types and fetch for this endpoint, and `Report` lives in `qc/impact.py`, not `qc/schema.py`: it is not part of the ML ↔ backend contract and stays separate while it is experimental.
 
-## Anode lab (`qc/slab.py`, `web/slab.html`)
+## Anode lab (`qc/slab.py`, `web/src/slab/`)
 
-A standalone page that shows what one batch's measured microstructure means inside a cell: a rotatable 60 × 50 × 30 µm block of anode between a copper collector and a separator, Batch_3 beside a chosen batch, with sliders for state of charge, C-rate, cycles and a FIB slice that mills into the block. It is an illustration driven by measured statistics, not a 3D reconstruction and not a cell simulation, labelled as such on the page; nothing in it feeds `decide.py`.
+An experimental page (rail: Experimental → Anode lab, `#/anode`, flag `anode` in `web/src/flags.ts`, on by default; `?flags=-anode` hides it) that shows what one batch's measured microstructure means inside a cell: a rotatable 60 × 50 × 30 µm block of anode between a copper collector and a separator, Batch_3 beside a chosen batch, with sliders for state of charge, C-rate, cycles and a FIB slice that mills into the block. It is an illustration driven by measured statistics, not a 3D reconstruction and not a cell simulation, labelled as such on the page; nothing in it feeds `decide.py`.
 
 - **Packing.** Silicon sizes are drawn from the batch's measured particles (`out/particles.csv`) with a first-order Wicksell correction (× 4/π, weight 1/d), placed with the measured agglomerated share, and trimmed to the measured silicon share of the solid. Angular graphite flakes are added by random sequential addition with a growing overlap allowance until the pore fraction is reached. The page's "Packing check" lists achieved against target fractions (within about 0.3 points).
 - **True porosity.** The 2D apparent porosity (~10%) under-counts pores, so the baseline is anchored at 30% and each batch keeps its measured ratio to the baseline (`true_fractions`). This is the largest assumption and it is listed on the page.
 - **Physics (backend only; the page interpolates).** Si and graphite share one potential (textbook lithiation curves), so silicon lithiates first. Si swells 280% (internal voids absorb their share), graphite 10% along c. Half the swelling fills pores, the rest thickens the coating. Bruggeman sets ion transport. The through-thickness gradient scales with L² / (D_eff · t_charge), under CC-CV charging and an N/P ratio of 1.1. Plating is flagged where the local potential minus an overpotential falls below 0 V vs Li. Graphite takes its staging colours flake by flake (lever rule). Si above the 870 nm a-Si fracture size cracks over the cycles, and some fragments lose contact; capacity fade is a scenario band (SEI ~ √N plus lost Si).
 - **Faces.** The visible faces are true sections of the packing, rasterised on the CPU; the "real section" toggle puts the batch's most typical BSE image on half of the front face for comparison.
 
-PLAN_v4 §3.8 says "no cell simulation". This page has no electrochemical model fitted to data; its fast-charge and wear panels are qualitative relations with stated constants, shown as indicative ranges, as §3.8 allows for consequences. Open it at `http://localhost:5173/slab.html` (URL parameters `soc`, `c`, `cycles`, `milled`, `section=1`, `ions=0` set the start state).
+PLAN_v4 §3.8 says "no cell simulation". This page has no electrochemical model fitted to data; its fast-charge and wear panels are qualitative relations with stated constants, shown as indicative ranges, as §3.8 allows for consequences. The page and three.js are lazy-loaded, so the main bundle does not grow. URL parameters before the hash set the start state, e.g. `/?soc=0.75&c=5#/anode` (`soc`, `c`, `cycles`, `milled`, `section=1`, `ions=0`).
 
 ## Batch attribution (Pat's `qc/attribute.py`)
 
@@ -532,7 +532,7 @@ The model was frozen on 3 Oct at 22:10 (tag `rules-frozen`, staged `material > d
 | `qc/decide.py` (`compare`, `evaluate`, `power`), `qc/provenance.py`, `config/decision.yaml`, `tests/synth.py` | Software (Patrik) |
 | `qc/api.py`, `web/` | Software (Patrik) |
 | `qc/impact.py`, `config/impact.yaml`, `tests/test_impact.py` (experimental) | Software (Patrik) |
-| `qc/slab.py`, `tests/test_slab.py`, `web/slab.html`, `web/src/slab/` | Software (Patrik). Standalone: deleting these and the `/api/slab` route removes the anode lab |
+| `qc/slab.py`, `tests/test_slab.py`, `web/src/slab/` | Software (Patrik). Experimental: deleting these, the `/api/slab` route and the `anode` flag, route and nav item removes the anode lab |
 | `qc/io.py`, `qc/run.py` | Shared glue |
 
 ## Changes from the v3 design (ML side)
