@@ -332,13 +332,17 @@ export function kpisBeyond(tile: Tile | undefined, tiles: Tile[], baseline: stri
 const SLOT = /\{(diff|shift|interval|tile|range|whatif|count):([^{}\s]+)\}/g;
 
 /** Guide text with its {slots} rendered as chips; Catalyst filled every one from the evidence. */
-export function SlotText({ text, slots }: { text: string; slots: Record<string, GuideSlot> }) {
+export function SlotText({ text, slots, plain = false }: { text: string; slots: Record<string, GuideSlot>; plain?: boolean }) {
   const parts: ReactNode[] = [];
   let last = 0;
   for (const m of text.matchAll(SLOT)) {
     parts.push(text.slice(last, m.index));
     const slot = slots[`${m[1]}:${m[2]}`];
-    parts.push(slot ? <SlotChip key={m.index} slot={slot} /> : "—");
+    parts.push(slot
+      ? (plain
+        ? <strong key={m.index} className="font-semibold text-cx-text-strong" title={slot.source}>{slot.text}</strong>
+        : <SlotChip key={m.index} slot={slot} />)
+      : "—");
     last = (m.index ?? 0) + m[0].length;
   }
   parts.push(text.slice(last));
