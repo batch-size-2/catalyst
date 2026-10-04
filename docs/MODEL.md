@@ -12,6 +12,7 @@ The accept / investigate / reject verdict of the Compare page is a separate, pur
 - **Confidence.** Checked on held-out images: calls stated at 75% or more were right 9 of 9 times; 50–75%: 7 of 11; below 50%: 6 of 11. The model never says more than about 90%, because 31 images cannot support more.
 - **What matters most.** For "Batch_3 or not": fine texture (61% of the weight), spread over many small inputs. For "Batch_1 or Batch_2": four image patterns carry 74% of the weight, and all four also track an imaging descriptor (brightness or black level), so part of that signal may be the microscope and not the material.
 - **Changed on 4 Oct.** Only the confidence and the call rule. The classifier's coefficients are identical to the model frozen on 3 Oct (§8).
+- **Ground truth of the 3 test samples (§12).** 1 of 3 exact, 3 of 3 on "Batch_3 or not", 3 of 3 inside the prediction set. Both misses were "Batch_1 or Batch_2" coin flips (52:48, 51:49), and both test images sit edge to edge between images of the other label on one continuous cross-section. No feature we built, including new ones, tells Batch_1 from Batch_2 in a way that holds up, so every "which variation" call is now marked **not established** and keeps both variations in its prediction set.
 
 ## 2. Input
 
@@ -21,7 +22,7 @@ The accept / investigate / reject verdict of the Compare page is a separate, pur
 | Size | About 7,000 px wide and 1,612 to 2,316 px tall, at 25 nm per pixel (from the TIFF `XResolution` tag): about 175 µm × 40–58 µm of electrode cross-section |
 | What the detectors show | BSE: composition, silicon is bright. ETD: topography and edges. InLens: surface detail |
 | Training set | 31 samples: Batch_1 7, Batch_2 7, Batch_3 17 (the baseline), cut from 13 physical strips. Strips 2080, 2148 and 2156 appear in more than one batch folder |
-| Unseen so far | `Hackathon-Polaron-test`: 3 samples. More arrive just before judging |
+| Unseen so far | `Hackathon-Polaron-test`: 3 samples, true batches now known (§12). More arrive just before judging |
 | Never an input | Strip id, image height or width, pixel size. `assert_no_leakage()` refuses any column whose name mentions them. The strip is only used to build held-out folds |
 
 ## 3. Preprocessing
@@ -101,7 +102,8 @@ flowchart TD
 | 8 | Combine | p(Batch_3) is the calibrated value. Batch_1 and Batch_2 share 1 − p(Batch_3) in the proportions of stage 2. No temperature |
 | 9 | **The call** | Batch_3 if p(Batch_3) ≥ 0.5, else the more likely of Batch_1 and Batch_2 |
 | 10 | Tier and record | high (≥ 0.75), medium (≥ 0.5), low, by the probability of the call. Each tier carries how often held-out calls in it were right |
-| 11 | Prediction set | The call plus every batch with p ≥ 1 − q̂; q̂ = 0.67 from the held-out scores, aimed at holding the true batch 8 times in 10 |
+| 10b | Is each stage established? | Each stage call carries its held-out `record` (right / n) and a one-sided binomial `p_value` against guessing; `established` if p < 0.05 (`ESTABLISHED_P`). "Batch_3 or not": 26 of 31, p = 0.0001, established. "Which variation": 8 of 12, p = 0.19, **not established**: the call gets a `note` saying it is a lean, not a finding |
+| 11 | Prediction set | The call plus every batch with p ≥ 1 − q̂; q̂ = 0.67 from the held-out scores, aimed at holding the true batch 8 times in 10. When "which variation" is not established, every variation is added: the model cannot rule out what it cannot tell apart |
 | 12 | Familiarity | Root-mean-square z of the 180 named features against the strip means of the assigned batch. `unfamiliar` if it exceeds the largest distance that batch's own held-out images showed (Batch_1 6.8, Batch_2 1.8, Batch_3 3.9) |
 | 13 | Reasons | Per stage, the largest coefficient × z contributions, each as a sentence |
 
@@ -118,7 +120,7 @@ One record per image in `out/attribution/<folder>.json`, served unchanged by the
 | `confidence`, `confidence_raw` | Probability of the bet; the classifier's own value before calibration | 0.46, 0.51 |
 | `confidence_tier`, `confidence_record` | Tier, and how often held-out calls in that tier were right | low, 6 of 11 |
 | `stage_baseline` | "Different from the baseline?" with its confidence and the range the held-out images allow | not Batch_3, 0.89, range 0.89–0.94 |
-| `stage_variation` | "In what way?" among the other batches | Batch_1, 0.52 |
+| `stage_variation` | "In what way?" among the other batches, with its `record` and, when not established, a `note` | Batch_1, 0.52; 8 of 12, p = 0.19, not established |
 | `prediction_set` | Batches that cannot be ruled out, the bet first | Batch_1, Batch_2 |
 | `reasons` | Up to five, each with `feature`, `z`, `contribution`, `stage`, and a sentence in `text` | "BSE texture local contrast at 0.05 um: 5.6 SD above Batch_3" |
 | `baseline_distance`, `outside_baseline`, `deviations` | Distance from Batch_3 and the features furthest from it | 4.8 against a limit of 3.9: outside |
@@ -128,13 +130,13 @@ The file's `model` block repeats what a reader needs to judge the call: the held
 
 The three test samples, scored with this model (`results/Hackathon-Polaron-test.refit.json`):
 
-| Sample | Bet | Confidence, tier (record) | Batch_3 or not (range) | Which variation | Cannot rule out | Unfamiliar |
-|---|---|---|---|---|---|---|
-| `3e122cbj` | Batch_1 | 0.46, low (6 of 11) | not Batch_3, 0.89 (0.89–0.94) | Batch_1, 52 to 48 | Batch_2 | no |
-| `fn0mhxef` | Batch_2 | 0.46, low (6 of 11) | not Batch_3, 0.89 (0.89–0.94) | Batch_2, 51 to 49 | Batch_1 | yes |
-| `xrv9xvzb` | Batch_3 | 0.91, high (9 of 9) | Batch_3, 0.91 (0.91–1.00) | – | – | no |
+| Sample | Bet | Confidence, tier (record) | Batch_3 or not (range) | Which variation | Cannot rule out | Unfamiliar | **Truth** |
+|---|---|---|---|---|---|---|---|
+| `3e122cbj` | Batch_1 | 0.46, low (6 of 11) | not Batch_3, 0.89 (0.89–0.94) | Batch_1, 52 to 48, not established | Batch_2 | no | **Batch_2** |
+| `fn0mhxef` | Batch_2 | 0.46, low (6 of 11) | not Batch_3, 0.89 (0.89–0.94) | Batch_2, 51 to 49, not established | Batch_1 | yes | **Batch_1** |
+| `xrv9xvzb` | Batch_3 | 0.91, high (9 of 9) | Batch_3, 0.91 (0.91–1.00) | – | – | no | Batch_3 |
 
-The bets are the same as with the model frozen on 3 Oct (`results/Hackathon-Polaron-test.json`). The stated confidence is lower: 0.91 instead of 0.99, and 0.89 instead of 0.93–0.97 for "not Batch_3". The true batches are not known to us.
+The bets are the same as with the model frozen on 3 Oct (`results/Hackathon-Polaron-test.json`). The stated confidence is lower: 0.91 instead of 0.99, and 0.89 instead of 0.93–0.97 for "not Batch_3". The truth was given after the calls were committed; it is scored in §12 and `results/Hackathon-Polaron-test.ground-truth.json`. `results/Hackathon-Polaron-test.stage-records.json` is the same run with the stage records added (every number identical).
 
 ## 7. Results
 
@@ -357,9 +359,26 @@ Checked on 4 Oct, from the raw images:
 ## 11. Limits
 
 - **31 images.** Batch_1 and Batch_2 have 7 each, from 6 strips. Every number above moves by several points if one image changes sides.
-- **Batch_1 against Batch_2 is not established.** 8 of 12 held out; an earlier fair null put it at chance. The batches were assembled from one dataset, and they may not differ materially.
-- **Batch_1 is the weak class** (3 of 7). Strip 2316 looks like nothing else.
+- **Batch_1 against Batch_2 is not established.** 8 of 12 held out (p = 0.19 against guessing), 0 of 2 on the test samples. Five strips hold both labels, sometimes on neighbouring fields of one continuous cross-section (§12), so the batches may not differ in anything these images show. The app says so on every such call.
+- **Batch_1 is the weak class** (3 of 7). Strip 2316 looks like nothing else, and it holds a Batch_2 image too (§12).
 - **Microscope or material.** Batch_3 was imaged with a different InLens black level, and the image patterns of stage 2 track brightness (§9.2). Open experiment branches (T1, T9) report that the attribution signal is sensitive to imaging differences. Treat "why" statements about stage 2 with that in mind.
 - **Segmentation is unvalidated** against hand labels. Deviations from the baseline cancel a constant bias, but only if imaging is the same across batches.
 - **The calibration was chosen on the data it is scored on** (§8).
 - **Class mix.** The calibration assumes an unseen image is as likely to be the baseline as not. If the unseen images are mostly one batch, the probabilities shift, the ranking does not.
+
+## 12. Ground truth of the three test samples (4 Oct, afternoon)
+
+The organisers gave the true batches after the calls were committed. Full analysis: [experiments/T18.md](experiments/T18.md). Not pre-registered; the classifier was not changed.
+
+| | Right |
+|---|---|
+| Exact batch | 1 of 3 (`xrv9xvzb`) |
+| Batch_3 or not | 3 of 3 |
+| Truth inside the prediction set | 3 of 3 |
+| Batch_1 or Batch_2 | 0 of 2: both swapped, both called at 52:48 and 51:49, both low tier |
+
+**Why the two misses.** Each test image shares height, pixel size and continuous edge content with a known strip ([T18_strips.png](experiments/T18_strips.png)). `3e122cbj` (Batch_2) sits between two Batch_1 images on strip 2316; `fn0mhxef` (Batch_1) sits next to a Batch_2 image on strip 2048. In training each of those strips carried one label, and stage 2 reads the look of the strip, so it called each tile by its strip. Five strips now hold both Batch_1 and Batch_2.
+
+**Is there a better feature?** Tried on the 34 labelled images (T18 §3–4): DINOv2 on BSE and ETD tiles, tile quantiles, a 7-octave power spectrum on all three detectors, acquisition forensics, and the existing families, each across strips and inside the five mixed strips. None separates the batches across strips (best 0.62 against a null p95 of 0.75). Inside the mixed strips one InLens DINOv2 direction puts the Batch_1 image on the same side in 5 of 5 strips (p = 0.03 uncorrected, best of nine tries after the truth was known, about 0.25 corrected), and it moves with detector brightness. Not adopted; it is the first thing to test on new labelled strips.
+
+**What the model now says.** "Which variation" is marked not established on every call (8 of 12 held out, p = 0.19), with a `note`, both variations in the prediction set, and "Which variation: not established" on the Identify page. For a QC decision the established part is "Batch_3 or not" (26 of 31; 29 of 34 with the test samples). Attribution to Batch_1 or Batch_2 should not be used to pick a root cause.

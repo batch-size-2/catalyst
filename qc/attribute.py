@@ -17,7 +17,9 @@ is reported as a weak call, never as a non-answer. What says how weak:
 
   - `stage_baseline` and `stage_variation`: "different from the baseline?" and "in what way?", each
     with its own confidence, so "surely not Batch_3, weak lean to Batch_2" is a legitimate answer.
-    The bet follows them: the baseline if it is at least as likely as not, else the leading variation;
+    The bet follows them: the baseline if it is at least as likely as not, else the leading variation.
+    Each carries its held-out `record`; a stage that does not beat guessing is `established: false`,
+    gets a `note`, and every option it cannot tell apart stays in the prediction set (docs/experiments/T18.md);
   - "baseline or not" is calibrated with Venn-Abers on the model's own out-of-fold (strip-held-out)
     probabilities (docs/experiments/T14.md): a probability and the `interval` those points allow;
   - `confidence`: the calibrated probability of the predicted batch; `confidence_tier` high / medium /
@@ -51,6 +53,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment
+from scipy.stats import binom
 import yaml
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
@@ -71,6 +74,7 @@ TRANSLATE_MIN_R = 0.5         # a deep component is "explained by" named feature
 TRANSLATE_TOP = 3
 IMPORTANCE_TOP = 8            # features listed per stage in explain.importance
 SD_SAME = 0.5                 # |z| below this reads "about the same as the baseline"
+ESTABLISHED_P = 0.05          # a stage is "established" when its held-out record beats a coin flip at this one-sided binomial p
 DICTIONARY_PATH = Path("config/kpi_dictionary.yaml")
 IMAGING_FAMILY = "img"        # acquisition, not material: never a model input, but named when an image pattern tracks it
 
@@ -765,22 +769,45 @@ def _reasons(model: dict, role: str, part: dict, z: np.ndarray, contrib: np.ndar
     return out
 
 
-def _stage_calls(p: np.ndarray, classes: list[str], baseline: str, interval=None) -> dict:
+def stage_record(record: dict | None, options: int = 2) -> dict | None:
+    """A stage's held-out record (right / n) and whether it beats guessing among its `options`:
+    `p_value` = one-sided binomial P(at least this many right | chance), `established` = p_value < ESTABLISHED_P.
+    A stage that is not established still makes its call (Rule 11); the call is then a lean, and says so."""
+    if not record or not record.get("n"):
+        return None
+    right, n = int(record["right"]), int(record["n"])
+    p = float(binom.sf(right - 1, n, 1 / options))
+    return {"right": right, "n": n, "chance": round(1 / options, 4), "p_value": round(p, 4), "established": p < ESTABLISHED_P}
+
+
+def _stage_calls(p: np.ndarray, classes: list[str], baseline: str, interval=None, stages: dict | None = None) -> dict:
     """"Different from the baseline?" and, if so, "in what way?": each with its own confidence.
-    `interval` is the Venn-Abers [p0, p1] of p(baseline); it is reported as the range of the first confidence."""
+    `interval` is the Venn-Abers [p0, p1] of p(baseline); it is reported as the range of the first confidence.
+    `stages` is the model's held-out record per stage (`calibration.stages`); each call then carries its
+    `record` (`stage_record`), so a stage that does no better than guessing is marked as not established."""
     if baseline not in classes:
         return {"stage_baseline": None, "stage_variation": None}
+    stages = stages or {}
     b = classes.index(baseline)
     pb = float(p[b])
     first = {"call": baseline if pb >= 0.5 else other_label(baseline), "confidence": max(pb, 1 - pb), "p_baseline": pb}
     if interval is not None:
         low, high = float(interval[0]), float(interval[1])
         first["interval"] = [low, high] if pb >= 0.5 else [1 - high, 1 - low]
+    if (rec := stage_record(stages.get("baseline"))) is not None:
+        first["record"] = rec
     rest = [(c, float(p[j])) for j, c in enumerate(classes) if j != b]
     if pb >= 0.5 or not rest:
         return {"stage_baseline": first, "stage_variation": None}
     best, pbest = max(rest, key=lambda t: t[1])
-    return {"stage_baseline": first, "stage_variation": {"call": best, "confidence": pbest / (1 - pb)}}
+    second = {"call": best, "confidence": pbest / (1 - pb)}
+    if (rec := stage_record(stages.get("variation"), len(rest))) is not None:
+        second["record"] = rec
+        if not rec["established"]:
+            names = " and ".join(c for c, _ in rest)
+            second["note"] = (f"{names} are not told apart on held-out strips: {rec['right']} of {rec['n']} right, "
+                              f"where guessing gets that many or more with probability {rec['p_value']:.2f}. {best} is a lean, not a finding.")
+    return {"stage_baseline": first, "stage_variation": second}
 
 
 def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd.DataFrame:
@@ -827,6 +854,10 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
         confidence = float(probs[i, k])
         tier = tier_of(confidence)
         order = np.argsort(-probs[i])
+        stage = _stage_calls(probs[i], classes, baseline, None if intervals is None else intervals[i], calibration.get("stages"))
+        pset = [classes[k]] + [classes[j] for j in order if j != k and qhat is not None and probs[i, j] >= 1 - qhat]
+        if ((stage["stage_variation"] or {}).get("record") or {}).get("established") is False:  # cannot rule out what it cannot tell apart
+            pset += [c for c in classes if c != baseline and c not in pset]
         x = evals[space][3][i]
         own = _distance((model.get("batch_stats") or {}).get(classes[k]), model, x)
         base = baseline_distance(model, x)
@@ -841,8 +872,8 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
                 "confidence_raw": float(raw[i, k]),
                 "confidence_tier": tier,
                 "confidence_record": {"right": tiers[tier]["right"], "n": tiers[tier]["n"]} if tier in tiers else None,
-                **_stage_calls(probs[i], classes, baseline, None if intervals is None else intervals[i]),
-                "prediction_set": [classes[k]] + [classes[j] for j in order if j != k and qhat is not None and probs[i, j] >= 1 - qhat],
+                **stage,
+                "prediction_set": pset,
                 "reasons": reasons,
                 **base,
                 "predicted_distance": own["distance"],

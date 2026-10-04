@@ -300,6 +300,11 @@ function Answer({ image, model }: { image: AttributedImage; model: AttributionMo
               {first.call === model.baseline ? "Baseline" : "Not the baseline"}: {rangeText(first.interval)}
             </Chip>
           )}
+          {image.stage_variation?.record && !image.stage_variation.record.established && (
+            <Chip tone="warn" title={image.stage_variation.note}>
+              Which variation: not established
+            </Chip>
+          )}
           {others.length > 0 && (
             <Chip tone="plain" title={sets ? setsText(sets) : undefined}>
               Can't rule out {others.map(batchLabel).join(" or ")}
@@ -339,6 +344,10 @@ function heroSentence(image: AttributedImage, probs: { cls: string; p: number }[
   if (first && second) {
     const rest = probs.filter((p) => p.cls !== baseline && p.cls !== second.call);
     const among = rest.length === 1 ? `Between ${batchLabel(second.call)} and ${batchLabel(rest[0].cls)}` : "Among the other batches";
+    if (second.record && !second.record.established) {
+      const names = rest.length === 1 ? `${batchLabel(second.call)} or ${batchLabel(rest[0].cls)}` : "which other batch";
+      return `${lead}Not the baseline: ${pct(first.confidence)} that it isn't ${batchLabel(baseline)}. ${names}: the model cannot tell these apart (right ${record(second.record)} times on held-out strips, about what guessing gets), so treat ${batchLabel(second.call)} as a coin flip, not a finding.`;
+    }
     const weak = second.confidence < 0.6 || image.confidence_tier === "low" ? " — a weak lean" : "";
     return `${lead}Not the baseline: ${pct(first.confidence)} that it isn't ${batchLabel(baseline)}. ${among} it leans to ${batchLabel(second.call)}, ${Math.round(second.confidence * 100)} to ${Math.round((1 - second.confidence) * 100)}${weak}.`;
   }
@@ -465,7 +474,7 @@ function ModelAndRun({ image, attribution, current, evaluation }: { image: Attri
   if (image.stage_baseline)
     rows.push(["Baseline or not", `${call(image.stage_baseline.call)} · ${pct(image.stage_baseline.confidence)}${image.stage_baseline.interval ? ` (range ${rangeText(image.stage_baseline.interval)})` : ""}${stages?.baseline ? ` · this stage right ${record(stages.baseline)} held-out` : ""}`]);
   if (image.stage_variation)
-    rows.push(["Which other batch", `${batchLabel(image.stage_variation.call)} · ${pct(image.stage_variation.confidence)}${stages?.variation ? ` · this stage right ${record(stages.variation)} held-out` : ""}`]);
+    rows.push(["Which other batch", `${batchLabel(image.stage_variation.call)} · ${pct(image.stage_variation.confidence)}${stages?.variation ? ` · this stage right ${record(stages.variation)} held-out` : ""}${image.stage_variation.record && !image.stage_variation.record.established ? " · not established: a lean, not a finding" : ""}`]);
   const cal = model.calibration;
   if (cal?.method === "venn_abers")
     rows.push(["Confidence", `Checked on held-out tiles (Venn–Abers)${cal.log_loss != null && cal.raw_log_loss != null ? ` · log loss ${cal.log_loss.toFixed(2)}, ${cal.raw_log_loss.toFixed(2)} unchecked` : ""}`]);
