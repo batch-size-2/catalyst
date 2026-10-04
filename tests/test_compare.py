@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import t as t_dist
 
-from qc.decide import contradictions, evaluate, split_tables, units_to_settle
-from qc.schema import ControlResult, Controls, load_config
+from qc.decide import contradictions, evaluate, odd_units, split_tables, units_to_settle
+from qc.schema import ControlResult, Controls, Segment, load_config
 from tests.synth import QUANTITIES, synth_kpis
 
 FAKE = Path(__file__).parent / "fixtures" / "kpis_fake.csv"
@@ -161,16 +161,37 @@ def test_unit_contradiction_investigates():
     assert next(d.status for d in strip.differences if d.name == "test_q") == "SIMILAR"
 
 
-def test_failed_controls_cap_the_verdict():
-    tables = shifted_batch()
-    failed = Controls(ran=True, passed=False, results=[
-        ControlResult(name="neg_brightness", kind="negative", expected_driver=None,
-                      statuses={"si_graphite_ratio": "DIFFERENT"}, top_driver=None, passed=False)])
-    evidence = evaluate(tables, "b", CFG, controls=failed)
-    assert evidence.verdict == "INVESTIGATE"
-    assert evidence.reasons[0].startswith("Controls failed")
-    assert any("differs from the reference" in reason for reason in evidence.reasons)
-    assert evaluate(tables, "b", CFG, controls=None).verdict == "REJECT"
+def _failed() -> Controls:
+    return Controls(ran=True, passed=False, results=[
+        ControlResult(name="neg_brightness_up", kind="negative", expected_driver=None,
+                      statuses={"si_graphite_ratio": "DIFFERENT"}, top_driver="si_graphite_ratio", passed=False),
+        ControlResult(name="pos_si_scale", kind="positive", expected_driver="si_d50_um",
+                      statuses={}, top_driver=None, passed=False),
+    ])
+
+
+def test_failed_controls_only_block_accept():
+    """A failed control leaves the verdict and next action as they are with no controls at all."""
+    shifted = shifted_batch()
+    failed = _failed()
+    none = evaluate(shifted, "b", CFG, controls=None)
+    blocked = evaluate(shifted, "b", CFG, controls=failed)
+    assert none.verdict == "REJECT" and blocked.verdict == "REJECT"
+    assert blocked.next_action == none.next_action
+    assert any(reason == "Controls failed (neg_brightness_up, pos_si_scale): ACCEPT needs passed controls."
+               for reason in blocked.reasons)
+    assert blocked.reasons[0] == none.reasons[0]
+
+    layout = {"b": {f"B{i}": 1 for i in range(10)}, "r": {f"R{i}": 1 for i in range(10)}}
+    calm = split_tables(synth_kpis(layout))
+    cfg = CFG | {"baseline": "r", "odd_sd": None,
+                 "margins": {q: 3 * QUANTITIES[q][1] for q in KEY}}
+    missing = evaluate(calm, "b", cfg)
+    same = evaluate(calm, "b", cfg, controls=failed)
+    assert missing.verdict == "INVESTIGATE" and same.verdict == "INVESTIGATE"
+    assert same.next_action == missing.next_action
+    passed = evaluate(calm, "b", cfg, controls=PASSED)
+    assert passed.verdict == "ACCEPT"
 
 
 def test_determinism_and_random_branch():
@@ -182,6 +203,20 @@ def test_determinism_and_random_branch():
         if d.p is not None:
             assert d.p >= 1 / 101
     assert small.model_dump() == evaluate(tables, "b", CFG | {"n_resamples": 100}).model_dump()
+
+
+def test_odd_range_is_clipped_for_wording_only():
+    refs = [Segment(batch="r", strip_id=f"R{i}", image_ids=[f"r{i}"], area_um2=1.0,
+                    values={"si_internal_void_frac": v, "si_contrast_ratio": c})
+            for i, (v, c) in enumerate([(0.0, 0.2), (0.0, 1.0), (0.0, 4.0), (0.02, 5.0)])]
+    batch = [Segment(batch="b", strip_id="B", image_ids=["b0"], area_um2=1.0,
+                     values={"si_internal_void_frac": 0.2, "si_contrast_ratio": 20.0})]
+    odds = odd_units(batch, refs, ["si_internal_void_frac", "si_contrast_ratio"], {"odd_sd": 3})
+    by_q = {o.quantity: o for o in odds}
+    assert by_q["si_internal_void_frac"].range[0] == 0
+    assert by_q["si_internal_void_frac"].range[1] <= 1
+    assert by_q["si_contrast_ratio"].range[0] == 0
+    assert by_q["si_contrast_ratio"].range[1] > 1
 
 
 def test_units_to_settle_hand_checked():

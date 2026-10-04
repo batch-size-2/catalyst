@@ -15,13 +15,18 @@ from scipy.stats import t
 
 from qc.explain import explain, load_dictionary
 from qc.provenance import provenance
+from qc.uncertainty import sampling_bundle
 from qc.schema import (
-    IMAGING_COLUMNS, KPI_TABLE, KPI_UNITS, PARTICLE_COLUMNS, Controls, Descriptor, Difference, Evidence,
-    Fingerprint, ImagingCheck, Odd, Power, Segment, Status, Tables, Unit, UnitView, evidence_path, load_config,
+    IMAGING_COLUMNS, KPI_TABLE, KPI_UNITS, PARTICLE_COLUMNS, SAMPLING_COLUMNS, Controls, Descriptor, Difference,
+    Evidence, Fingerprint, ImagingCheck, Odd, Power, Segment, Status, Tables, Unit, UnitView, evidence_path,
+    load_config,
 )
 
-NON_QUANTITY = {"batch", "image_id", "strip_id", "px_um", "area_um2"}
+NON_QUANTITY = {"batch", "image_id", "strip_id", "px_um", "area_um2", *SAMPLING_COLUMNS}
 T_CLIP = 1e12
+# These can change the verdict. Other imaging metrics stay on ImagingCheck.report_metrics.
+ACQUISITION_METRICS = ("black_level", "p50", "noise")
+IMAGING_NEXT_LIMIT = 3
 
 
 def num(value) -> float | None:
@@ -92,8 +97,31 @@ def new_type_share(particles: pd.DataFrame) -> float | None:
             if total > 0 else None)
 
 
+def imaging_metric_list(metrics: list[str], limit: int = IMAGING_NEXT_LIMIT) -> str:
+    """At most `limit` metric names, most out of range first, plus how many were left off."""
+    shown = list(metrics[:limit])
+    extra = len(metrics) - len(shown)
+    text = ", ".join(shown)
+    if extra:
+        text += f" and {extra} more"
+    return text
+
+
+def _outside_severity(median: float, low: float, high: float, n_out: int, n: int) -> float:
+    span = max(high - low, 1.0)
+    if median < low:
+        return (low - median) / span
+    if median > high:
+        return (median - high) / span
+    return n_out / n
+
+
 def imaging_check(ref_imaging: pd.DataFrame, batch_imaging: pd.DataFrame, cfg: dict) -> ImagingCheck:
-    """Compare each channel and metric with the non-outlier baseline range."""
+    """Compare each channel and metric with the non-outlier baseline range.
+
+    A metric is outside when the batch median is, or at least two images are. Only
+    black level, p50 and noise can set `changed`; other metrics are report-only.
+    """
     if ref_imaging.empty or batch_imaging.empty:
         return ImagingCheck()
     outliers = set()
@@ -104,7 +132,7 @@ def imaging_check(ref_imaging: pd.DataFrame, batch_imaging: pd.DataFrame, cfg: d
             if row.channel in medians and abs(row.black_level - medians[row.channel]) > threshold:
                 outliers.add(str(row.image_id))
     baseline = ref_imaging[~ref_imaging["image_id"].isin(outliers)]
-    changed = set()
+    flagged: list[tuple[float, str, bool]] = []
     metric_pad = cfg["imaging_min_pad"]
     for channel, rows in baseline.groupby("channel"):
         # the baseline's own outliers are already reported; they are not a change (baseline vs itself)
@@ -119,8 +147,18 @@ def imaging_check(ref_imaging: pd.DataFrame, batch_imaging: pd.DataFrame, cfg: d
             low, high = float(values.min()), float(values.max())
             pad = max(cfg["imaging_widen"] * (high - low), metric_pad.get(metric, 0))
             batch_values = pd.to_numeric(batch_rows[metric], errors="coerce").dropna()
-            if ((batch_values < low - pad) | (batch_values > high + pad)).any():
-                changed.add(f"{channel}.{metric}")
+            if batch_values.empty:
+                continue
+            outside = (batch_values < low - pad) | (batch_values > high + pad)
+            n_out = int(outside.sum())
+            median = float(batch_values.median())
+            if not (median < low - pad or median > high + pad or n_out >= 2):
+                continue
+            severity = _outside_severity(median, low - pad, high + pad, n_out, len(batch_values))
+            flagged.append((severity, f"{channel}.{metric}", metric in ACQUISITION_METRICS))
+    flagged.sort(key=lambda item: (-item[0], item[1]))
+    changed_metrics = [name for _, name, acquisition in flagged if acquisition]
+    report_metrics = [name for _, name, acquisition in flagged if not acquisition]
     curtained = set()
     curtain_limit = cfg["curtaining_max"]
     if curtain_limit is not None:
@@ -129,8 +167,9 @@ def imaging_check(ref_imaging: pd.DataFrame, batch_imaging: pd.DataFrame, cfg: d
                 images = frame.loc[(frame["channel"] == "BSE")
                                    & (frame["curtaining_index"] > curtain_limit), "image_id"]
                 curtained.update(str(image_id) for image_id in images.dropna())
-    return ImagingCheck(changed=bool(changed), changed_metrics=sorted(changed),
-                        outliers_in_reference=sorted(outliers), curtained_images=sorted(curtained))
+    return ImagingCheck(changed=bool(changed_metrics), changed_metrics=changed_metrics,
+                        report_metrics=report_metrics, outliers_in_reference=sorted(outliers),
+                        curtained_images=sorted(curtained))
 
 
 def evaluate(tables: dict[str, Tables], batch: str, cfg: dict, controls: Controls | None = None) -> Evidence:
@@ -328,12 +367,21 @@ def odd_units(batch_segs: list[Segment], ref_segs: list[Segment], used_keys: lis
         if len(ref_vals) < 3:
             continue
         mean, sd = float(np.mean(ref_vals)), float(np.std(ref_vals, ddof=1))
+        low, high = mean - k * sd, mean + k * sd
         for seg in batch_segs:
             value = seg.values.get(q)
-            if value is not None and not mean - k * sd <= value <= mean + k * sd:
+            if value is not None and not low <= value <= high:
                 out.append(Odd(strip_id=seg.strip_id, image_ids=seg.image_ids, quantity=q,
-                               value=value, range=(mean - k * sd, mean + k * sd)))
+                               value=value, range=clip_reported_range(q, low, high)))
     return out
+
+
+def clip_reported_range(q: str, low: float, high: float) -> tuple[float, float]:
+    """Wording only. The flag above still uses the raw mean ± k SD. Fractions also stop at 1."""
+    low, high = max(0.0, low), max(0.0, high)
+    if unit_of(q) == "fraction":
+        low, high = min(low, 1.0), min(high, 1.0)
+    return (low, high)
 
 
 def units_to_settle(diff: float, sp: float, n1q: int, n2q: int, margin: float,
@@ -416,6 +464,12 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
     verdict, reasons, next_action = verdict_of(differences, drivers, other_status, contra,
                                                odds, pow_, unit, imaging, controls,
                                                batch_new_type_share, stats, cfg)
+    image_uncertainty, sampling_check = sampling_bundle(batch_kpis)
+    _, baseline_check = sampling_bundle(ref_kpis)
+    silicon = sampling_check.get("si_area_frac")
+    baseline_silicon = baseline_check.get("si_area_frac")
+    if silicon is not None and baseline_silicon is not None and baseline_silicon.area_for_half_point_um2:
+        silicon.area_for_half_point_um2 = baseline_silicon.area_for_half_point_um2
 
     def describe(q: str, name: str | None = None) -> Descriptor:
         vals = values_of(batch_drive, q)
@@ -440,6 +494,7 @@ def compare(ref: Tables, batch: Tables, cfg: dict, controls: Controls | None = N
                                 type_shares=[describe(q, q.removeprefix("type_share:"))
                                              for q in type_share_quantities]),
         n_images={"batch": len(batch_kpis), "baseline": len(ref_kpis)},
+        image_uncertainty=image_uncertainty, sampling_check=sampling_check,
         config_version=cfg["version"])
 
 
@@ -447,9 +502,12 @@ def verdict_of(differences: list[Difference], drivers: list[str], other: dict[st
                contra: list[str], odds: list[Odd], pow_: Power, unit: Unit,
                imaging: ImagingCheck, controls: Controls, new_type_share: float | None,
                stats: dict[str, Stats], cfg: dict) -> tuple[str, list[str], str]:
-    """Verdict, reasons in precedence order, and next action from the first trigger."""
-    failed = controls.ran and controls.passed is False
-    failed_names = ", ".join(r.name for r in controls.results if not r.passed)
+    """Verdict, reasons in precedence order, and next action from the first trigger.
+
+    Failed controls are the same gate as controls that have not run: they block ACCEPT and
+    nothing else. They are not a trigger of their own and they do not replace the next action.
+    """
+    failed = controls.ran and not controls.passed
     new_type = new_type_share is not None and new_type_share > cfg["new_type_share"]
     different = [d for d in differences if d.used and d.status == "DIFFERENT" and d.name not in contra]
     unclear = [d for d in differences if d.used and d.status == "UNCLEAR"]
@@ -459,8 +517,6 @@ def verdict_of(differences: list[Difference], drivers: list[str], other: dict[st
     driving = {d.name: d.status for d in differences if d.used}
 
     reasons = []
-    if failed:
-        reasons.append(f"Controls failed ({failed_names}): the method is not validated on this data.")
     if new_type:
         reason = f"Contains a particle type not seen before: {new_type_share:.3%} of the silicon area."
         reasons.append(reason + (" Imaging changed, so check the imaging first." if imaging.changed else ""))
@@ -469,7 +525,7 @@ def verdict_of(differences: list[Difference], drivers: list[str], other: dict[st
         reasons.append(f"{d.name} differs from the reference: {sig(d.batch)} vs {sig(d.reference)}{quantity_unit} "
                        f"(difference {sig(d.difference)}, margin ±{sig(d.margin)}, p = {sig(d.p)}).")
     if imaging.changed:
-        reasons.append(f"Imaging changed ({', '.join(imaging.changed_metrics)}): "
+        reasons.append(f"Imaging changed ({imaging_metric_list(imaging.changed_metrics)}): "
                        f"{', '.join(cfg['imaging_sensitive'])} reported, not used.")
     for o in odds:
         if unit == "image":
@@ -494,14 +550,15 @@ def verdict_of(differences: list[Difference], drivers: list[str], other: dict[st
                            f"{sig(d.interval[1])}{quantity_unit} against a margin of ±{sig(d.margin)}.")
         else:
             reasons.append(f"{d.name} is unclear: not enough {noun} for an interval.")
-    if not controls.ran:
+    if failed:
+        failed_names = ", ".join(r.name for r in controls.results if not r.passed)
+        reasons.append(f"Controls failed ({failed_names}): ACCEPT needs passed controls.")
+    elif not controls.ran:
         reasons.append("Controls not run: ACCEPT needs passed controls.")
     if no_used:
         reasons.append("No key quantity is measured on both sides.")
 
-    if failed:
-        verdict = "INVESTIGATE"
-    elif (new_type and not imaging.changed) or different:
+    if (new_type and not imaging.changed) or different:
         verdict = "REJECT"
     elif reasons:
         verdict = "INVESTIGATE"
@@ -509,9 +566,7 @@ def verdict_of(differences: list[Difference], drivers: list[str], other: dict[st
         verdict = "ACCEPT"
         reasons = ["Every key quantity is within ±δ of the reference and the controls passed."]
 
-    if failed:
-        next_action = "Fix the failing controls before trusting any verdict."
-    elif new_type:
+    if new_type:
         next_action = ("Check the imaging settings, then re-run." if imaging.changed else
                        "Hold the batch and send example crops of the unseen particle type "
                        "to a materials scientist.")
@@ -522,7 +577,7 @@ def verdict_of(differences: list[Difference], drivers: list[str], other: dict[st
         next_action = (f"Hold the batch. Top driver: {d.name} ({sig(d.batch)} vs {sig(d.reference)}"
                        f"{quantity_unit}). Check it at the supplier.")
     elif imaging.changed:
-        next_action = (f"Check the imaging settings ({', '.join(imaging.changed_metrics)}) against "
+        next_action = (f"Check the imaging settings ({imaging_metric_list(imaging.changed_metrics)}) against "
                        f"the reference before trusting {', '.join(cfg['imaging_sensitive'])}.")
     elif odds:
         odd = odds[0]
@@ -548,7 +603,7 @@ def verdict_of(differences: list[Difference], drivers: list[str], other: dict[st
             next_action = (f"Collect ~{m} more {noun} to settle {top.name}." if m is not None else
                            f"{top.name} sits close to the margin: even 20 more {noun} may not settle "
                            f"it; ask whether a customer tolerance exists.")
-    elif not controls.ran:
+    elif not controls.ran or failed:
         next_action = "Run the controls (Sync 2), then re-run."
     elif no_used:
         next_action = "Check that the key descriptors are measured."

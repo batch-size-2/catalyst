@@ -1,5 +1,7 @@
 # Pat's ML work: what is done, what is next, what to clarify
 
+> **Status, 4 Oct 2026 (after the refit and the ground truth).** This file is a dated record; its plans for the freeze are done. Since it was written: the model was refitted (v4.2, Venn–Abers on "Batch_3 or not", no temperature; [MODEL.md](MODEL.md) §8); the three test samples were scored, then their true batches came back (1 of 3 exact, 3 of 3 "Batch_3 or not", 3 of 3 in the prediction set); "which variation" calls are now marked not established ([experiments/T18.md](experiments/T18.md)). The `rules-frozen` tag still holds the 3 Oct model. Current state: [MODEL.md](MODEL.md) and the README.
+
 Written 3 Oct 2026, late evening, after a review of the code, the fitted model and the results; updated at 21:00 with the task designer's replies to our five questions. Plain language. All numbers come from [PLAN_v4.md](PLAN_v4.md) §12–12.2. The order of work for both of us is in PLAN_v4 §4. How the ML code works and what other code can rely on is in [AGENT_HANDOVER.md](AGENT_HANDOVER.md).
 
 ## 1. How we are judged
@@ -12,7 +14,7 @@ The task designer (Steve Kench) said on 3 Oct:
 
 The unseen images:
 
-- **Arrived on 3 Oct:** the folder `Hackathon-Polaron-test` with 9 files, which is **3 samples** (3 detectors each): `3e122cbj`, `fn0mhxef`, `xrv9xvzb`. We had expected nine images, three per batch. They have not been opened; only their file names were listed. They are not linked into `data/` yet.
+- **Arrived on 3 Oct:** the folder `Hackathon-Polaron-test` with 9 files, which is **3 samples** (3 detectors each): `3e122cbj`, `fn0mhxef`, `xrv9xvzb`. We had expected nine images, three per batch. They were scored once after the freeze (`results/Hackathon-Polaron-test.json`); true batches: `3e122cbj` Batch_2, `fn0mhxef` Batch_1, `xrv9xvzb` Batch_3.
 - **Still to come:** "further images coming just before the judging" (Steve, 3 Oct evening). Earlier we were told 2 images at the presentation ("which batch, and why"). How many come, and from which batches, is not known.
 
 Steve's replies of 3 Oct evening, and what each changes (PLAN_v4 §1.4):
@@ -48,7 +50,7 @@ One sample is three files (BSE, ETD or SE, InLens). They are loaded together as 
 
 | What | In plain words |
 |---|---|
-| A model the app can use | `config/attribution_model.json`: deep features, right on 0.64 of held-out strips (shuffled labels give 0.54). **Not frozen** |
+| A model the app can use | `config/attribution_model.json`: deep features, right on 0.64 of held-out strips (shuffled labels give 0.54). Frozen 3 Oct (`rules-frozen`), refitted 4 Oct (v4.2) |
 | Always a bet | Every image gets a batch. Nothing in the output means "no answer" |
 | Two stages | Each call says "Batch_3 or not", then "which other batch", each with its own confidence |
 | Confidence that is checked | Probabilities are rescaled using strips the model did not see. Each call has a tier (high / medium / low) and a record, e.g. "calls in this tier were right 7 of 9 times" |
@@ -57,7 +59,7 @@ One sample is three files (BSE, ETD or SE, InLens). They are loaded together as 
 | "Unfamiliar" fixed | It now means "outside the batch it was assigned to". The old meaning is kept as `outside_baseline` |
 | Staged model (option) | One model for "Batch_3 or not", a second for "which other batch" |
 | Many rehearsals | The nine-image rehearsal can be repeated over many draws, to see the spread |
-| Tests | 67 pass. The full evaluation reproduces every earlier number |
+| Tests | 67 passed on 3 Oct (144 on `main` now). The full evaluation reproduces every earlier number |
 
 PLAN_v4 is now the only plan and is self-contained (v0–v3 were deleted; they are in git history). It carries Rule 11 "always a bet", the amended Rule 2 and the results in §12.2. Patrik has agreed to it.
 
@@ -165,8 +167,8 @@ Still open:
 
 ### For Pat to decide
 
-- Whether to commit the fitted model now (it is not frozen) so the app's Sort view works.
-- Decided (3 Oct, 21:30): the 3 dropped samples are scored right after the freeze, once. They have not been opened; only their file names were listed.
+- Decided: the model was committed and frozen on 3 Oct, and refitted on 4 Oct.
+- Decided (3 Oct, 21:30): the 3 dropped samples are scored right after the freeze, once. Done.
 
 ## 7. Later, if time allows
 

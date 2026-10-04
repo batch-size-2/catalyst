@@ -22,8 +22,8 @@ from qc.explain import load_dictionary
 from qc.io import DETECTOR_ALIASES, LAYER_RGB, PREVIEW_SIZES, field_paths, layer_png, preview_png
 from qc.provenance import frozen_config, model_status, rules_frozen, verify
 from qc.run import (
-    Progress, RulesFrozen, attribute, attribution_module, load_evidence, measure_folder, read_json, run, set_baseline,
-    tile_particles,
+    Progress, RulesFrozen, attribute, attribution_module, identify_ready, load_evidence, measure_folder, read_json,
+    run, set_baseline, tile_particles,
 )
 from qc.schema import (
     ATTRIBUTION_DIR, EVIDENCE_DIR, KPI_TABLE, KPI_UNITS, OUT_DIR, Evidence, Verdict,
@@ -103,6 +103,12 @@ def summary_of(path: Path) -> dict:
     return {"baseline": baseline, "verdict": verdict, "created_at": created if isinstance(created, str) else None}
 
 
+@app.get("/api/health")
+def health() -> dict:
+    """Model file, deep stack, and cached DINOv2 weights. The Identify screen reads this before an upload."""
+    return identify_ready()
+
+
 @app.get("/api/config")
 def config() -> dict:
     return load_config()
@@ -160,7 +166,7 @@ def evidence(batch: str, baseline: str | None = None) -> Evidence:
 
 @app.get("/api/guide/{batch}")
 def guide(batch: str, baseline: str | None = None, source: str = "template") -> dict:
-    """Summary and walkthrough over the evidence (qc/guide.py). Free: the fixed template, or with
+    """Summary, walkthrough and four audience readings (qc/guide.py). Free: the fixed template, or with
     source=claude Claude's cached version (else the template with a fallback_reason)."""
     if source not in ("claude", "template"):
         raise HTTPException(400, "source must be claude or template")
@@ -169,7 +175,7 @@ def guide(batch: str, baseline: str | None = None, source: str = "template") -> 
 
 @app.post("/api/guide/{batch}")
 def ask_claude(batch: str, baseline: str | None = None) -> dict:
-    """Ask Claude for the summary and walkthrough (a paid call, cached per evidence). Never changes the verdict."""
+    """Ask Claude for the summary, walkthrough and audience readings (one paid call, cached per evidence). Never changes the verdict."""
     return guide_module.guide(read_evidence(batch, baseline), "claude", ask=True)
 
 
@@ -233,6 +239,10 @@ def tiles() -> list[dict]:
                 "kpis": None if row is None else {
                     k: (None if (v := getattr(row, k, None)) is None or pd.isna(v) else float(v))
                     for k in KPI_UNITS
+                },
+                "sampling": None if row is None else {
+                    k: (None if (v := getattr(row, k, None)) is None or pd.isna(v) else float(v))
+                    for k in ("si_area_frac_sd", "porosity_apparent_sd")
                 },
                 "has_mask": mask_path(folder.name, image_id).exists(),
                 "has_layers": phases_path(folder.name, image_id).exists(),

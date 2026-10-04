@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -10,7 +11,7 @@ import qc.guide as guide_module
 from qc.api import app
 from qc.decide import evaluate, read_tables
 from qc.explain import explain
-from qc.guide import SLOT, check, guide, problem, slots, template, whatifs
+from qc.guide import SLOT, call_claude, check, guide, parse_claude, problem, slots, template, whatifs
 from qc.schema import Evidence, evidence_path, load_config
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -57,6 +58,8 @@ def test_slots_come_from_the_evidence(evidence, table):
 def test_template_uses_only_known_slots_and_passes_its_own_rules(evidence, table):
     plain = template(evidence, DICT, table, [], CFG)
     assert plain["source"] == "template" and [s["target"] for s in plain["steps"]] == ["verdict", "moved", "tiles", "next"]
+    for role in ("operator", "engineer", "scientist", "manager"):
+        assert plain["audiences"][role] == {"source": "template", "sentences": list(getattr(evidence.explanations, role))}
     texts = [*plain["summary"], *(s for st in plain["steps"][:3] for s in st["sentences"])]
     used = {f"{k}:{v}" for t in texts for k, v in SLOT.findall(t)}
     assert used and used <= set(plain["slots"])
@@ -150,10 +153,98 @@ def test_whatif_recomputes_without_exactly_the_named_tiles(in_tmp):
     assert whatifs(ev, cfg) == []  # the table moved on: no what-if rather than a wrong one
 
 
+def _asked(evidence, monkeypatch, body):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    monkeypatch.setattr(guide_module, "call_claude", lambda _body: body)
+    return guide(evidence, "claude", ask=True)
+
+
+def test_audience_slots_are_filled_and_a_made_up_number_falls_back(evidence, monkeypatch, in_tmp):
+    """One call writes all four readings. Slots stay markers until Catalyst fills them; a typed number is dropped."""
+    Path("config/kpi_dictionary.yaml").write_text((Path(__file__).resolve().parents[1] / "config/kpi_dictionary.yaml").read_text())
+    steps = evidence.explanations.next_steps
+    summary = ["The silicon-to-graphite ratio leans higher, {diff:si_graphite_ratio}, but it is not settled."]
+    walk = [{"target": "moved", "title": "The biggest move", "sentences": ["It moved {shift:si_graphite_ratio}."]}]
+    audiences = {
+        "operator": [steps[0], steps[1]],
+        "engineer": [
+            "Silicon-to-graphite ratio moved {diff:si_graphite_ratio} and is not settled.",
+            "Possible causes to check: more silicon dosed into the formulation.",
+        ],
+        "scientist": [
+            "Silicon-to-graphite ratio is {diff:si_graphite_ratio}, interval {interval:si_graphite_ratio}.",
+            "Median silicon particle size is {diff:si_d50_um} and is not settled.",
+        ],
+        "manager": [
+            "Waiting leaves silicon-to-graphite ratio not settled at {diff:si_graphite_ratio}.",
+            "The cost of waiting is {count:unclear} unsettled properties.",
+        ],
+    }
+    out = _asked(evidence, monkeypatch, {"summary": summary, "steps": walk, "audiences": audiences})
+    assert out["source"] == "claude"
+    assert out["audiences"]["engineer"]["source"] == "claude"
+    assert "{diff:si_graphite_ratio}" in out["audiences"]["engineer"]["sentences"][0]
+    assert out["slots"]["diff:si_graphite_ratio"]["text"] == "0.090 → 0.115"
+    assert out["slots"]["interval:si_graphite_ratio"]["text"]
+    assert "0.025" not in json.dumps(out["audiences"])
+
+    for path in Path("out/guide").rglob("*.json"):
+        path.unlink()
+    invented = {**audiences, "scientist": [
+        "Silicon-to-graphite ratio is {diff:si_graphite_ratio} and is not settled.",
+        "The interval runs from -0.005 to 0.055.",
+    ]}
+    rejected = _asked(evidence, monkeypatch, {"summary": summary, "steps": walk, "audiences": invented})
+    assert rejected["audiences"]["scientist"]["source"] == "template"
+    assert rejected["audiences"]["scientist"]["sentences"] == list(evidence.explanations.scientist)
+    assert "The interval runs from -0.005 to 0.055." not in rejected["audiences"]["scientist"]["sentences"]
+    assert rejected["audiences"]["engineer"]["source"] == "claude"
+
+
 def test_without_a_key_the_template_answers(evidence, monkeypatch, in_tmp):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
     out = guide(evidence, "claude", ask=True)
     assert out["source"] == "template" and "ANTHROPIC_API_KEY" in out["fallback_reason"]
+    assert out["audiences"]["operator"] == {"source": "template", "sentences": list(evidence.explanations.operator)}
+
+
+def test_refusal_is_cached_as_the_template(evidence, monkeypatch, in_tmp):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    response = SimpleNamespace(stop_reason="refusal", content=[])
+    with pytest.raises(ValueError, match="refused"):
+        parse_claude(response)
+    monkeypatch.setattr(guide_module, "call_claude", lambda body: parse_claude(response))
+    out = guide(evidence, "claude", ask=True)
+    assert out["source"] == "template" and "refused" in out["fallback_reason"]
+    monkeypatch.setattr(guide_module, "call_claude", lambda body: (_ for _ in ()).throw(AssertionError("cached")))
+    again = guide(evidence, "claude")
+    assert again["fallback_reason"] == out["fallback_reason"]
+
+
+def test_call_sets_effort_and_does_not_disable_thinking(monkeypatch):
+    captured = {}
+
+    class Messages:
+        @staticmethod
+        def create(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                stop_reason="end_turn",
+                content=[SimpleNamespace(type="text", text='{"summary": ["Hi."], "steps": []}')],
+            )
+
+    class Client:
+        def __init__(self, **kwargs):
+            self.messages = Messages()
+
+    monkeypatch.setitem(__import__("sys").modules, "anthropic", SimpleNamespace(Anthropic=Client))
+    out = call_claude({"slots": []})
+    assert out == {"summary": ["Hi."], "steps": []}
+    assert captured["model"] == guide_module.MODEL
+    assert captured["output_config"]["effort"] == "high"
+    assert captured["output_config"]["format"]["type"] == "json_schema"
+    assert "thinking" not in captured
 
 
 def test_claude_is_called_only_when_asked_then_cached(evidence, monkeypatch, in_tmp):

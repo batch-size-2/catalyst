@@ -157,6 +157,14 @@ export default function Settings({ onSaved }: { onSaved?: () => void }) {
         </div>
       )}
 
+      {settings.data && (
+        <p className="m-0 text-[13px] leading-normal text-cx-muted">
+          {settings.data.claude.available
+            ? `Written summaries can use Claude (${settings.data.claude.model}).`
+            : settings.data.claude.reason}
+        </p>
+      )}
+
       {settings.data && !frozen && (
         <div role="note" className="flex items-start gap-3 rounded-[14px] border border-cx-line bg-cx-surface px-4 py-3.5 text-[13px] leading-normal text-cx-muted">
           <LockIcon />

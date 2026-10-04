@@ -2,10 +2,11 @@
 
 Catalyst decides; Claude points and explains. The verdict, every status and every number come from
 the evidence. Claude reads the evidence and the dictionary entries (never images) and writes a short
-summary and a walkthrough. It can't write numbers: each one is a slot such as {diff:si_graphite_ratio}
-that Catalyst fills in from the evidence. A sentence that breaks a house rule is dropped (see
-problem()); two drops, no API key or any error fall back to the fixed template below, which uses the
-same slots.
+summary, a walkthrough and four short audience readings. It can't write numbers: each one is a
+slot such as {diff:si_graphite_ratio} that Catalyst fills in from the evidence. A sentence that breaks
+a house rule is dropped (see problem()); two drops, no API key or any error fall back to the fixed
+template below, which uses the same slots. Each audience falls back on its own to the fixed wording
+in qc.explain.
 
 The one what-if Catalyst computes for it: the batch's means with its odd tiles left out (qc.decide.compare).
 """
@@ -25,10 +26,15 @@ from qc.explain import (
 )
 from qc.schema import DETECTORS, KPI_TABLE, KPI_UNITS, Evidence, Tables, guide_path, load_config
 
-MODEL = os.environ.get("CATALYST_CLAUDE_MODEL", "claude-opus-5")  # PLAN_v4 §3.10: Claude Opus
-PROMPT_VERSION = 2
+MODEL = os.environ.get("CATALYST_CLAUDE_MODEL", "claude-opus-5-5")  # current Opus; override with CATALYST_CLAUDE_MODEL
+# Opus 5.5 defaults to medium. High is set on purpose: the answer is short and the house rules are tight.
+# A live medium-vs-high comparison was not run (no API key, and spending credits isn't allowed).
+EFFORT = "high"
+PROMPT_VERSION = 4  # audiences joined the same call; older caches are not reused
 TIMEOUT_S = 90
 TARGETS = ("verdict", "moved", "tiles", "next")
+AUDIENCES = ("operator", "engineer", "scientist", "manager")
+MIN_AUDIENCE, MAX_AUDIENCE = 2, 3
 TITLES = {"verdict": "What decided it", "moved": "The biggest move", "tiles": "Where it comes from",
           "next": "What to do next"}
 MAX_WORDS, MAX_SUMMARY, MAX_STEPS, MAX_STEP_SENTENCES, MAX_DROPS = 28, 3, 4, 2, 2
@@ -62,6 +68,12 @@ Write JSON that matches the schema:
 - steps: at most 4 walkthrough steps, in this order when they apply: "verdict" (why the rules gave
   this verdict), "moved" (the biggest move), "tiles" (which tiles carry it), "next" (what to do next).
   Each step has a title of at most 5 words and 1 or 2 sentences.
+- audiences: four readings of the same findings, 2 or 3 short sentences each.
+  operator: what to do now. Quote `next_steps`; do not invent an action.
+  engineer: what moved and what to check in the process. A cause may only repeat a dictionary
+  if_higher, if_lower or supplier_check, introduced as a possible cause to check.
+  scientist: the measurements, with their intervals, using the diff and interval slots.
+  manager: the stakes, the risk and the cost of waiting. Never name the verdict.
 
 House rules (a sentence that breaks one is deleted before anyone sees it):
 - Never write a number yourself, neither as digits nor as words ("one", "two", "both", "half"...).
@@ -93,8 +105,14 @@ SCHEMA = {
             "required": ["target", "title", "sentences"],
             "additionalProperties": False,
         }},
+        "audiences": {
+            "type": "object",
+            "properties": {role: {"type": "array", "items": {"type": "string"}} for role in AUDIENCES},
+            "required": list(AUDIENCES),
+            "additionalProperties": False,
+        },
     },
-    "required": ["summary", "steps"],
+    "required": ["summary", "steps", "audiences"],
     "additionalProperties": False,
 }
 
@@ -270,7 +288,7 @@ def template(evidence: Evidence, dictionary: dict, table: dict, ifs: list[dict],
         steps.append(step("tiles", lines))
     steps.append(step("next", evidence.explanations.next_steps[:MAX_STEP_SENTENCES] or [evidence.next_action],
                       "evidence · next steps"))
-    return result("template", None, summary, steps, table)
+    return result("template", None, summary, steps, table, audiences=audience_fallback(evidence))
 
 
 def step(target: str, sentences: list[str], source: str | None = None, title: str | None = None) -> dict:
@@ -278,16 +296,24 @@ def step(target: str, sentences: list[str], source: str | None = None, title: st
             "source": source}
 
 
+def audience_fallback(evidence: Evidence) -> dict:
+    """Today's fixed audience texts. Claude's readings replace an audience only when they pass the checks."""
+    texts = evidence.explanations
+    return {role: {"source": "template", "sentences": list(getattr(texts, role))} for role in AUDIENCES}
+
+
 def result(source: str, model: str | None, summary: list[str], steps: list[dict], table: dict,
-           dropped: list[str] | None = None, fallback: str | None = None) -> dict:
-    texts = [*summary, *(s for st in steps for s in st["sentences"])]
+           dropped: list[str] | None = None, fallback: str | None = None, audiences: dict | None = None) -> dict:
+    audiences = audiences or {}
+    texts = [*summary, *(s for st in steps for s in st["sentences"]),
+             *(s for block in audiences.values() for s in block["sentences"])]
     used = {f"{kind}:{key}" for text in texts for kind, key in SLOT.findall(text)}
     for st in steps:
         if not st.get("source"):
             sources = dict.fromkeys(table[f"{k}:{v}"]["source"] for s in st["sentences"] for k, v in SLOT.findall(s))
             st["source"] = " + ".join(list(sources)[:2]) or None
     return {"source": source, "model": model, "fallback_reason": fallback, "summary": summary, "steps": steps,
-            "slots": {k: v for k, v in table.items() if k in used},
+            "audiences": audiences, "slots": {k: v for k, v in table.items() if k in used},
             "checks": {"numbers": sum(len(SLOT.findall(t)) for t in texts), "dropped": dropped or []}}
 
 
@@ -376,6 +402,70 @@ def status_problem(text: str, table: dict, evidence: Evidence, dictionary: dict)
     return None
 
 
+CAUSE = re.compile(r"\b(causes?|because|due to)\b", re.I)
+
+
+def phrase_from(text: str, allowed: list[str], min_words: int = 4) -> bool:
+    """True when `text` repeats a run of words from an allowed sentence."""
+    def words(value: str) -> list[str]:
+        return re.sub(r"[^a-z0-9 ]+", " ", value.lower()).split()
+
+    hay = " ".join(words(text))
+    for source in allowed:
+        src = words(str(source))
+        if len(src) < 3:
+            continue
+        need = min(min_words, len(src))
+        for i in range(len(src) - need + 1):
+            if " ".join(src[i:i + need]) in hay:
+                return True
+    return False
+
+
+def dictionary_lines(evidence: Evidence, dictionary: dict) -> list[str]:
+    lines = []
+    for d in evidence.differences:
+        item = entry(d.name, dictionary)
+        for key in ("if_higher", "if_lower", "supplier_check"):
+            if item.get(key):
+                lines.append(str(item[key]))
+    return lines
+
+
+def audience_problem(text: str, table: dict, evidence: Evidence, dictionary: dict, role: str) -> str | None:
+    """The summary's house rules, plus: operator actions from next_steps, engineer causes from the dictionary."""
+    if why := problem(text, table, evidence, dictionary):
+        return why
+    if role == "operator" and not phrase_from(text, evidence.explanations.next_steps):
+        return "a next step that isn't listed"
+    if role == "engineer" and CAUSE.search(text) and not phrase_from(text, dictionary_lines(evidence, dictionary)):
+        return "a cause that isn't in the dictionary"
+    return None
+
+
+def check_audiences(raw, table: dict, evidence: Evidence, dictionary: dict) -> tuple[dict, list[str]]:
+    """Keep 2–3 checked sentences per reader. A short or broken reading falls back to the fixed text."""
+    dropped = []
+    raw = raw if isinstance(raw, dict) else {}
+    fallback = audience_fallback(evidence)
+    out = {}
+    for role in AUDIENCES:
+        kept = []
+        for sentence_ in raw.get(role) or []:
+            sentence_ = str(sentence_).strip()
+            if not sentence_:
+                continue
+            if why := audience_problem(sentence_, table, evidence, dictionary, role):
+                dropped.append(f"{role}: {why}: {sentence_[:80]}")
+            elif len(kept) < MAX_AUDIENCE:
+                kept.append(sentence_)
+        if len(kept) >= MIN_AUDIENCE:
+            out[role] = {"source": "claude", "sentences": kept}
+        else:
+            out[role] = fallback[role]
+    return out, dropped
+
+
 def check(raw: dict, table: dict, evidence: Evidence, dictionary: dict) -> tuple[list[str], list[dict], list[str]]:
     """Claude's JSON with every rule-breaking sentence dropped; returns summary, steps, drop notes."""
     dropped = []
@@ -435,22 +525,47 @@ def payload(evidence: Evidence, dictionary: dict, table: dict, ifs: list[dict]) 
 
 
 def available() -> str | None:
-    """None when Claude can be called, else why not."""
-    return None if os.environ.get("ANTHROPIC_API_KEY") else "Claude isn't configured: set ANTHROPIC_API_KEY for the API process."
+    """None when a Claude client has credentials, else why not. Building the client does not call the API.
+
+    The SDK resolves ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, and an `ant auth login` profile.
+    """
+    try:
+        import anthropic
+    except ImportError as error:
+        return f"Claude isn't configured: {error}. Set ANTHROPIC_API_KEY for the API process."
+    try:
+        client = anthropic.Anthropic(timeout=TIMEOUT_S, max_retries=0)
+    except Exception as error:
+        return (f"Claude isn't configured: {type(error).__name__}: {error}. "
+                "Set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN for the API process.")
+    if client.api_key or client.auth_token or getattr(client, "credentials", None):
+        return None
+    return ("Claude isn't configured: set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN for the API process "
+            "(an ant auth login profile counts too).")
+
+
+def parse_claude(response) -> dict:
+    """Claude's message as JSON. A refusal is unusable text, not a JSON document."""
+    text = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
+    if response.stop_reason == "refusal":
+        raise ValueError("Claude refused")
+    if response.stop_reason == "max_tokens":
+        raise ValueError("Claude's answer was cut off")
+    if not text.strip():
+        raise ValueError("Claude returned no text")
+    return json.loads(text)
 
 
 def call_claude(body: dict) -> dict:
     import anthropic
 
+    # thinking is left unset: Opus 5.5 rejects thinking: {"type": "disabled"}.
     response = anthropic.Anthropic(timeout=TIMEOUT_S, max_retries=1).messages.create(
         model=MODEL, max_tokens=4000, system=SYSTEM,
         messages=[{"role": "user", "content": json.dumps(body, ensure_ascii=False)}],
-        output_config={"format": {"type": "json_schema", "schema": SCHEMA}},
+        output_config={"effort": EFFORT, "format": {"type": "json_schema", "schema": SCHEMA}},
     )
-    text = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
-    if response.stop_reason == "max_tokens":
-        raise ValueError("Claude's answer was cut off")
-    return json.loads(text)
+    return parse_claude(response)
 
 
 def read_cache(path: Path, key: str) -> dict | None:
@@ -506,10 +621,11 @@ def guide(evidence: Evidence, source: str = "template", ask: bool = False) -> di
         except Exception as error:  # network, quota, auth: the template still answers; try again later
             return plain | {"fallback_reason": f"Claude call failed: {type(error).__name__}: {error}"[:300]}
         summary, steps, dropped = check(raw, table, evidence, dictionary)
+        audiences, audience_dropped = check_audiences(raw.get("audiences"), table, evidence, dictionary)
         if len(dropped) >= MAX_DROPS or not summary or not steps:
             out = plain | {"fallback_reason": f"Claude's text broke the house rules {len(dropped)} times",
                            "checks": plain["checks"] | {"dropped": dropped}}
         else:
-            out = result("claude", MODEL, summary, steps, table, dropped)
+            out = result("claude", MODEL, summary, steps, table, dropped + audience_dropped, audiences=audiences)
         write_cache(cache, key, out)
     return out

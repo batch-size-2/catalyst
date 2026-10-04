@@ -55,8 +55,17 @@ export interface Odd {
 export interface ImagingCheck {
   changed: boolean;
   changed_metrics: string[];
+  report_metrics?: string[];
   outliers_in_reference: string[];
   curtained_images: string[];
+}
+
+export interface Health {
+  ok: boolean;
+  model_present: boolean;
+  deep_importable: boolean;
+  dinov2_cached: boolean;
+  message: string | null;
 }
 
 export interface ControlResult {
@@ -136,8 +145,26 @@ export interface Evidence {
   fingerprint: Fingerprint;
   n_images: Record<string, number>;
   explanations: Explanations;
+  image_uncertainty?: ImageUncertainty[];
+  sampling_check?: Partial<Record<"si_area_frac" | "porosity_apparent", SamplingQuantity>>;
   provenance: Provenance | null;
   config_version: string;
+}
+
+export interface ImageUncertainty {
+  image_id: string;
+  strip_id: string | null;
+  si_area_frac: number | null;
+  si_area_frac_sd: number | null;
+  porosity_apparent: number | null;
+  porosity_apparent_sd: number | null;
+}
+
+export interface SamplingQuantity {
+  observed_sd: number | null;
+  predicted_sd: number | null;
+  ratio: number | null;
+  area_for_half_point_um2: number | null;
 }
 
 export interface ReasonClause {
@@ -176,10 +203,20 @@ export interface TierRecord {
   n: number;
 }
 
+/** A stage's held-out record and whether it beats guessing (one-sided binomial p < 0.05). */
+export interface StageRecord extends TierRecord {
+  chance: number;
+  p_value: number;
+  established: boolean;
+}
+
 export interface StageCall {
   call: string;
   confidence: number;
   p_baseline?: number;
+  interval?: [number, number];  // stage_baseline only: the range of `confidence` the held-out tiles allow (Venn–Abers)
+  record?: StageRecord;         // this stage's held-out record; established = false means the call is a lean, not a finding
+  note?: string;                // plain-language reason when the stage is not established
 }
 
 export interface AttributedImage {
@@ -206,13 +243,35 @@ export interface AttributedImage {
   [key: `p_${string}`]: number | null;
 }
 
+/** Held-out record of the calibrated calls (each strip calibrated with the other strips' tiles). */
 export interface Calibration {
-  temperature: number;
+  method?: "venn_abers" | "none";
+  temperature?: number;         // only in runs made before the Venn–Abers calibration
   n: number;
   accuracy?: number;
+  balanced_accuracy?: number;
+  log_loss?: number;
+  raw_log_loss?: number;        // the same calls without calibration
   tiers: ({ tier: ConfidenceTier; min_confidence: number } & TierRecord)[];
-  conformal: { alpha: number; qhat: number; n: number } | null;
+  venn_abers?: { scores: number[]; labels: number[]; mean_width: number } | null;
+  conformal: { alpha: number; qhat: number; n: number; coverage?: number; mean_size?: number } | null;
   stages: { baseline?: TierRecord; variation?: TierRecord };
+}
+
+export interface ImportantFeature {
+  feature: string;
+  label: string;
+  share: number;                // of the stage's total |coefficient × z| over its training tiles
+  higher_means: string;         // the call a higher value pulls towards
+  related?: { feature: string; label: string; r: number }[];  // deep components: the named features they move with
+  imaging?: { feature: string; label: string; r: number }[];  // deep components: the imaging descriptors they move with
+}
+
+/** What one stage of the model leans on overall (explain.importance in the model file). */
+export interface StageImportance {
+  n_features: number;
+  families: Record<string, number>;
+  features: ImportantFeature[];
 }
 
 export interface AttributionModelInfo {
@@ -224,6 +283,7 @@ export interface AttributionModelInfo {
   families?: string[] | null;
   staged?: string[][] | null;
   calibration?: Calibration | null;
+  importance?: Partial<Record<"all" | "baseline" | "variation", StageImportance>> | null;
 }
 
 /** GET /api/attribution-model: the model the next run will use. */
@@ -330,12 +390,18 @@ export interface GuideStep {
   source: string | null;
 }
 
+export interface GuideAudience {
+  source: "claude" | "template";
+  sentences: string[];
+}
+
 export interface Guide {
   source: "claude" | "template";
   model: string | null;
   fallback_reason: string | null;
   summary: string[];
   steps: GuideStep[];
+  audiences?: Partial<Record<"operator" | "engineer" | "scientist" | "manager", GuideAudience>>;
   slots: Record<string, GuideSlot>;
   checks: { numbers: number; dropped: string[] };
 }
@@ -347,6 +413,7 @@ export interface Tile {
   strip_id: string | null;
   detectors: string[];
   kpis: Record<string, number | null> | null;
+  sampling?: { si_area_frac_sd: number | null; porosity_apparent_sd: number | null } | null;
   has_mask: boolean;
   has_layers: boolean;  // per-phase layers exist (GET /api/layers/{batch}/{image_id}/{silicon|pore|binder})
 }

@@ -1,5 +1,5 @@
 {
- "run": "example_drop",
+ "run": "Hackathon-Polaron-test",
  "model": {
   "fitted_at": "2026-10-04T10:57:27",
   "classes": [
@@ -407,284 +407,14 @@
  },
  "images": [
   {
-   "image_id": "0grcilhi",
-   "strip_id": "1904_1015978",
-   "p_Batch_1": 0.0476572992227571,
-   "p_Batch_2": 0.05293441675357432,
-   "p_Batch_3": 0.8994082840236686,
-   "predicted": "Batch_3",
-   "confidence": 0.8994082840236686,
-   "confidence_raw": 0.9915789024937153,
-   "confidence_tier": "high",
-   "confidence_record": {
-    "right": 9,
-    "n": 9
-   },
-   "stage_baseline": {
-    "call": "Batch_3",
-    "confidence": 0.8994082840236686,
-    "p_baseline": 0.8994082840236686,
-    "interval": [
-     0.8881578947368421,
-     1.0
-    ]
-   },
-   "stage_variation": null,
-   "prediction_set": [
-    "Batch_3"
-   ],
-   "reasons": [
-    {
-     "feature": "tex_etd_lbp3",
-     "z": 1.77,
-     "contribution": 0.088,
-     "stage": "baseline",
-     "label": "ETD fine texture: share of corners",
-     "text": "ETD fine texture: share of corners: 1.8 SD above Batch_3",
-     "baseline_z": 1.77,
-     "closest_batch": "Batch_3"
-    },
-    {
-     "feature": "tex_etd_lbp6",
-     "z": 1.34,
-     "contribution": 0.083,
-     "stage": "baseline",
-     "label": "ETD fine texture: share of shallow curves",
-     "text": "ETD fine texture: share of shallow curves: 1.1 SD above Batch_3",
-     "baseline_z": 1.07,
-     "closest_batch": "Batch_3"
-    },
-    {
-     "feature": "tex_inlens_lbp5",
-     "z": 1.84,
-     "contribution": 0.082,
-     "stage": "baseline",
-     "label": "InLens fine texture: share of soft corners",
-     "text": "InLens fine texture: share of soft corners: 1.7 SD above Batch_3",
-     "baseline_z": 1.66,
-     "closest_batch": "Batch_3"
-    },
-    {
-     "feature": "reg_pore_frac_p50",
-     "z": 1.86,
-     "contribution": 0.073,
-     "stage": "baseline",
-     "label": "pore fraction, typical region",
-     "text": "pore fraction, typical region: 1.9 SD above Batch_3",
-     "baseline_z": 1.94,
-     "closest_batch": "Batch_3"
-    },
-    {
-     "feature": "tex_bse_glcm_correlation_d4",
-     "z": 1.66,
-     "contribution": 0.07,
-     "stage": "baseline",
-     "label": "BSE texture pattern regularity at 0.2 um",
-     "text": "BSE texture pattern regularity at 0.2 um: 1.6 SD above Batch_3",
-     "baseline_z": 1.61,
-     "closest_batch": "Batch_3"
-    }
-   ],
-   "baseline_distance": 1.238618414870571,
-   "baseline_threshold": 3.8706852200461483,
-   "outside_baseline": false,
-   "n_deviating": 18,
-   "deviations": [
-    {
-     "feature": "reg_graphite_frac_cv",
-     "label": "graphite fraction, relative spread between regions",
-     "z": 3.93,
-     "direction": "above"
-    },
-    {
-     "feature": "kpi_pore_chord_um",
-     "label": "pore chord length",
-     "z": 3.62,
-     "direction": "above"
-    },
-    {
-     "feature": "reg_graphite_frac_sd",
-     "label": "graphite fraction, spread between regions",
-     "z": 3.57,
-     "direction": "above"
-    },
-    {
-     "feature": "reg_graphite_chord_um_p90",
-     "label": "graphite chord length, highest regions",
-     "z": -3.08,
-     "direction": "below"
-    },
-    {
-     "feature": "tex_etd_glcm_correlation_d4",
-     "label": "ETD texture pattern regularity at 0.2 um",
-     "z": 3.04,
-     "direction": "above"
-    }
-   ],
-   "predicted_distance": 1.238618414870571,
-   "predicted_threshold": 3.8706852200461483,
-   "unfamiliar": false
-  },
-  {
-   "image_id": "3806gxp0",
-   "strip_id": "2048_1016012",
-   "p_Batch_1": 0.41793547133620956,
-   "p_Batch_2": 0.472899128544845,
-   "p_Batch_3": 0.10916540011894536,
-   "predicted": "Batch_2",
-   "confidence": 0.472899128544845,
-   "confidence_raw": 0.47166919114724887,
-   "confidence_tier": "low",
-   "confidence_record": {
-    "right": 6,
-    "n": 11
-   },
-   "stage_baseline": {
-    "call": "not Batch_3",
-    "confidence": 0.8908345998810546,
-    "p_baseline": 0.10916540011894536,
-    "interval": [
-     0.8852459016393442,
-     0.9364406779661016
-    ]
-   },
-   "stage_variation": {
-    "call": "Batch_2",
-    "confidence": 0.5308495298767999
-   },
-   "prediction_set": [
-    "Batch_2",
-    "Batch_1"
-   ],
-   "reasons": [
-    {
-     "feature": "tex_inlens_glcm_contrast_aniso",
-     "z": 2.5,
-     "contribution": 0.086,
-     "stage": "baseline",
-     "label": "InLens texture local contrast horizontal vs vertical",
-     "text": "InLens texture local contrast horizontal vs vertical: 2.5 SD above Batch_3",
-     "baseline_z": 2.48,
-     "closest_batch": "Batch_2"
-    },
-    {
-     "feature": "tex_bse_lbp8",
-     "z": 1.3,
-     "contribution": 0.086,
-     "stage": "baseline",
-     "label": "BSE fine texture: share of flat areas and dark specks",
-     "text": "BSE fine texture: share of flat areas and dark specks: 1.6 SD above Batch_3",
-     "baseline_z": 1.58,
-     "closest_batch": "Batch_1"
-    },
-    {
-     "feature": "deep_pc03",
-     "z": -1.64,
-     "contribution": 0.044,
-     "stage": "variation",
-     "label": "DINOv2 image pattern 03",
-     "text": "DINOv2 image pattern 03, which moves with InLens fine texture: share of straight edges: 0.8 SD above Batch_3 (r = -0.72); InLens fine texture: share of irregular, noisy patterns: 0.7 SD below Batch_3 (r = +0.65); InLens fine texture: share of dark notches: 1.5 SD below Batch_3 (r = +0.63)",
-     "related": [
-      {
-       "feature": "tex_inlens_lbp4",
-       "label": "InLens fine texture: share of straight edges",
-       "value": 0.09848665558462727,
-       "baseline_z": 0.76,
-       "direction": "above",
-       "closest_batch": "Batch_3",
-       "text": "InLens fine texture: share of straight edges: 0.8 SD above Batch_3",
-       "r": -0.72
-      },
-      {
-       "feature": "tex_inlens_lbp9",
-       "label": "InLens fine texture: share of irregular, noisy patterns",
-       "value": 0.19436803800692254,
-       "baseline_z": -0.7,
-       "direction": "below",
-       "closest_batch": "Batch_3",
-       "text": "InLens fine texture: share of irregular, noisy patterns: 0.7 SD below Batch_3",
-       "r": 0.65
-      },
-      {
-       "feature": "tex_inlens_lbp7",
-       "label": "InLens fine texture: share of dark notches",
-       "value": 0.09328480592764869,
-       "baseline_z": -1.46,
-       "direction": "below",
-       "closest_batch": "Batch_3",
-       "text": "InLens fine texture: share of dark notches: 1.5 SD below Batch_3",
-       "r": 0.63
-      }
-     ]
-    },
-    {
-     "feature": "deep_pc07",
-     "z": -0.91,
-     "contribution": 0.033,
-     "stage": "variation",
-     "label": "DINOv2 image pattern 07",
-     "text": "DINOv2 image pattern 07: an overall look of the InLens image that no single named measurement captures",
-     "related": []
-    },
-    {
-     "feature": "deep_pc10",
-     "z": 2.12,
-     "contribution": -0.024,
-     "stage": "variation",
-     "label": "DINOv2 image pattern 10",
-     "text": "DINOv2 image pattern 10: an overall look of the InLens image that no single named measurement captures",
-     "related": []
-    }
-   ],
-   "baseline_distance": 1.1154049130177297,
-   "baseline_threshold": 3.8706852200461483,
-   "outside_baseline": false,
-   "n_deviating": 13,
-   "deviations": [
-    {
-     "feature": "tex_etd_glcm_contrast_aniso",
-     "label": "ETD texture local contrast horizontal vs vertical",
-     "z": 4.33,
-     "direction": "above"
-    },
-    {
-     "feature": "tex_etd_glcm_correlation_aniso",
-     "label": "ETD texture pattern regularity horizontal vs vertical",
-     "z": -3.19,
-     "direction": "below"
-    },
-    {
-     "feature": "tex_inlens_glcm_correlation_aniso",
-     "label": "InLens texture pattern regularity horizontal vs vertical",
-     "z": -3.12,
-     "direction": "below"
-    },
-    {
-     "feature": "reg_graphite_chord_um_p90",
-     "label": "graphite chord length, highest regions",
-     "z": 2.89,
-     "direction": "above"
-    },
-    {
-     "feature": "reg_pore_chord_um_slope",
-     "label": "pore chord length, top-to-bottom trend",
-     "z": -2.69,
-     "direction": "below"
-    }
-   ],
-   "predicted_distance": 1.1997023171415058,
-   "predicted_threshold": 1.805438336550934,
-   "unfamiliar": false
-  },
-  {
-   "image_id": "4ih2ggld",
+   "image_id": "3e122cbj",
    "strip_id": "2316_1015998",
-   "p_Batch_1": 0.46759084125798483,
-   "p_Batch_2": 0.42324375862306984,
+   "p_Batch_1": 0.46068561713555306,
+   "p_Batch_2": 0.43014898274550156,
    "p_Batch_3": 0.10916540011894538,
    "predicted": "Batch_1",
-   "confidence": 0.46759084125798483,
-   "confidence_raw": 0.5236712383961283,
+   "confidence": 0.46068561713555306,
+   "confidence_raw": 0.5126190957139826,
    "confidence_tier": "low",
    "confidence_record": {
     "right": 6,
@@ -701,7 +431,7 @@
    },
    "stage_variation": {
     "call": "Batch_1",
-    "confidence": 0.5248907500005255
+    "confidence": 0.5171393401166327
    },
    "prediction_set": [
     "Batch_1",
@@ -710,68 +440,68 @@
    "reasons": [
     {
      "feature": "tex_bse_glcm_contrast_d1",
-     "z": 3.15,
-     "contribution": 0.139,
+     "z": 3.27,
+     "contribution": 0.144,
      "stage": "baseline",
      "label": "BSE texture local contrast at 0.05 um",
-     "text": "BSE texture local contrast at 0.05 um: 5.4 SD above Batch_3",
-     "baseline_z": 5.41,
+     "text": "BSE texture local contrast at 0.05 um: 5.6 SD above Batch_3",
+     "baseline_z": 5.59,
      "closest_batch": "Batch_1"
     },
     {
-     "feature": "tex_bse_glcm_contrast_d4",
-     "z": 3.46,
-     "contribution": 0.133,
+     "feature": "tex_bse_glcm_correlation_d4",
+     "z": -3.28,
+     "contribution": 0.138,
      "stage": "baseline",
-     "label": "BSE texture local contrast at 0.2 um",
-     "text": "BSE texture local contrast at 0.2 um: 6.4 SD above Batch_3",
-     "baseline_z": 6.43,
+     "label": "BSE texture pattern regularity at 0.2 um",
+     "text": "BSE texture pattern regularity at 0.2 um: 4.3 SD below Batch_3",
+     "baseline_z": -4.28,
      "closest_batch": "Batch_1"
     },
     {
      "feature": "deep_pc01",
-     "z": 2.12,
-     "contribution": 0.056,
+     "z": 1.84,
+     "contribution": 0.049,
      "stage": "variation",
      "label": "DINOv2 image pattern 01",
-     "text": "DINOv2 image pattern 01, which moves with graphite chord length: 6.8 SD below Batch_3 (r = -0.89); graphite chord length, average over regions: 8.3 SD below Batch_3 (r = -0.80); graphite fraction, typical region: 10.4 SD below Batch_3 (r = -0.79)",
+     "text": "DINOv2 image pattern 01, which moves with graphite chord length: 6.5 SD below Batch_3 (r = -0.89); graphite chord length, average over regions: 9.0 SD below Batch_3 (r = -0.80); graphite fraction, typical region: 9.7 SD below Batch_3 (r = -0.79)",
      "related": [
       {
        "feature": "kpi_graphite_chord_um",
        "label": "graphite chord length",
-       "value": 1.69905215750041,
-       "baseline_z": -6.79,
+       "value": 1.7911046227740504,
+       "baseline_z": -6.49,
        "direction": "below",
        "closest_batch": "Batch_3",
-       "text": "graphite chord length: 6.8 SD below Batch_3",
+       "text": "graphite chord length: 6.5 SD below Batch_3",
        "r": -0.89
       },
       {
        "feature": "reg_graphite_chord_um_mean",
        "label": "graphite chord length, average over regions",
-       "value": 1.0911021113220425,
-       "baseline_z": -8.27,
+       "value": 1.007765135001589,
+       "baseline_z": -8.99,
        "direction": "below",
        "closest_batch": "Batch_1",
-       "text": "graphite chord length, average over regions: 8.3 SD below Batch_3",
+       "text": "graphite chord length, average over regions: 9.0 SD below Batch_3",
        "r": -0.8
       },
       {
        "feature": "reg_graphite_frac_p50",
        "label": "graphite fraction, typical region",
-       "value": 0.7526222222222222,
-       "baseline_z": -10.42,
+       "value": 0.7586666666666667,
+       "baseline_z": -9.68,
        "direction": "below",
        "closest_batch": "Batch_3",
-       "text": "graphite fraction, typical region: 10.4 SD below Batch_3",
+       "text": "graphite fraction, typical region: 9.7 SD below Batch_3",
        "r": -0.79
       }
      ]
     },
     {
      "feature": "deep_pc07",
-     "z": 0.92,
-     "contribution": 0.033,
+     "z": 0.36,
+     "contribution": 0.013,
      "stage": "variation",
      "label": "DINOv2 image pattern 07",
      "text": "DINOv2 image pattern 07: an overall look of the InLens image that no single named measurement captures",
@@ -779,27 +509,27 @@
     },
     {
      "feature": "deep_pc04",
-     "z": -0.42,
-     "contribution": -0.011,
+     "z": -0.41,
+     "contribution": -0.01,
      "stage": "variation",
      "label": "DINOv2 image pattern 04",
-     "text": "DINOv2 image pattern 04, which moves with BSE fine texture: share of flat areas and dark specks: 2.1 SD above Batch_3 (r = -0.60); InLens texture uniformity at 0.05 um: 0.7 SD below Batch_3 (r = +0.52); InLens texture uniformity at 0.2 um: 0.8 SD below Batch_3 (r = +0.52)",
+     "text": "DINOv2 image pattern 04, which moves with BSE fine texture: share of flat areas and dark specks: 1.0 SD above Batch_3 (r = -0.60); InLens texture uniformity at 0.05 um: 0.7 SD below Batch_3 (r = +0.52); InLens texture uniformity at 0.2 um: 0.7 SD below Batch_3 (r = +0.52)",
      "related": [
       {
        "feature": "tex_bse_lbp8",
        "label": "BSE fine texture: share of flat areas and dark specks",
-       "value": 0.19111637857547475,
-       "baseline_z": 2.06,
+       "value": 0.1824186460905576,
+       "baseline_z": 0.98,
        "direction": "above",
        "closest_batch": "Batch_1",
-       "text": "BSE fine texture: share of flat areas and dark specks: 2.1 SD above Batch_3",
+       "text": "BSE fine texture: share of flat areas and dark specks: 1.0 SD above Batch_3",
        "r": -0.6
       },
       {
        "feature": "tex_inlens_glcm_energy_d1",
        "label": "InLens texture uniformity at 0.05 um",
-       "value": 0.10349844102690932,
-       "baseline_z": -0.75,
+       "value": 0.10784078626864868,
+       "baseline_z": -0.67,
        "direction": "below",
        "closest_batch": "Batch_1",
        "text": "InLens texture uniformity at 0.05 um: 0.7 SD below Batch_3",
@@ -808,54 +538,324 @@
       {
        "feature": "tex_inlens_glcm_energy_d4",
        "label": "InLens texture uniformity at 0.2 um",
-       "value": 0.0890182004199083,
-       "baseline_z": -0.76,
+       "value": 0.09416451903157513,
+       "baseline_z": -0.66,
        "direction": "below",
        "closest_batch": "Batch_1",
-       "text": "InLens texture uniformity at 0.2 um: 0.8 SD below Batch_3",
+       "text": "InLens texture uniformity at 0.2 um: 0.7 SD below Batch_3",
        "r": 0.52
       }
      ]
     }
    ],
-   "baseline_distance": 5.3255935148613265,
+   "baseline_distance": 4.833625325855267,
    "baseline_threshold": 3.8706852200461483,
    "outside_baseline": true,
-   "n_deviating": 78,
+   "n_deviating": 66,
    "deviations": [
     {
-     "feature": "reg_binder_frac_sd",
-     "label": "binder fraction, spread between regions",
-     "z": 27.85,
+     "feature": "reg_binder_frac_p50",
+     "label": "binder fraction, typical region",
+     "z": 22.22,
      "direction": "above"
     },
     {
-     "feature": "reg_binder_frac_p10",
-     "label": "binder fraction, lowest regions",
-     "z": 21.13,
+     "feature": "reg_binder_frac_sd",
+     "label": "binder fraction, spread between regions",
+     "z": 21.43,
      "direction": "above"
     },
     {
      "feature": "reg_binder_frac_mean",
      "label": "binder fraction, average over regions",
-     "z": 21.11,
+     "z": 21.26,
      "direction": "above"
     },
     {
      "feature": "reg_binder_frac_p90",
      "label": "binder fraction, highest regions",
-     "z": 18.17,
+     "z": 21.19,
      "direction": "above"
     },
     {
-     "feature": "reg_binder_frac_p50",
-     "label": "binder fraction, typical region",
-     "z": 17.49,
+     "feature": "reg_binder_frac_p10",
+     "label": "binder fraction, lowest regions",
+     "z": 18.3,
      "direction": "above"
     }
    ],
-   "predicted_distance": 1.5091435509057036,
+   "predicted_distance": 1.5028639749473118,
    "predicted_threshold": 6.848599670214519,
+   "unfamiliar": false
+  },
+  {
+   "image_id": "fn0mhxef",
+   "strip_id": "2048_1016012",
+   "p_Batch_1": 0.4343537080935584,
+   "p_Batch_2": 0.45648089178749623,
+   "p_Batch_3": 0.10916540011894538,
+   "predicted": "Batch_2",
+   "confidence": 0.45648089178749623,
+   "confidence_raw": 0.49442377076018346,
+   "confidence_tier": "low",
+   "confidence_record": {
+    "right": 6,
+    "n": 11
+   },
+   "stage_baseline": {
+    "call": "not Batch_3",
+    "confidence": 0.8908345998810546,
+    "p_baseline": 0.10916540011894538,
+    "interval": [
+     0.8852459016393442,
+     0.9364406779661016
+    ]
+   },
+   "stage_variation": {
+    "call": "Batch_2",
+    "confidence": 0.5124193557911269
+   },
+   "prediction_set": [
+    "Batch_2",
+    "Batch_1"
+   ],
+   "reasons": [
+    {
+     "feature": "tex_bse_lbp8",
+     "z": 1.54,
+     "contribution": 0.101,
+     "stage": "baseline",
+     "label": "BSE fine texture: share of flat areas and dark specks",
+     "text": "BSE fine texture: share of flat areas and dark specks: 1.8 SD above Batch_3",
+     "baseline_z": 1.82,
+     "closest_batch": "Batch_1"
+    },
+    {
+     "feature": "tex_bse_si_lbp7",
+     "z": 1.5,
+     "contribution": 0.084,
+     "stage": "baseline",
+     "label": "BSE fine texture inside silicon: share of dark notches",
+     "text": "BSE fine texture inside silicon: share of dark notches: 2.1 SD above Batch_3",
+     "baseline_z": 2.08,
+     "closest_batch": "Batch_1"
+    },
+    {
+     "feature": "deep_pc07",
+     "z": -0.57,
+     "contribution": 0.021,
+     "stage": "variation",
+     "label": "DINOv2 image pattern 07",
+     "text": "DINOv2 image pattern 07: an overall look of the InLens image that no single named measurement captures",
+     "related": []
+    },
+    {
+     "feature": "deep_pc03",
+     "z": -0.52,
+     "contribution": 0.014,
+     "stage": "variation",
+     "label": "DINOv2 image pattern 03",
+     "text": "DINOv2 image pattern 03, which moves with InLens fine texture: share of straight edges: about the same as Batch_3 (r = -0.72); InLens fine texture: share of irregular, noisy patterns: 0.6 SD below Batch_3 (r = +0.65); InLens fine texture: share of dark notches: 1.4 SD below Batch_3 (r = +0.63)",
+     "related": [
+      {
+       "feature": "tex_inlens_lbp4",
+       "label": "InLens fine texture: share of straight edges",
+       "value": 0.09431753521529222,
+       "baseline_z": 0.32,
+       "direction": "above",
+       "closest_batch": "Batch_3",
+       "text": "InLens fine texture: share of straight edges: about the same as Batch_3",
+       "r": -0.72
+      },
+      {
+       "feature": "tex_inlens_lbp9",
+       "label": "InLens fine texture: share of irregular, noisy patterns",
+       "value": 0.19561538862923125,
+       "baseline_z": -0.55,
+       "direction": "below",
+       "closest_batch": "Batch_3",
+       "text": "InLens fine texture: share of irregular, noisy patterns: 0.6 SD below Batch_3",
+       "r": 0.65
+      },
+      {
+       "feature": "tex_inlens_lbp7",
+       "label": "InLens fine texture: share of dark notches",
+       "value": 0.09333605414793777,
+       "baseline_z": -1.44,
+       "direction": "below",
+       "closest_batch": "Batch_3",
+       "text": "InLens fine texture: share of dark notches: 1.4 SD below Batch_3",
+       "r": 0.63
+      }
+     ]
+    },
+    {
+     "feature": "deep_pc05",
+     "z": 1.12,
+     "contribution": -0.012,
+     "stage": "variation",
+     "label": "DINOv2 image pattern 05",
+     "text": "DINOv2 image pattern 05: an overall look of the InLens image that no single named measurement captures",
+     "related": []
+    }
+   ],
+   "baseline_distance": 1.316099171369273,
+   "baseline_threshold": 3.8706852200461483,
+   "outside_baseline": false,
+   "n_deviating": 15,
+   "deviations": [
+    {
+     "feature": "par_porous_share",
+     "label": "share of porous silicon",
+     "z": 6.92,
+     "direction": "above"
+    },
+    {
+     "feature": "reg_graphite_frac_p50",
+     "label": "graphite fraction, typical region",
+     "z": 3.57,
+     "direction": "above"
+    },
+    {
+     "feature": "tex_etd_glcm_contrast_aniso",
+     "label": "ETD texture local contrast horizontal vs vertical",
+     "z": 3.16,
+     "direction": "above"
+    },
+    {
+     "feature": "reg_graphite_chord_um_p50",
+     "label": "graphite chord length, typical region",
+     "z": 2.99,
+     "direction": "above"
+    },
+    {
+     "feature": "par_type_unassigned_share",
+     "label": "share of silicon particle type UNASSIGNED",
+     "z": 2.93,
+     "direction": "above"
+    }
+   ],
+   "predicted_distance": 5.062742336721058,
+   "predicted_threshold": 1.805438336550934,
+   "unfamiliar": true
+  },
+  {
+   "image_id": "xrv9xvzb",
+   "strip_id": "2088_1015988",
+   "p_Batch_1": 0.04063306973840136,
+   "p_Batch_2": 0.04479406593999075,
+   "p_Batch_3": 0.9145728643216079,
+   "predicted": "Batch_3",
+   "confidence": 0.9145728643216079,
+   "confidence_raw": 0.9981893421339056,
+   "confidence_tier": "high",
+   "confidence_record": {
+    "right": 9,
+    "n": 9
+   },
+   "stage_baseline": {
+    "call": "Batch_3",
+    "confidence": 0.9145728643216079,
+    "p_baseline": 0.9145728643216079,
+    "interval": [
+     0.9065934065934066,
+     1.0
+    ]
+   },
+   "stage_variation": null,
+   "prediction_set": [
+    "Batch_3"
+   ],
+   "reasons": [
+    {
+     "feature": "kpi_si_dispersion_cv",
+     "z": 4.18,
+     "contribution": -0.216,
+     "stage": "baseline",
+     "label": "silicon dispersion uniformity",
+     "text": "silicon dispersion uniformity: 5.5 SD above Batch_3",
+     "baseline_z": 5.53,
+     "closest_batch": "Batch_2"
+    },
+    {
+     "feature": "tex_etd_lbp4",
+     "z": 2.7,
+     "contribution": 0.148,
+     "stage": "baseline",
+     "label": "ETD fine texture: share of straight edges",
+     "text": "ETD fine texture: share of straight edges: 2.7 SD above Batch_3",
+     "baseline_z": 2.71,
+     "closest_batch": "Batch_3"
+    },
+    {
+     "feature": "tex_etd_lbp6",
+     "z": 2.35,
+     "contribution": 0.146,
+     "stage": "baseline",
+     "label": "ETD fine texture: share of shallow curves",
+     "text": "ETD fine texture: share of shallow curves: 2.1 SD above Batch_3",
+     "baseline_z": 2.15,
+     "closest_batch": "Batch_3"
+    },
+    {
+     "feature": "tex_etd_lbp5",
+     "z": 2.63,
+     "contribution": 0.14,
+     "stage": "baseline",
+     "label": "ETD fine texture: share of soft corners",
+     "text": "ETD fine texture: share of soft corners: 2.4 SD above Batch_3",
+     "baseline_z": 2.45,
+     "closest_batch": "Batch_3"
+    },
+    {
+     "feature": "tex_inlens_lbp2",
+     "z": -2.48,
+     "contribution": 0.136,
+     "stage": "baseline",
+     "label": "InLens fine texture: share of sharp corners",
+     "text": "InLens fine texture: share of sharp corners: 1.9 SD below Batch_3",
+     "baseline_z": -1.89,
+     "closest_batch": "Batch_3"
+    }
+   ],
+   "baseline_distance": 1.6147828381754563,
+   "baseline_threshold": 3.8706852200461483,
+   "outside_baseline": false,
+   "n_deviating": 34,
+   "deviations": [
+    {
+     "feature": "kpi_si_dispersion_cv",
+     "label": "silicon dispersion uniformity",
+     "z": 5.53,
+     "direction": "above"
+    },
+    {
+     "feature": "reg_si_graphite_cv",
+     "label": "silicon/graphite ratio, relative spread between regions",
+     "z": 4.68,
+     "direction": "above"
+    },
+    {
+     "feature": "reg_si_frac_top_bottom",
+     "label": "silicon fraction, top half / bottom half",
+     "z": 4.51,
+     "direction": "above"
+    },
+    {
+     "feature": "reg_si_graphite_p90",
+     "label": "silicon/graphite ratio, highest regions",
+     "z": -3.71,
+     "direction": "below"
+    },
+    {
+     "feature": "reg_pore_chord_um_sd",
+     "label": "pore chord length, spread between regions",
+     "z": 3.56,
+     "direction": "above"
+    }
+   ],
+   "predicted_distance": 1.6147828381754563,
+   "predicted_threshold": 3.8706852200461483,
    "unfamiliar": false
   }
  ],
@@ -863,6 +863,6 @@
   "Batch_1": 1,
   "Batch_2": 1,
   "Batch_3": 1,
-  "unfamiliar": 0
+  "unfamiliar": 1
  }
 }

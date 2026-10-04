@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  getConfig, getEvidence, getGuide, getKpiDictionary, getSettings, getTiles, listBatches,
+  askClaude, getConfig, getEvidence, getGuide, getKpiDictionary, getSettings, getTiles, listBatches,
   runBatch, uploadBatch,
 } from "../api";
 import { pageBlocks, type BlockId } from "../compare/pageBlocks";
@@ -262,11 +262,29 @@ function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null
   const { evidence } = ctx;
   const [fold, setFold] = useState<Record<string, boolean>>({});
   const [step, setStep] = useState<number | null>(null);
+  const [asked, setAsked] = useState<Guide | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
   const template = useApi(() => getGuide(evidence.batch, oneOff, "template"));
   const claudeOn = !!settings?.claude.available;
   const cached = useApi(() => (claudeOn ? getGuide(evidence.batch, oneOff, "claude") : Promise.resolve(null)), [claudeOn]);
-  const claudeOk = cached.data?.source === "claude" ? cached.data : null;
+  const claudeResult = asked ?? cached.data;
+  const claudeOk = claudeResult?.source === "claude" ? claudeResult : null;
   const tourGuide = claudeOk ?? template.data;
+
+  async function ask() {
+    setAsking(true);
+    setAskError(null);
+    try {
+      setAsked(await askClaude(evidence.batch, oneOff));
+      setFold((open) => ({ ...open, explain: true }));
+    } catch (err) {
+      setAsked(null);
+      setAskError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAsking(false);
+    }
+  }
   const steps = tourGuide?.steps ?? [];
   const current = step != null ? steps[step] : null;
   const target = current?.target ?? null;
@@ -325,7 +343,16 @@ function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null
           {id === "tiles" && <TilesBlock ctx={ctx} guide={template.data} onSeeAll={seeAll} />}
           {id === "next" && <NextBlock evidence={evidence} />}
           {id === "folded" && (
-            <FoldedBlock ctx={ctx} open={fold} onToggle={(row) => setFold((open) => ({ ...open, [row]: !open[row] }))} />
+            <FoldedBlock
+              ctx={ctx}
+              guide={tourGuide}
+              claudeOn={claudeOn}
+              asking={asking}
+              askError={askError}
+              onAsk={claudeOn && !claudeOk ? () => void ask() : null}
+              open={fold}
+              onToggle={(row) => setFold((open) => ({ ...open, [row]: !open[row] }))}
+            />
           )}
         </div>
       ))}

@@ -6,6 +6,7 @@ import { batchColor, batchLabel, dictEntry, featureLabel, fmtSigma, localTime, m
 import { href, replaceRoute } from "../router";
 import type {
   Attribution, AttributedImage, AttributionEvaluation, AttributionModelInfo, AttributionReason, KpiDictionary, ModelStatus,
+  StageImportance,
 } from "../types";
 import { Folds, IconWarn, kpisBeyond, PAGE, SigmaBand, TileKpiGrid } from "./bits";
 import { Peekable, type PeekItem } from "./Peek";
@@ -51,13 +52,10 @@ export default function IdentifyResult({
   const reasons = [...image.reasons].sort((a, b) => (b.contribution ?? 0) - (a.contribution ?? 0));
   const toward = reasons.filter((r) => (r.contribution ?? 0) > 0);
   const away = reasons.filter((r) => (r.contribution ?? 0) < 0).reverse();
-  // up to three reasons for the call; the strongest one against only when it outweighs the weakest of those
-  const fors = toward.slice(0, 3);
-  const weakest = Math.abs(fors[fors.length - 1]?.contribution ?? 0);
-  const against = away[0] && Math.abs(away[0].contribution ?? 0) >= weakest ? away[0] : null;
-  const picks = against ? [...fors.slice(0, 2), against] : fors;
+  const picks = pickReasonGroups(groupReasons(reasons, dict.data));
   const beyond = kpisBeyond(tile, tiles.data ?? [], baseline);
   const src = imageUrl(name, image.image_id, "BSE", 2048);
+  const importance = attribution.model.importance;
 
   return (
     <div className={`${PAGE} gap-6`}>
@@ -111,8 +109,8 @@ export default function IdentifyResult({
         </div>
       )}
 
-      <section aria-label="Look here first" className="flex flex-col gap-4">
-        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Look here first</h2>
+      <section aria-label="Largest silicon particles" className="flex flex-col gap-4">
+        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Largest silicon particles</h2>
         <div
           className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black"
           style={{ aspectRatio: particles.data ? `${particles.data.width} / ${particles.data.height}` : "3 / 1" }}
@@ -126,15 +124,19 @@ export default function IdentifyResult({
               <Spots name={name} imageId={image.image_id} data={particles.data} dict={dict.data} hasLayers={!!tile?.has_layers} detectors={tile?.detectors} />
               {!!particles.data?.particles.length && !!particles.data.px_um && (
                 <span className="glass absolute right-3 bottom-3 rounded-[10px] px-2.5 py-1 text-[11px] text-cx-text-2" style={{ background: "rgba(14,15,18,.6)" }}>
-                  Largest silicon particles · hover to look closer
+                  Hover a ring to look closer
                 </span>
               )}
             </>
           )}
         </div>
+      </section>
+
+      <section aria-label="Look here first" className="flex flex-col gap-4">
+        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Look here first</h2>
         <div className="grid gap-3.5" style={{ gridTemplateColumns: `repeat(${Math.max(1, picks.length)}, minmax(0, 1fr))` }}>
-          {picks.map((r, i) => (
-            <ReasonCard key={r.feature} reason={r} n={i + 1} image={image} baseline={baseline} dict={dict.data} />
+          {picks.map((group, i) => (
+            <ReasonCard key={group.key} members={group.members} n={i + 1} image={image} baseline={baseline} dict={dict.data} />
           ))}
         </div>
       </section>
@@ -164,6 +166,14 @@ export default function IdentifyResult({
               </div>
             ),
           },
+          ...(importance && Object.keys(importance).length
+            ? [{
+                id: "importance",
+                title: "What the model leans on overall",
+                summary: leanSummary(importance),
+                body: () => <Importance importance={importance} />,
+              }]
+            : []),
           {
             id: "kpis",
             title: "Measured on this tile",
@@ -203,7 +213,7 @@ function Spots({ name, imageId, data, dict, hasLayers, detectors }: {
     return {
       batch: name,
       imageId,
-      title: `Silicon particle ${i + 1}`,
+      title: `P${i + 1}`,
       note: `${p.d_um.toFixed(1)} µm across${p.type ? ` · type ${p.type}${kind ? ` (${prettyText(kind)})` : ""}` : ""}.`,
       region: { x: p.x, y: p.y, r: (p.d_um / px / 2) * 1.4 },
       hasLayers,
@@ -218,16 +228,18 @@ function Spots({ name, imageId, data, dict, hasLayers, detectors }: {
           items={items}
           index={i}
           label={`${items[i].title}, ${items[i].note}`}
-          className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.06]"
+          className="absolute -translate-x-1/2 -translate-y-1/2 grid place-items-center rounded-full bg-black/35"
           style={{
             left: `${(p.x / data.width) * 100}%`,
             top: `${(p.y / data.height) * 100}%`,
-            width: `max(16px, ${((p.d_um / px) / data.width) * 140}%)`,
+            width: `max(22px, ${((p.d_um / px) / data.width) * 140}%)`,
             aspectRatio: "1",
-            border: "1.5px solid rgba(246,245,242,.85)",
+            border: "1.5px dashed rgba(255,176,102,.95)",
             boxShadow: "0 0 0 2px rgba(10,11,13,.45)",
           }}
-        />
+        >
+          <span className="pointer-events-none text-[10px] font-semibold tracking-wide text-[#ffb066]">P{i + 1}</span>
+        </Peekable>
       ))}
     </>
   );
@@ -235,26 +247,51 @@ function Spots({ name, imageId, data, dict, hasLayers, detectors }: {
 
 const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 
+/** "80–92%": a range of probabilities, rounded outwards so it never reads narrower than it is. */
+const rangeText = ([low, high]: [number, number]) => `${Math.floor(low * 100)}–${Math.ceil(high * 100)}%`;
+
+const setsText = (sets: NonNullable<NonNullable<AttributionModelInfo["calibration"]>["conformal"]>) =>
+  `Prediction set aimed at ${Math.round((1 - sets.alpha) * 100)}%` +
+  (sets.coverage != null && sets.mean_size != null
+    ? ` · held the true batch for ${pct(sets.coverage)} of held-out tiles, ${sets.mean_size.toFixed(1)} batches on average`
+    : "");
+
 const distanceText = (d: number | null | undefined, limit: number | null | undefined) =>
   d != null && limit != null ? ` (distance ${d.toFixed(1)} against a limit of ${limit.toFixed(1)})` : "";
 
+function setTitle(classes: string[]): string {
+  const labels = [...classes].sort().map(batchLabel);
+  if (labels.length > 0 && labels.every((label) => label.startsWith("Batch ")))
+    return `Batch ${labels.map((label) => label.slice("Batch ".length)).join(" or ")}`;
+  return labels.join(" or ");
+}
+
 function Answer({ image, model }: { image: AttributedImage; model: AttributionModelInfo }) {
   const probs = model.classes.map((cls) => ({ cls, p: image[`p_${cls}`] ?? 0 }));
-  const rec = image.unfamiliar ? null : image.confidence_record;
-  const others = (image.prediction_set ?? []).filter((c) => c !== image.predicted);
-  const alpha = model.calibration?.conformal?.alpha;
+  const close = (image.prediction_set?.length ?? 0) > 1;
+  const rec = image.unfamiliar || close ? null : image.confidence_record;
+  const others = close ? [] : (image.prediction_set ?? []).filter((c) => c !== image.predicted);
+  const sets = model.calibration?.conformal;
+  const first = image.stage_baseline;
+  const headline = close ? setTitle(image.prediction_set ?? []) : batchLabel(image.predicted);
   return (
     <section aria-label="Answer" className="glass grid grid-cols-12 items-center gap-7 rounded-[24px] px-7 py-6">
       <div className="col-span-7 flex min-w-0 flex-col gap-3">
         <div className="lbl">
-          Tile <span className="mono text-cx-text-2 normal-case">{image.image_id}</span> · closest match
+          Tile <span className="mono text-cx-text-2 normal-case">{image.image_id}</span> · {close ? "could be either" : "closest match"}
         </div>
         <div className="flex flex-wrap items-center gap-3.5">
-          <span className="h-4 w-4 rounded-[5px]" style={{ background: batchColor(image.predicted), boxShadow: `0 0 20px ${batchColor(image.predicted)}` }} />
-          <span className="text-[48px] leading-none font-semibold tracking-[-0.04em]">{batchLabel(image.predicted)}</span>
-          {image.confidence != null && <span className="mono text-2xl text-cx-text-2">{pct(image.confidence)}</span>}
+          {close ? (
+            (image.prediction_set ?? []).slice().sort().map((cls) => (
+              <span key={cls} className="h-4 w-4 rounded-[5px]" style={{ background: batchColor(cls) }} />
+            ))
+          ) : (
+            <span className="h-4 w-4 rounded-[5px]" style={{ background: batchColor(image.predicted), boxShadow: `0 0 20px ${batchColor(image.predicted)}` }} />
+          )}
+          <span className="text-[48px] leading-none font-semibold tracking-[-0.04em]">{headline}</span>
+          {!close && image.confidence != null && <span className="mono text-2xl text-cx-text-2">{pct(image.confidence)}</span>}
         </div>
-        <p className="m-0 text-base leading-normal text-cx-text-2">{heroSentence(image, probs, model.baseline)}</p>
+        <p className="m-0 text-base leading-normal text-cx-text-2">{close ? closeCallSentence(image, probs, model.baseline) : heroSentence(image, probs, model.baseline)}</p>
       </div>
       <div className="col-span-5 flex min-w-0 flex-col gap-2.5">
         <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-[5px]">
@@ -275,8 +312,18 @@ function Answer({ image, model }: { image: AttributedImage; model: AttributionMo
               When it's this sure, it was right {record(rec)} times
             </Chip>
           )}
+          {first?.interval && !close && (
+            <Chip tone="plain" title="The range the held-out tiles allow for that probability (Venn–Abers)">
+              {first.call === model.baseline ? "Baseline" : "Not the baseline"}: {rangeText(first.interval)}
+            </Chip>
+          )}
+          {image.stage_variation?.record && !image.stage_variation.record.established && (
+            <Chip tone="warn" title={image.stage_variation.note}>
+              Which variation: not established
+            </Chip>
+          )}
           {others.length > 0 && (
-            <Chip tone="plain" title={alpha != null ? `Prediction set at ${Math.round((1 - alpha) * 100)}% coverage` : undefined}>
+            <Chip tone="plain" title={sets ? setsText(sets) : undefined}>
               Can't rule out {others.map(batchLabel).join(" or ")}
             </Chip>
           )}
@@ -306,6 +353,18 @@ function Chip({ tone, title, children }: { tone: keyof typeof TONE; title?: stri
   );
 }
 
+function closeCallSentence(image: AttributedImage, probs: { cls: string; p: number }[], baseline: string): string {
+  const set = image.prediction_set ?? [];
+  const lead = image.unfamiliar ? "Unfamiliar tile. " : "";
+  const baselineP = probs.find((p) => p.cls === baseline)?.p ?? 0;
+  const labels = [...set].sort().map(batchLabel);
+  if (!set.includes(baseline) && labels.length === 2)
+    return `${lead}Not ${batchLabel(baseline)} (${pct(1 - baselineP)}). ${labels[0]} vs ${labels[1]} is close to a coin flip.`;
+  if (!set.includes(baseline))
+    return `${lead}Not ${batchLabel(baseline)} (${pct(1 - baselineP)}). Still possible: ${labels.join(" or ")}.`;
+  return `${lead}Could be ${labels.join(" or ")}.`;
+}
+
 function heroSentence(image: AttributedImage, probs: { cls: string; p: number }[], baseline: string): string {
   const first = image.stage_baseline;
   const second = image.stage_variation;
@@ -314,6 +373,10 @@ function heroSentence(image: AttributedImage, probs: { cls: string; p: number }[
   if (first && second) {
     const rest = probs.filter((p) => p.cls !== baseline && p.cls !== second.call);
     const among = rest.length === 1 ? `Between ${batchLabel(second.call)} and ${batchLabel(rest[0].cls)}` : "Among the other batches";
+    if (second.record && !second.record.established) {
+      const names = rest.length === 1 ? `${batchLabel(second.call)} or ${batchLabel(rest[0].cls)}` : "which other batch";
+      return `${lead}Not the baseline: ${pct(first.confidence)} that it isn't ${batchLabel(baseline)}. ${names}: the model cannot tell these apart (right ${record(second.record)} times on held-out strips, about what guessing gets), so treat ${batchLabel(second.call)} as a coin flip, not a finding.`;
+    }
     const weak = second.confidence < 0.6 || image.confidence_tier === "low" ? " — a weak lean" : "";
     return `${lead}Not the baseline: ${pct(first.confidence)} that it isn't ${batchLabel(baseline)}. ${among} it leans to ${batchLabel(second.call)}, ${Math.round(second.confidence * 100)} to ${Math.round((1 - second.confidence) * 100)}${weak}.`;
   }
@@ -343,7 +406,58 @@ function finding(reason: AttributionReason, label: string): string {
   return text ? text[0].toUpperCase() + text.slice(1) : "—";
 }
 
-function ReasonCard({ reason, n, image, baseline, dict }: { reason: AttributionReason; n: number; image: AttributedImage; baseline: string; dict: KpiDictionary | null }) {
+interface ReasonGroup { key: string; members: AttributionReason[] }
+
+/** "BSE texture local contrast at 0.05 µm" shares a card with the same name at another scale. */
+function scaleOf(name: string): { stem: string; scale: string } | null {
+  const match = /^(.*) at ([\d.]+) µm$/.exec(name);
+  return match ? { stem: match[1], scale: match[2] } : null;
+}
+
+function scalesPhrase(scales: string[]): string {
+  const ordered = [...scales].sort((a, b) => Number(a) - Number(b));
+  if (ordered.length <= 1) return ordered[0] ? `at ${ordered[0]} µm` : "";
+  if (ordered.length === 2) return `at ${ordered[0]} and ${ordered[1]} µm`;
+  return `at ${ordered.slice(0, -1).join(", ")} and ${ordered[ordered.length - 1]} µm`;
+}
+
+function groupReasons(reasons: AttributionReason[], dict: KpiDictionary | null): ReasonGroup[] {
+  const groups: (ReasonGroup & { stem: string | null })[] = [];
+  for (const reason of reasons) {
+    const parsed = scaleOf(reasonName(reason, dict));
+    const sign = Math.sign(reason.contribution ?? 0);
+    const stem = parsed && sign !== 0 ? `${sign}:${parsed.stem}` : null;
+    const hit = stem ? groups.find((group) => group.stem === stem) : undefined;
+    if (hit) hit.members.push(reason);
+    else groups.push({ key: reason.feature, stem, members: [reason] });
+  }
+  return groups;
+}
+
+/** Up to three cards. A scale pair is one card, so the third slot can be a different reason. */
+function pickReasonGroups(groups: ReasonGroup[]): ReasonGroup[] {
+  const toward = groups.filter((group) => (group.members[0].contribution ?? 0) > 0);
+  const away = groups.filter((group) => (group.members[0].contribution ?? 0) < 0).reverse();
+  const fors = toward.slice(0, 3);
+  const weakest = Math.abs(fors[fors.length - 1]?.members[0].contribution ?? 0);
+  const against = away[0] && Math.abs(away[0].members[0].contribution ?? 0) >= weakest ? away[0] : null;
+  return against ? [...fors.slice(0, 2), against] : fors;
+}
+
+function cardTitle(members: AttributionReason[], dict: KpiDictionary | null): string {
+  const scales = members.flatMap((reason) => {
+    const parsed = scaleOf(reasonName(reason, dict));
+    return parsed ? [parsed.scale] : [];
+  });
+  if (scales.length > 1) {
+    const stem = scaleOf(reasonName(members[0], dict))?.stem ?? reasonName(members[0], dict);
+    return `${stem} ${scalesPhrase(scales)}`;
+  }
+  return reasonName(members[0], dict);
+}
+
+function ReasonCard({ members, n, image, baseline, dict }: { members: AttributionReason[]; n: number; image: AttributedImage; baseline: string; dict: KpiDictionary | null }) {
+  const reason = members[0];
   const p = pull(reason);
   const rawLabel = reason.label ?? featureLabel(reason.feature, dict);
   const z = reason.baseline_z;
@@ -365,7 +479,7 @@ function ReasonCard({ reason, n, image, baseline, dict }: { reason: AttributionR
           {p.tag}
         </span>
       </div>
-      <h3 className="m-0 text-[17px] leading-[1.3] font-semibold tracking-[-0.01em]">{reasonName(reason, dict)}</h3>
+      <h3 className="m-0 text-[17px] leading-[1.3] font-semibold tracking-[-0.01em]">{cardTitle(members, dict)}</h3>
       <p className="m-0 text-[13px] leading-normal text-cx-text-2">{finding(reason, rawLabel)}</p>
       {z != null && (
         <div className="mt-auto flex items-center gap-3 pt-1" title={`Against ${batchLabel(baseline)}: ±1σ and ±2σ shaded${off ? "; beyond ±3σ, off the scale" : ""}`}>
@@ -438,9 +552,13 @@ function ModelAndRun({ image, attribution, current, evaluation }: { image: Attri
   ];
   if (current && !stale) rows.push(["Frozen with the rules", current.matches_frozen ? "Yes" : "No"]);
   if (image.stage_baseline)
-    rows.push(["Baseline or not", `${call(image.stage_baseline.call)} · ${pct(image.stage_baseline.confidence)}${stages?.baseline ? ` · this stage right ${record(stages.baseline)} held-out` : ""}`]);
+    rows.push(["Baseline or not", `${call(image.stage_baseline.call)} · ${pct(image.stage_baseline.confidence)}${image.stage_baseline.interval ? ` (range ${rangeText(image.stage_baseline.interval)})` : ""}${stages?.baseline ? ` · this stage right ${record(stages.baseline)} held-out` : ""}`]);
   if (image.stage_variation)
-    rows.push(["Which other batch", `${batchLabel(image.stage_variation.call)} · ${pct(image.stage_variation.confidence)}${stages?.variation ? ` · this stage right ${record(stages.variation)} held-out` : ""}`]);
+    rows.push(["Which other batch", `${batchLabel(image.stage_variation.call)} · ${pct(image.stage_variation.confidence)}${stages?.variation ? ` · this stage right ${record(stages.variation)} held-out` : ""}${image.stage_variation.record && !image.stage_variation.record.established ? " · not established: a lean, not a finding" : ""}`]);
+  const cal = model.calibration;
+  if (cal?.method === "venn_abers")
+    rows.push(["Confidence", `Checked on held-out tiles (Venn–Abers)${cal.log_loss != null && cal.raw_log_loss != null ? ` · log loss ${cal.log_loss.toFixed(2)}, ${cal.raw_log_loss.toFixed(2)} unchecked` : ""}`]);
+  if (cal?.conformal?.coverage != null) rows.push(["Can't-rule-out sets", setsText(cal.conformal)]);
   if (image.baseline_distance != null)
     rows.push([`Distance from ${batchLabel(model.baseline)}`, `${image.baseline_distance.toFixed(1)} against a limit of ${image.baseline_threshold?.toFixed(1) ?? "?"}${image.outside_baseline ? " · outside the baseline range" : image.outside_baseline === false ? " · inside the baseline range" : ""}`]);
   if (image.predicted_distance != null && image.predicted !== model.baseline)
@@ -482,6 +600,84 @@ function ModelAndRun({ image, attribution, current, evaluation }: { image: Attri
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const STAGE_TITLES = { all: "Which batch", baseline: "Baseline or not", variation: "Which other batch" } as const;
+const STAGE_ORDER = ["all", "baseline", "variation"] as const;
+type ModelImportance = NonNullable<AttributionModelInfo["importance"]>;
+
+const stageList = (importance: ModelImportance) =>
+  STAGE_ORDER.flatMap((role) => (importance[role] ? [[role, importance[role]] as [typeof role, StageImportance]] : []));
+
+/** "Texture 61% · then DINOv2 image features": the leading family of each stage. */
+function leanSummary(importance: ModelImportance): string {
+  return stageList(importance)
+    .map(([, st]) => {
+      const [fam, share] = Object.entries(st.families)[0] ?? [];
+      return fam ? `${FAMILY_NAMES[fam] ?? fam}${share < 0.995 ? ` ${pct(share)}` : ""}` : "";
+    })
+    .filter(Boolean)
+    .join(" · then ");
+}
+
+/** What each stage weighs across all its training tiles: the families, then the heaviest single inputs. */
+function Importance({ importance }: { importance: ModelImportance }) {
+  const stages = stageList(importance);
+  const name = (label: string) => prettyText(label).replace(/^DINOv2 /, "").replace(/^./, (c) => c.toUpperCase());
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
+        {stages.map(([role, st]) => {
+          const fams = Object.entries(st.families);
+          const max = Math.max(1e-9, ...st.features.map((f) => f.share));
+          return (
+            <div key={role} className="flex min-w-0 flex-col gap-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-medium">{STAGE_TITLES[role]}</span>
+                <span className="text-xs text-cx-faint">{st.n_features} inputs</span>
+              </div>
+              <div className="flex h-2 gap-0.5 overflow-hidden rounded">
+                {fams.map(([fam, share], i) => (
+                  <span key={fam} title={`${FAMILY_NAMES[fam] ?? fam} ${pct(share)}`}
+                    style={{ width: `${Math.max(1, share * 100)}%`, background: `rgba(246,245,242,${Math.max(0.18, 0.9 - i * 0.18)})` }} />
+                ))}
+              </div>
+              <span className="mono text-[11px] text-cx-faint">
+                {fams.map(([fam, share]) => `${FAMILY_NAMES[fam] ?? fam} ${pct(share)}`).join(" · ")}
+              </span>
+              <ul className="m-0 flex list-none flex-col p-0">
+                {st.features.slice(0, 5).map((f) => (
+                  <li key={f.feature} className="flex flex-col gap-1.5 border-t border-cx-line-soft py-2.5">
+                    <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                      <span className="min-w-0">{name(f.label)}</span>
+                      <span className="mono flex-none text-xs text-cx-text-2">{(f.share * 100).toFixed(f.share < 0.1 ? 1 : 0)}%</span>
+                    </div>
+                    <div className="h-1 rounded bg-white/[0.06]">
+                      <div className="h-full rounded bg-cx-text" style={{ width: `${(f.share / max) * 100}%` }} />
+                    </div>
+                    <span className="text-xs leading-snug text-cx-muted">
+                      Higher points to {prettyText(f.higher_means)}
+                      {f.related && (f.related.length
+                        ? ` · moves with ${f.related.map((r) => `${prettyText(r.label)} (r ${prettyText(r.r.toFixed(2))})`).join(", ")}`
+                        : " · no single named measurement tracks it")}
+                    </span>
+                    {!!f.imaging?.length && (
+                      <span className="text-xs leading-snug text-cx-investigate-text">
+                        Also tracks imaging, not material: {f.imaging.map((r) => `${prettyText(r.label).replace(/ imaging:/, "")} (r ${prettyText(r.r.toFixed(2))})`).join(", ")}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+      <p className="m-0 text-[13px] leading-normal text-cx-faint">
+        A share is how much of that stage's total pull an input carries across the training tiles. The cards above say what moved this tile; this says what the model weighs in general. An image pattern that tracks imaging may partly reflect the microscope settings.
+      </p>
     </div>
   );
 }

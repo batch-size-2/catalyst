@@ -292,6 +292,9 @@ _PARTICLE = {
 }
 
 
+_IMAGING = {"p1": "darkest grey level", "p50": "median brightness", "p99": "brightest grey level", "saturated_frac": "saturated share"}
+
+
 def describe(feature: str, dictionary: dict | None = None) -> str:
     """Plain-language name of a feature column; the column name itself when there is no rule for it."""
     family, _, rest = feature.partition("_")
@@ -324,7 +327,7 @@ def describe(feature: str, dictionary: dict | None = None) -> str:
         return _PARTICLE.get(rest, feature)
     if family == "img":
         ch, _, k = rest.partition("_")
-        return f"{_CHANNEL.get(ch, ch)} imaging: {k.replace('_', ' ')}"
+        return f"{_CHANNEL.get(ch, ch)} imaging: {_IMAGING.get(k, k.replace('_', ' '))}"
     return feature
 
 

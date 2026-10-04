@@ -129,6 +129,20 @@ def imaging_words(metrics: list[str]) -> str:
     return ", ".join([head, *(f"{join_and(k)}{on(c)}" for c, k in rest)])
 
 
+def sampling_line(evidence: Evidence, quantity: str, name: str) -> str | None:
+    """How the tile-to-tile spread compares with one tile's sampling band. Never a verdict input."""
+    check = evidence.sampling_check.get(quantity)
+    if check is None or check.ratio is None:
+        return None
+    ratio = check.ratio
+    if ratio >= 1.5:
+        return (f"{name} varies {ratio:.1f}× more between tiles than one tile's sampling explains: "
+                "the batch is uneven, not just under-sampled.")
+    if ratio <= 0.75:
+        return f"{name} varies less between tiles than one tile's sampling explains."
+    return f"The spread in {name.lower()} between tiles is about what one tile's sampling explains."
+
+
 def causes(d, dictionary: dict) -> str | None:
     field = "if_higher" if d.difference is not None and d.difference > 0 else "if_lower"
     text = entry(d.name, dictionary).get(field)
@@ -204,8 +218,6 @@ def tiles_phrase(ids: list[str], unit: str) -> str:
 def summary(evidence: Evidence, dictionary: dict) -> str:
     """The answer in one plain sentence, without code names or the verdict word."""
     b = batch_name(evidence.batch)
-    if evidence.controls.ran and evidence.controls.passed is False:
-        return "The known-answer controls failed, so this comparison can't be trusted yet."
     if any(r.startswith("Contains a particle type not seen before") for r in evidence.reasons):
         return f"{b} contains a particle type the baseline doesn't have."
     top = top_quantities(evidence, None)
@@ -229,6 +241,8 @@ def summary(evidence: Evidence, dictionary: dict) -> str:
     checked = "every key property that could be checked" if evidence.imaging.changed else "every key property"
     if evidence.imaging.changed:
         why = "the images differ from the baseline's, so some properties are paused"
+    elif evidence.controls.ran and not evidence.controls.passed:
+        why = "the known-answer controls failed"
     elif not evidence.controls.ran:
         why = "the known-answer controls haven't been run"
     elif evidence.power.limited:
@@ -248,7 +262,6 @@ def rules(evidence: Evidence, dictionary: dict) -> list[str]:
     noun = "tiles" if evidence.unit == "image" else "strips"
     n1, n2 = evidence.power.n_segments
     fired = [
-        (evidence.controls.ran and evidence.controls.passed is False, "The known-answer controls failed"),
         (any(r.startswith("Contains a particle type not seen before") for r in evidence.reasons),
          "A particle type the baseline doesn't have"),
         (bool(different), f"Differs beyond the tolerance on {join_and(different)}"),
@@ -257,6 +270,7 @@ def rules(evidence: Evidence, dictionary: dict) -> list[str]:
         (bool(contra), f"{join_and([label(q, dictionary) for q in contra])} changes status between tiles and strips"),
         (evidence.power.limited, f"Too few {noun} to confirm any difference ({n1} vs {n2})"),
         (bool(unclear), f"{len(unclear)} key propert{'y' if len(unclear) == 1 else 'ies'} not settled"),
+        (evidence.controls.ran and not evidence.controls.passed, "Known-answer controls failed"),
         (not evidence.controls.ran, "Known-answer controls not run"),
         (not used, "No key property measured on both sides"),
     ]
@@ -266,7 +280,7 @@ def rules(evidence: Evidence, dictionary: dict) -> list[str]:
 def plain(text: str, evidence: Evidence, dictionary: dict) -> str:
     """decide.py's next action in words: metric lists dropped, quantity codes replaced by names."""
     if evidence.imaging.changed_metrics:
-        text = text.replace(f" ({', '.join(evidence.imaging.changed_metrics)})", "")
+        text = re.sub(r"(?<=imaging settings) \([^)]*\)", "", text)
     paused = [d.name for d in evidence.differences if d.note == "imaging changed"]
     if paused:
         text = text.replace(", ".join(paused), join_and([label(q, dictionary) for q in paused]))
@@ -336,6 +350,8 @@ def explain(evidence: Evidence, dictionary: dict) -> Explanations:
     if (evidence.new_type_share is not None
             and any(reason.startswith("Contains a particle type not seen before") for reason in evidence.reasons)):
         engineer.append(f"{evidence.new_type_share:.1%} of the silicon area is a particle type not seen in the baseline.")
+    if (line := sampling_line(evidence, "si_area_frac", "Silicon")):
+        engineer.append(line)
     engineer.append(f"Next: {plain(evidence.next_action, evidence, dictionary)}")
 
     n1, n2 = evidence.power.n_segments
@@ -368,6 +384,9 @@ def explain(evidence: Evidence, dictionary: dict) -> Explanations:
     if evidence.imaging.curtained_images:
         scientist.append("Run-length descriptors blanked for curtained images: "
                          f"{', '.join(evidence.imaging.curtained_images)}.")
+    if evidence.imaging.report_metrics:
+        scientist.append("Imaging metrics outside the baseline range, not used for the verdict: "
+                         f"{', '.join(evidence.imaging.report_metrics)}.")
     if not evidence.controls.ran:
         scientist.append("Controls not run.")
     elif evidence.controls.passed is True:
@@ -375,6 +394,10 @@ def explain(evidence: Evidence, dictionary: dict) -> Explanations:
     else:
         names = ", ".join(r.name for r in evidence.controls.results if not r.passed)
         scientist.append(f"Controls failed: {names}.")
+    if (line := sampling_line(evidence, "si_area_frac", "Silicon")):
+        scientist.append(line)
+    if (line := sampling_line(evidence, "porosity_apparent", "Apparent porosity")):
+        scientist.append(line)
     scientist.append("Images of one strip are correlated, so the image-level p can be too small; "
                      "the strip view is reported alongside.")
 

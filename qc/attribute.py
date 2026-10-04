@@ -15,13 +15,17 @@ Answers two questions, kept apart from the QC verdict in qc/decide.py:
 Every image is always assigned to a batch (the task designer's rule, PLAN_v4 Rule 11): a weak call
 is reported as a weak call, never as a non-answer. What says how weak:
 
-  - `confidence`: the probability of the predicted batch after temperature scaling on the model's own
-    out-of-fold (strip-held-out) probabilities; `confidence_tier` high / medium / low with
-    `confidence_record`, how often out-of-fold calls in that tier were right;
   - `stage_baseline` and `stage_variation`: "different from the baseline?" and "in what way?", each
-    with its own confidence, so "surely not Batch_3, weak lean to Batch_2" is a legitimate answer;
-  - `prediction_set`: the batches that contain the truth at rate 1 - CONFORMAL_ALPHA (split conformal
-    on the out-of-fold probabilities; loose at this sample size, shown beside the bet);
+    with its own confidence, so "surely not Batch_3, weak lean to Batch_2" is a legitimate answer.
+    The bet follows them: the baseline if it is at least as likely as not, else the leading variation.
+    Each carries its held-out `record`; a stage that does not beat guessing is `established: false`,
+    gets a `note`, and every option it cannot tell apart stays in the prediction set (docs/experiments/T18.md);
+  - "baseline or not" is calibrated with Venn-Abers on the model's own out-of-fold (strip-held-out)
+    probabilities (docs/experiments/T14.md): a probability and the `interval` those points allow;
+  - `confidence`: the calibrated probability of the predicted batch; `confidence_tier` high / medium /
+    low with `confidence_record`, how often held-out calls in that tier were right;
+  - `prediction_set`: the batches that contain the truth at rate 1 - CONFORMAL_ALPHA (conformal on
+    the held-out probabilities; loose at this sample size, shown beside the bet);
   - `unfamiliar`: the image is outside the range of the batch it was assigned to.
 
 A staged model (`staged=(families_1, families_2)`, CLI `--staged a,b:c`) fits "baseline or not" and
@@ -29,6 +33,7 @@ A staged model (`staged=(families_1, families_2)`, CLI `--staged a,b:c`) fits "b
 
 Reasons carry a plain-language `text`: named features are stated against the baseline in SD; a
 deep_pcNN component is translated into the named material features it moves with on the training set.
+`explain.importance` says which inputs each stage leans on over all training images.
 
 Rule 2 of PLAN_v4 allows a classifier on batch labels for this track
 only: the accept/reject verdict is still the statistical comparison in qc/decide.py.
@@ -48,7 +53,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.optimize import linear_sum_assignment
+from scipy.stats import binom
 import yaml
+from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
 from qc.features import ALL_FAMILIES, DEEP_FAMILY, FAMILIES, MATERIAL_FAMILIES, assert_no_leakage, describe, family_of, feature_columns, load_features
@@ -61,13 +68,15 @@ UNFAMILIAR_QUANTILE = 1.0     # flag threshold = this quantile of a batch's own 
 Z_FLAG = 2.0                  # |z| beyond which a feature is listed as deviating from the baseline
 N_REASONS = 5
 DEEP_COMPONENTS = 10          # deep_ columns are replaced by this many principal components
-TEMPERATURES = np.geomspace(0.02, 20, 121)   # grid for temperature scaling of the out-of-fold probabilities
 TIERS = (("high", 0.75), ("medium", 0.5), ("low", 0.0))   # confidence tier = first whose minimum is reached
 CONFORMAL_ALPHA = 0.2         # prediction sets aim to contain the true batch in 1 - alpha of images
 TRANSLATE_MIN_R = 0.5         # a deep component is "explained by" named features with |r| at least this
 TRANSLATE_TOP = 3
+IMPORTANCE_TOP = 8            # features listed per stage in explain.importance
 SD_SAME = 0.5                 # |z| below this reads "about the same as the baseline"
+ESTABLISHED_P = 0.05          # a stage is "established" when its held-out record beats a coin flip at this one-sided binomial p
 DICTIONARY_PATH = Path("config/kpi_dictionary.yaml")
+IMAGING_FAMILY = "img"        # acquisition, not material: never a model input, but named when an image pattern tracks it
 
 
 # ---------------------------------------------------------------- groups and matrices
@@ -425,53 +434,113 @@ def evaluate(df: pd.DataFrame, families_sets: dict[str, tuple] | None = None, n_
 
 # ---------------------------------------------------------------- model
 
-def _temper(probs: np.ndarray, temperature: float) -> np.ndarray:
-    """Temperature scaling of probabilities: p ** (1 / T), renormalised. T < 1 sharpens, T > 1 flattens."""
-    logp = np.log(np.clip(probs, 1e-12, None)) / temperature
-    out = np.exp(logp - logp.max(axis=1, keepdims=True))
-    return out / out.sum(axis=1, keepdims=True)
+def venn_abers(scores: np.ndarray, labels: np.ndarray, score: float) -> tuple[float, float]:
+    """Venn-Abers interval [p0, p1] for P(label = 1) at `score`: isotonic regression of the calibration
+    labels on their scores, refitted with the new point added once as label 0 and once as label 1.
+    The width says how little the calibration points pin the probability down.
+
+    The two labels weigh the same in total, as in the classifier (class_weight="balanced"): the mix of
+    unseen images is unknown, and an unweighted fit would carry the training mix into every call."""
+    out = []
+    for label in (0.0, 1.0):
+        y = np.append(labels, label)
+        weight = np.where(y == 1, 0.5 / max((y == 1).sum(), 1), 0.5 / max((y == 0).sum(), 1))
+        iso = IsotonicRegression(y_min=0, y_max=1, out_of_bounds="clip").fit(np.append(scores, score), y, sample_weight=weight)
+        out.append(float(iso.predict([score])[0]))
+    return min(out), max(out)
+
+
+def _calibrated(raw: np.ndarray, classes: list[str], baseline: str, points: dict | None) -> tuple[np.ndarray, np.ndarray | None]:
+    """Probabilities with a Venn-Abers "baseline or not", and its [p0, p1] interval per row.
+
+    p(baseline) = p1 / (1 - p0 + p1) from the raw p(baseline) and the calibration `points` (`scores`,
+    `labels`); the other batches share the rest in their raw proportions. Without points, or without the
+    baseline and another batch among the classes, the raw probabilities pass through."""
+    if not points or not len(points["scores"]) or baseline not in classes or len(classes) < 2:
+        return raw, None
+    b = classes.index(baseline)
+    scores, labels = np.asarray(points["scores"], float), np.asarray(points["labels"], float)
+    intervals = np.array([venn_abers(scores, labels, s) for s in raw[:, b]]).reshape(-1, 2)
+    pb = intervals[:, 1] / (1 - intervals[:, 0] + intervals[:, 1])
+    rest = np.delete(raw, b, axis=1)
+    total = rest.sum(axis=1, keepdims=True)
+    share = np.where(total > 0, rest / np.where(total > 0, total, 1.0), 1.0 / rest.shape[1])
+    return np.insert((1 - pb)[:, None] * share, b, pb, axis=1), intervals
+
+
+def _call(p: np.ndarray, classes: list[str], baseline: str) -> int:
+    """The bet: the baseline if it is at least as likely as not, else the most likely other batch."""
+    if baseline not in classes or len(classes) < 2:
+        return int(np.argmax(p))
+    b = classes.index(baseline)
+    return b if p[b] >= 0.5 else max((j for j in range(len(classes)) if j != b), key=lambda j: p[j])
 
 
 def tier_of(confidence: float) -> str:
     return next(name for name, low in TIERS if confidence >= low)
 
 
+def _qhat(scores: np.ndarray, alpha: float) -> float:
+    n = len(scores)
+    return float(np.quantile(scores, min(1.0, np.ceil((n + 1) * (1 - alpha)) / n), method="higher"))
+
+
 def calibrate(per_image: pd.DataFrame, classes: list[str], baseline: str, alpha: float = CONFORMAL_ALPHA) -> dict:
     """What the out-of-fold (strip-held-out) probabilities say about how far to trust a call.
 
-    temperature: minimises the out-of-fold log loss. tiers: right / n of the out-of-fold calls per
-    confidence tier after scaling. conformal: `qhat` such that the set {class: p >= 1 - qhat} holds the
-    true batch for about 1 - alpha of images. stages: right / n for "baseline or not" and, among true
-    variations called a variation, for "which variation". All on the same folds, so slightly optimistic.
+    venn_abers: every image's out-of-fold p(baseline) with its label, the calibration points `predict`
+    uses (`_calibrated`). No temperature: fitted held out it made the log loss worse (docs/experiments/T14.md).
+
+    Everything else is a held-out record: the images of each strip are calibrated with the points of the
+    other strips, then scored. accuracy, balanced_accuracy, confusion and log_loss of those calls
+    (`raw_log_loss`: without calibration); tiers: right / n per confidence tier; stages: right / n for
+    "baseline or not" and, among true variations called a variation, for "which variation"; conformal:
+    `qhat` such that the set {class: p >= 1 - qhat} holds the true batch for about 1 - alpha of images,
+    with the coverage and mean set size when qhat comes from the other strips too.
     """
     P = per_image[[f"p_{c}" for c in classes]].to_numpy(float)
-    y = per_image["batch"].to_numpy(str)
+    y, groups = per_image["batch"].to_numpy(str), per_image["strip"].to_numpy(str)
     ok = np.isfinite(P).all(axis=1) & np.isin(y, classes)
-    P, y = P[ok], y[ok]
-    if not len(y):
-        return {"temperature": 1.0, "n": 0, "tiers": [], "conformal": None, "stages": {}}
-    truth = np.array([classes.index(c) for c in y])
-    losses = [-np.log(np.clip(_temper(P, t)[np.arange(len(y)), truth], 1e-12, None)).mean() for t in TEMPERATURES]
-    temperature = float(TEMPERATURES[int(np.argmin(losses))])
-    Pc = _temper(P, temperature)
-    pred, conf = Pc.argmax(axis=1), Pc.max(axis=1)
-    right = pred == truth
-    tiers = np.array([tier_of(c) for c in conf])
+    P, y, groups = P[ok], y[ok], groups[ok]
     n = len(y)
-    level = min(1.0, np.ceil((n + 1) * (1 - alpha)) / n)
-    qhat = float(np.quantile(1 - Pc[np.arange(n), truth], level, method="higher"))
-    b = classes.index(str(baseline)) if str(baseline) in classes else None
+    if not n:
+        return {"n": 0, "tiers": [], "venn_abers": None, "conformal": None, "stages": {}}
+    truth = np.array([classes.index(c) for c in y])
+    b = classes.index(str(baseline)) if str(baseline) in classes and len(classes) > 1 else None
+    points = None if b is None else {"scores": P[:, b], "labels": (truth == b).astype(float)}
+    folds = [groups == g for g in np.unique(groups)]
+    Q, width = P.copy(), np.zeros(n)
+    for test in folds if points else []:
+        Q[test], intervals = _calibrated(P[test], classes, str(baseline), {k: v[~test] for k, v in points.items()})
+        width[test] = intervals[:, 1] - intervals[:, 0]
+    pred = np.array([_call(q, classes, str(baseline)) for q in Q])
+    right = pred == truth
+    tiers = np.array([tier_of(c) for c in Q[np.arange(n), pred]], dtype=object)
+    log_loss = lambda probs: float(-np.log(np.clip(probs[np.arange(n), truth], 1e-12, None)).mean())
+    scores = 1 - Q[np.arange(n), truth]
+    in_set = np.zeros_like(Q, bool)
+    for test in folds:
+        in_set[test] = Q[test] >= 1 - _qhat(scores[~test], alpha) if (~test).any() else True
+    in_set[np.arange(n), pred] = True
     stages = {}
     if b is not None:
         s1 = (pred == b) == (truth == b)
         s2 = (pred != b) & (truth != b)
         stages = {"baseline": {"right": int(s1.sum()), "n": int(n)}, "variation": {"right": int(right[s2].sum()), "n": int(s2.sum())}}
+        if (rec := stage_record(stages["variation"], len(classes) - 1)) and not rec["established"]:
+            tiers[pred != b] = "low"  # as predict: a variation call the model cannot back is never more than low
     return {
-        "temperature": temperature,
+        "method": "venn_abers" if points else "none",
         "n": int(n),
         "accuracy": float(right.mean()),
+        "balanced_accuracy": balanced_accuracy(truth, pred),
+        "confusion": confusion(y, np.array(classes)[pred], classes),
+        "log_loss": log_loss(Q),
+        "raw_log_loss": log_loss(P),
         "tiers": [{"tier": name, "min_confidence": low, "right": int(right[tiers == name].sum()), "n": int((tiers == name).sum())} for name, low in TIERS],
-        "conformal": {"alpha": alpha, "qhat": qhat, "n": int(n)},
+        "venn_abers": points and {"scores": points["scores"].tolist(), "labels": points["labels"].tolist(), "mean_width": float(width.mean())},
+        "conformal": {"alpha": alpha, "qhat": _qhat(scores, alpha), "n": int(n),
+                      "coverage": float(in_set[np.arange(n), truth].mean()), "mean_size": float(in_set.sum(axis=1).mean())},
         "stages": stages,
     }
 
@@ -485,10 +554,20 @@ def _segment_means(df: pd.DataFrame, columns: list[str]) -> tuple[pd.DataFrame, 
     return df[columns].apply(pd.to_numeric, errors="coerce").groupby(seg).mean(), df.groupby(seg)["batch"].first().astype(str)
 
 
+def _moves_with(values: pd.DataFrame, component: pd.Series) -> list[tuple[str, float]]:
+    """The columns of `values` a component correlates with: |r| >= TRANSLATE_MIN_R, at most TRANSLATE_TOP."""
+    if values.empty:
+        return []
+    r = values.corrwith(component).dropna()
+    top = r[r.abs() >= TRANSLATE_MIN_R].sort_values(key=np.abs, ascending=False).head(TRANSLATE_TOP)
+    return [(f, round(float(v), 2)) for f, v in top.items()]
+
+
 def explain_tables(df: pd.DataFrame, parts: dict[str, dict], baseline: str, dictionary: dict | None = None) -> dict:
     """What the reasons need to be readable: for every deep_pcNN the named material features it moves
     with on the training rows (|r| >= TRANSLATE_MIN_R, at most TRANSLATE_TOP), and for every named
-    feature its label, its baseline mean and SD over strip segments, and each batch's mean."""
+    feature its label, its baseline mean and SD over strip segments, and each batch's mean. Plus what
+    each stage leans on overall (`importance`)."""
     pool = usable_features(df, MATERIAL_FAMILIES)
     named_values = df[pool].apply(pd.to_numeric, errors="coerce") if pool else pd.DataFrame(index=df.index)
     translations: dict[str, dict] = {}
@@ -500,10 +579,9 @@ def explain_tables(df: pd.DataFrame, parts: dict[str, dict], baseline: str, dict
             if not name.startswith(f"{DEEP_FAMILY}_pc"):
                 used.add(name)
                 continue
-            r = named_values.corrwith(pd.Series(Xr[:, j], index=df.index)).dropna() if pool else pd.Series(dtype=float)
-            top = r[r.abs() >= TRANSLATE_MIN_R].sort_values(key=np.abs, ascending=False).head(TRANSLATE_TOP)
-            translations[role][name] = [{"feature": f, "r": round(float(v), 2)} for f, v in top.items()]
-            used |= set(top.index)
+            top = _moves_with(named_values, pd.Series(Xr[:, j], index=df.index))
+            translations[role][name] = [{"feature": f, "r": r} for f, r in top]
+            used |= {f for f, _ in top}
     columns = [c for c in df.columns if c in used]
     means, batch = _segment_means(df, columns)
     base = means[batch == str(baseline)]
@@ -516,7 +594,45 @@ def explain_tables(df: pd.DataFrame, parts: dict[str, dict], baseline: str, dict
             "baseline_sd": sd if np.isfinite(sd) and sd > 0 else np.nan,
             "batch_means": {b: float(means.loc[batch == b, c].mean()) for b in sorted(batch.unique())},
         }
-    return {"translations": translations, "named": named}
+    return {"translations": translations, "named": named, "importance": importance(df, parts, str(baseline), translations, named)}
+
+
+def importance(df: pd.DataFrame, parts: dict[str, dict], baseline: str, translations: dict, named: dict) -> dict:
+    """Which inputs each stage leans on, over the images it was trained on.
+
+    Per model feature: the mean |coefficient x z| as a share of the stage's total. `families` sums the
+    shares per feature family; `features` lists the IMPORTANCE_TOP largest with their label, the class a
+    higher value pulls towards, and for a deep_pcNN the named features it moves with (`related`) and
+    the imaging descriptors it moves with (`imaging`, same |r| rule): how much of that pattern may be
+    the microscope rather than the material."""
+    out = {}
+    acquisition = df[usable_features(df, (IMAGING_FAMILY,))].apply(pd.to_numeric, errors="coerce")
+    for role, part in parts.items():
+        rows = df[df["batch"].astype(str) != baseline] if role == "variation" else df
+        if len(part["classes"]) < 2 or rows.empty:
+            continue
+        _, Z, coef, _ = _eval_part(part, rows)
+        Xr = _eval_part(part, df)[3]
+        weight = np.abs(coef[:, None, :] * Z[None]).mean(axis=(0, 1))
+        if not weight.sum() > 0:
+            continue
+        share = weight / weight.sum()
+        names = part["model_features"]
+        families: dict[str, float] = {}
+        for name, v in zip(names, share):
+            families[family_of(name)] = families.get(family_of(name), 0.0) + float(v)
+        features = []
+        for j in np.argsort(-share)[:IMPORTANCE_TOP]:
+            name = names[j]
+            deep = name.startswith(f"{DEEP_FAMILY}_pc")
+            entry = {"feature": name, "label": f"DINOv2 image pattern {name.rsplit('pc', 1)[-1]}" if deep else named.get(name, {}).get("label", name),
+                     "share": round(float(share[j]), 4), "higher_means": part["classes"][int(np.argmax(coef[:, j]))]}
+            if deep:
+                entry["related"] = [t | {"label": named.get(t["feature"], {}).get("label", t["feature"])} for t in translations.get(role, {}).get(name, [])]
+                entry["imaging"] = [{"feature": f, "label": describe(f), "r": r} for f, r in _moves_with(acquisition, pd.Series(Xr[:, j], index=df.index))]
+            features.append(entry)
+        out[role] = {"n_features": len(names), "families": {f: round(v, 4) for f, v in sorted(families.items(), key=lambda kv: -kv[1])}, "features": features}
+    return out
 
 
 def fit_model(df: pd.DataFrame, baseline: str, families=MATERIAL_FAMILIES, seed: int = 0, C: float | None = None, staged=None) -> dict:
@@ -526,6 +642,8 @@ def fit_model(df: pd.DataFrame, baseline: str, families=MATERIAL_FAMILIES, seed:
     the mean/SD of its strip segments and the threshold beyond which an image is outside that batch
     (`batch_stats`; `baseline_stats` is the baseline's entry); and the tables behind readable reasons
     (`explain_tables`). `staged=(families_1, families_2)` fits the two-stage model instead.
+    `loso` is the held-out record of the calls as `predict` makes them (calibrated);
+    `classifier_balanced_accuracy` is the uncalibrated argmax that `--evaluate` reports.
     """
     features = _stage_features(df, families, staged)
     parts = _fit_parts(df, features, baseline, seed, nested=True, C=C)
@@ -534,8 +652,10 @@ def fit_model(df: pd.DataFrame, baseline: str, families=MATERIAL_FAMILIES, seed:
     space = parts.get("all") or parts["baseline"]  # distances are measured in this part's feature space
     reducer = Reducer.from_json(space["features"], space["reducer"])
     stats = {c: baseline_stats(df, space["features"], c, reducer) for c in classes}
+    calibration = calibrate(cv["per_image"], classes, str(baseline))
+    calls = calibration if calibration["n"] else cv
     model = {
-        "version": "v4.1-draft",
+        "version": "v4.2",
         "fitted_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "kind": "staged" if staged else "flat",
         "families": cv["families"],
@@ -543,8 +663,9 @@ def fit_model(df: pd.DataFrame, baseline: str, families=MATERIAL_FAMILIES, seed:
         "classes": classes,
         "baseline": str(baseline),
         "trained_on": {b: sorted(df.loc[df["batch"].astype(str) == b, "image_id"].astype(str)) for b in classes},
-        "loso": {"balanced_accuracy": cv["balanced_accuracy"], "confusion": cv["confusion"], "n_strips": cv["n_strips"]},
-        "calibration": calibrate(cv["per_image"], classes, str(baseline)),
+        "loso": {"balanced_accuracy": calls["balanced_accuracy"], "confusion": calls["confusion"], "n_strips": cv["n_strips"],
+                 "classifier_balanced_accuracy": cv["balanced_accuracy"]},
+        "calibration": calibration,
         "baseline_stats": stats.get(str(baseline)) or baseline_stats(df, space["features"], baseline, reducer),
         "batch_stats": stats,
         "explain": explain_tables(df, parts, str(baseline), load_dictionary()),
@@ -650,26 +771,54 @@ def _reasons(model: dict, role: str, part: dict, z: np.ndarray, contrib: np.ndar
     return out
 
 
-def _stage_calls(p: np.ndarray, classes: list[str], baseline: str) -> dict:
-    """"Different from the baseline?" and, if so, "in what way?": each with its own confidence."""
+def stage_record(record: dict | None, options: int = 2) -> dict | None:
+    """A stage's held-out record (right / n) and whether it beats guessing among its `options`:
+    `p_value` = one-sided binomial P(at least this many right | chance), `established` = p_value < ESTABLISHED_P.
+    A stage that is not established still makes its call (Rule 11); the call is then a lean, and says so."""
+    if not record or not record.get("n"):
+        return None
+    right, n = int(record["right"]), int(record["n"])
+    p = float(binom.sf(right - 1, n, 1 / options))
+    return {"right": right, "n": n, "chance": round(1 / options, 4), "p_value": round(p, 4), "established": p < ESTABLISHED_P}
+
+
+def _stage_calls(p: np.ndarray, classes: list[str], baseline: str, interval=None, stages: dict | None = None) -> dict:
+    """"Different from the baseline?" and, if so, "in what way?": each with its own confidence.
+    `interval` is the Venn-Abers [p0, p1] of p(baseline); it is reported as the range of the first confidence.
+    `stages` is the model's held-out record per stage (`calibration.stages`); each call then carries its
+    `record` (`stage_record`), so a stage that does no better than guessing is marked as not established."""
     if baseline not in classes:
         return {"stage_baseline": None, "stage_variation": None}
+    stages = stages or {}
     b = classes.index(baseline)
     pb = float(p[b])
     first = {"call": baseline if pb >= 0.5 else other_label(baseline), "confidence": max(pb, 1 - pb), "p_baseline": pb}
+    if interval is not None:
+        low, high = float(interval[0]), float(interval[1])
+        first["interval"] = [low, high] if pb >= 0.5 else [1 - high, 1 - low]
+    if (rec := stage_record(stages.get("baseline"))) is not None:
+        first["record"] = rec
     rest = [(c, float(p[j])) for j, c in enumerate(classes) if j != b]
-    if int(np.argmax(p)) == b or not rest or 1 - pb <= 0:
+    if pb >= 0.5 or not rest:
         return {"stage_baseline": first, "stage_variation": None}
     best, pbest = max(rest, key=lambda t: t[1])
-    return {"stage_baseline": first, "stage_variation": {"call": best, "confidence": pbest / (1 - pb)}}
+    second = {"call": best, "confidence": pbest / (1 - pb)}
+    if (rec := stage_record(stages.get("variation"), len(rest))) is not None:
+        second["record"] = rec
+        if not rec["established"]:
+            names = " and ".join(c for c, _ in rest)
+            second["note"] = (f"{names} are not told apart on held-out strips: {rec['right']} of {rec['n']} right, "
+                              f"where guessing gets that many or more with probability {rec['p_value']:.2f}. {best} is a lean, not a finding.")
+    return {"stage_baseline": first, "stage_variation": second}
 
 
 def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd.DataFrame:
     """One row per image. Always a batch (`predicted`), and how far to trust it.
 
-    p_<batch> and `confidence` are temperature-scaled (`confidence_raw` is the unscaled value);
-    `confidence_tier` with `confidence_record` (out-of-fold right / n in that tier); `stage_baseline`
-    and `stage_variation`; `prediction_set`; `reasons` with plain-language `text`; distance to the
+    p_<batch> and `confidence` are calibrated (`_calibrated`; `confidence_raw` is the classifier's own
+    value); `predicted` follows the stages (`_call`); `confidence_tier` with `confidence_record` (held-out
+    right / n in that tier); `stage_baseline` (with the Venn-Abers `interval` of its confidence) and
+    `stage_variation`; `prediction_set`, the bet first; `reasons` with plain-language `text`; distance to the
     baseline (`baseline_distance`, `outside_baseline`, `deviations`) and to the predicted batch
     (`predicted_distance`, `unfamiliar`: outside the range of the batch it was assigned to).
     `balanced=k` additionally reports `assigned`: the joint assignment with exactly k images per
@@ -680,11 +829,13 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
     evals = {role: _eval_part(part, feats) for role, part in parts.items()}
     raw = np.nan_to_num(_parts_proba(parts, feats, classes, baseline), nan=0.0)
     calibration = model.get("calibration") or {}
-    probs = _temper(raw, calibration.get("temperature") or 1.0)
+    probs, intervals = _calibrated(raw, classes, baseline, calibration.get("venn_abers"))
     tiers = {t["tier"]: t for t in calibration.get("tiers", [])}
     qhat = (calibration.get("conformal") or {}).get("qhat")
     space = "all" if "all" in parts else "baseline"
-    pred_idx = probs.argmax(axis=1)
+    pred_idx = [_call(p, classes, baseline) for p in probs]
+    variation_record = stage_record((calibration.get("stages") or {}).get("variation"), max(len(classes) - 1, 1))
+    explain_variation = variation_record is None or variation_record["established"]  # a coin flip gets a note, not reasons
     rows = []
     for i in range(len(feats)):
         k = pred_idx[i]
@@ -697,7 +848,7 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
             call = baseline if classes[k] == baseline else other_label(baseline)
             _, Z1, coef1, _ = evals["baseline"]
             c1 = coef1[first["classes"].index(call)] * Z1[i] if call in first["classes"] else np.zeros(Z1.shape[1])
-            if classes[k] == baseline or classes[k] not in second["classes"] or len(second["classes"]) < 2:
+            if classes[k] == baseline or classes[k] not in second["classes"] or len(second["classes"]) < 2 or not explain_variation:
                 reasons = _reasons(model, "baseline", first, Z1[i], c1, row, N_REASONS)
             else:
                 _, Z2, coef2, _ = evals["variation"]
@@ -705,8 +856,13 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
                 reasons = _reasons(model, "baseline", first, Z1[i], c1, row, n1)
                 reasons += _reasons(model, "variation", second, Z2[i], coef2[second["classes"].index(classes[k])] * Z2[i], row, N_REASONS - n1)
         confidence = float(probs[i, k])
-        tier = tier_of(confidence)
         order = np.argsort(-probs[i])
+        stage = _stage_calls(probs[i], classes, baseline, None if intervals is None else intervals[i], calibration.get("stages"))
+        pset = [classes[k]] + [classes[j] for j in order if j != k and qhat is not None and probs[i, j] >= 1 - qhat]
+        guess = ((stage["stage_variation"] or {}).get("record") or {}).get("established") is False
+        if guess:  # cannot rule out what it cannot tell apart
+            pset += [c for c in classes if c != baseline and c not in pset]
+        tier = "low" if guess else tier_of(confidence)
         x = evals[space][3][i]
         own = _distance((model.get("batch_stats") or {}).get(classes[k]), model, x)
         base = baseline_distance(model, x)
@@ -721,8 +877,8 @@ def predict(model: dict, feats: pd.DataFrame, balanced: int | None = None) -> pd
                 "confidence_raw": float(raw[i, k]),
                 "confidence_tier": tier,
                 "confidence_record": {"right": tiers[tier]["right"], "n": tiers[tier]["n"]} if tier in tiers else None,
-                **_stage_calls(probs[i], classes, baseline),
-                "prediction_set": [classes[j] for j in order if j == k or (qhat is not None and probs[i, j] >= 1 - qhat)],
+                **stage,
+                "prediction_set": pset,
                 "reasons": reasons,
                 **base,
                 "predicted_distance": own["distance"],
@@ -864,7 +1020,8 @@ def attribute_images(image_dir: Path, model: dict, balanced: int | None = None, 
     result = {
         "run": image_dir.name,
         "model": {"fitted_at": model["fitted_at"], "classes": model["classes"], "baseline": model["baseline"], "loso_balanced_accuracy": model["loso"]["balanced_accuracy"],
-                  "kind": model.get("kind", "flat"), "families": model.get("families"), "staged": model.get("staged"), "calibration": model.get("calibration")},
+                  "kind": model.get("kind", "flat"), "families": model.get("families"), "staged": model.get("staged"), "calibration": model.get("calibration"),
+                  "importance": (model.get("explain") or {}).get("importance")},
         "images": pred.drop(columns=["batch"]).to_dict(orient="records"),
         "summary": {c: int((pred["predicted"] == c).sum()) for c in model["classes"]} | {"unfamiliar": int(pred["unfamiliar"].fillna(False).sum())},
     }
