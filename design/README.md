@@ -28,7 +28,9 @@ Four places, in the sidebar:
 | **Library** | Every tile, with the viewer: detector switch, segmentation layers (Si / pore / binder), particle inspector |
 | **Audit log** | Append-only decision log, rules-frozen banner, "Verify everything", printable batch passport, the parody lawsuit button |
 
-**Labs** (wear and impact, sample size, 3D slab) sit in the sidebar as "Soon".
+**Experimental** (Wear & impact, Anode lab) sit in the sidebar under their own heading; the heading is the only "experimental" label in the chrome.
+
+Every page starts the same way: the breadcrumb bar (parents are links), then a 40 px title with at most one sentence under it, in the 1180 px column. No eyebrow labels over the title: the breadcrumb and the sidebar already say where you are.
 
 ## Boards
 
@@ -105,7 +107,7 @@ Batch 1 moved from amber (in `docs/APP.md`) to blue so orange stays the cat's.
 - **Baseline band:** every value is drawn against the baseline mean ±1σ / ±2σ / ±3σ, shaded in baseline teal.
 - **Shifts in σ**, next to physical units (`0.075 → 0.105 · +2.1σ`).
 - **Intervals,** not just points. The tolerance (±1.5σ, the margin δ) is a dashed teal zone.
-- **Status chips:** Similar (green), Unclear (yellow), Paused (grey, imaging changed).
+- **Status chips:** Similar (green), Not settled (yellow), Differs (red), Paused (grey, imaging changed). The same words everywhere: cards, tables and fold summaries.
 
 ## Logo
 

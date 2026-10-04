@@ -1,6 +1,6 @@
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { COLORS, glowSprite, stagingColor, surfaceMaterial } from "./materials";
@@ -89,13 +89,15 @@ interface Props {
   labels?: boolean;
   /** Stable container for the HTML labels, so drei does not re-target (and drop) them when events connect. */
   labelRoot: RefObject<HTMLElement>;
+  keepOut: RefObject<THREE.Mesh | null>;
+  occluders: RefObject<THREE.Object3D>[];
 }
 
 /** One anode slab: graphite flakes and silicon particles as instanced meshes clipped to the box. The visible box
     faces are true sections of the packing, rasterised on the CPU (overlapping particles make the usual stencil
     cap wrong), with pores left open so you look into them. Li+ ions move in the pores; Li metal grows where
     plating is predicted. */
-export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels = false, labelRoot }: Props) {
+export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels = false, labelRoot, keepOut, occluders }: Props) {
   const [W, H0, D] = model.box_um;
   const H = st.thicknessUm;
   const zFront = clamp(drive.sliceUm, 1, D);
@@ -106,6 +108,10 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
   const stale = useRef(new Set<Face>());
   const lastRaster = useRef(-1);
   const box = useMemo(() => ({ uBoxMin: { value: new THREE.Vector3() }, uBoxMax: { value: new THREE.Vector3() } }), []);
+  const look = useMemo(() => new THREE.Vector3(), []);
+  const [frontal, setFrontal] = useState(true);
+  const [semWanted, setSemWanted] = useState(false);
+  if (drive.showSection && !semWanted) setSemWanted(true);
 
   const scene = useMemo(() => {
     const rnd = mulberry32(model.silicon.length * 7919 + model.graphite.length);
@@ -349,6 +355,8 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
       }
       lastRaster.current = now;
     }
+    const facing = Math.abs(Math.atan2(camera.getWorldDirection(look).x, -look.z)) < 0.45;
+    if (facing !== frontal) setFrontal(facing);
     scene.ions.visible = drive.showIons;
     if (!drive.showIons) return;
     const dt = Math.min(delta, 0.05);
@@ -385,7 +393,7 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
   const zMid = -D / 2 + zFront / 2;
   const section = model.section;
   const texture = useMemo(() => {
-    if (!section) return null;
+    if (!section || !semWanted) return null;
     const url = `/api/images/${encodeURIComponent(model.batch)}/${encodeURIComponent(section.image_id)}/${section.detector}?size=2048`;
     const tex = new THREE.TextureLoader().load(url);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -393,7 +401,7 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
     tex.repeat.set((u1 - u0) / 2, v1 - v0);
     tex.offset.set(u0, 1 - v1);
     return tex;
-  }, [model.batch, section]);
+  }, [model.batch, section, semWanted]);
   useEffect(() => () => texture?.dispose(), [texture]);
 
   const edges = useMemo(() => new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), []);
@@ -426,6 +434,10 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
         <boxGeometry />
         <meshStandardMaterial color={COLORS.copper} metalness={0.9} roughness={0.28} />
       </mesh>
+      <mesh ref={keepOut} visible={false} position={[offsetX, (H + SEPARATOR_UM + 9 - COPPER_UM) / 2, zMid]}
+        scale={[W + 32, H + SEPARATOR_UM + 9 + COPPER_UM, zFront + 32]}>
+        <boxGeometry />
+      </mesh>
 
       {texture && drive.showSection && (
         <mesh position={[offsetX - W / 4, H0 / 2, front + 0.05]}>
@@ -434,12 +446,12 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
         </mesh>
       )}
 
-      <Html portal={labelRoot} position={[offsetX, H + SEPARATOR_UM + 5, zMid]} center>
-        <div title={subtitle} className="glass flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-2.5 py-1 text-[13px] font-medium text-cx-text">
+      <Html portal={labelRoot} position={[offsetX, H + SEPARATOR_UM + 5, zMid]} center occlude={occluders.length ? occluders : undefined}>
+        <div title={subtitle} className="glass pointer-events-auto flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-2.5 py-1 text-[13px] font-medium text-cx-text">
           <span className="h-2 w-2 rounded-[3px]" style={{ background: color }} />{title}
         </div>
       </Html>
-      {labels && (
+      {labels && frontal && (
         <>
           <Html portal={labelRoot} position={[offsetX + W / 2 + 3, H + SEPARATOR_UM / 2, front]}>
             <div className={labelStyle}>separator</div>
@@ -449,14 +461,9 @@ export function Slab({ model, drive, st, offsetX, color, title, subtitle, labels
           </Html>
         </>
       )}
-      {texture && drive.showSection && (
-        <Html portal={labelRoot} position={[offsetX - W / 4, -COPPER_UM - 3, front]} center>
-          <div className={labelStyle}>real SEM image · {section!.image_id}</div>
-        </Html>
-      )}
-      {texture && drive.showSection && (
-        <Html portal={labelRoot} position={[offsetX + W / 4, -COPPER_UM - 3, front]} center>
-          <div className={labelStyle}>illustration</div>
+      {texture && drive.showSection && frontal && (
+        <Html portal={labelRoot} position={[offsetX, -COPPER_UM - 3, front]} center>
+          <div className={`${labelStyle} grid w-28 grid-cols-2`}><span className="pr-2 text-right">SEM</span><span className="pl-2">model</span></div>
         </Html>
       )}
     </group>

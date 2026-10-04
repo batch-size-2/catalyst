@@ -13,8 +13,21 @@ export function batchColor(name: string): string {
   return name.startsWith("drop") || name.startsWith("new") ? "var(--cx-new)" : "var(--cx-faint)";
 }
 
-/** "Batch_2" -> "Batch 2"; upload folders (drop_*) keep the name they were written with. */
-export const batchLabel = (name: string) => (name.startsWith("drop") ? name : name.replaceAll("_", " "));
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Batch_2" -> "Batch 2", "drop_demo" -> "Drop demo"; an upload folder drop_20261004-073048 -> "Upload 4 Oct 07:30". */
+export function batchLabel(name: string): string {
+  const m = /^drop_(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}$/.exec(name);
+  if (m) return `Upload ${Number(m[3])} ${MONTHS[Number(m[2]) - 1] ?? m[2]} ${m[4]}:${m[5]}`;
+  const words = name.replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** An upload folder's name for a new drop, in local time: drop_<YYYYMMDD>-<HHMMSS>. */
+export function uploadName(d = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `drop_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
 
 /** A baseline needs a spread (SD) and an odd-tile range: decide.py's odd check wants at least 3 values. */
 export const MIN_BASELINE_TILES = 3;
@@ -38,8 +51,8 @@ export function libraryTiles(tiles: Tile[]): Tile[] {
   return real.filter((t) => !isUploadBatch(t.batch) || newest.get(t.image_id) === t);
 }
 
-/** "2026-10-03 21:27 local time" for timestamps written without a time zone (the model's fitted_at). */
-export const localTime = (iso: string | null | undefined) => (iso ? `${iso.slice(0, 16).replace("T", " ")} local time` : "—");
+/** "2026-10-03 21:27" for timestamps written without a time zone (the model's fitted_at). */
+export const localTime = (iso: string | null | undefined) => (iso ? iso.slice(0, 16).replace("T", " ") : "—");
 
 /** Folders created by UI uploads are named drop_*. */
 export const isUploadBatch = (name: string) => name.startsWith("drop");
@@ -56,11 +69,11 @@ export const STATUS_CHIP: Record<Status, { label: string; className: string }> =
     className: "text-cx-accept-text border border-cx-accept/30 bg-cx-accept/10",
   },
   UNCLEAR: {
-    label: "Unclear",
+    label: "Not settled",
     className: "text-cx-investigate-text border border-cx-investigate/30 bg-cx-investigate/10",
   },
   DIFFERENT: {
-    label: "Different",
+    label: "Differs",
     className: "text-cx-reject-text border border-cx-reject/30 bg-cx-reject/10",
   },
 };

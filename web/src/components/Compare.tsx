@@ -7,15 +7,16 @@ import {
   batchColor, batchLabel, baselineBand, dictEntry, dropTwinShare, fmt, fmtPair, fmtRange, fmtSigma, imagingWords, isFixture,
   joinAnd, isUploadBatch, MIN_BASELINE_TILES, oddByTile, plural, quantityLabel, quantityNote, rankedFindings, shortHash, sigmaOf, statusChip, useApi,
 } from "../lib";
-import { href } from "../router";
+import { href, replaceRoute } from "../router";
 import type {
   BatchSummary, Config, Difference, Evidence, Guide, GuideTarget, KpiDictionary, Settings, Tile,
 } from "../types";
 import {
-  BatchDot, Cat, Details, ErrorPanel, Folds, IconCheck, IconWarn, Panel, Seg, ShiftBand, SlotText, Spinner,
+  BatchDot, Cat, ErrorPanel, Folds, IconCheck, IconWarn, Note, PAGE, Panel, Seg, ShiftBand, SlotText, Spinner,
   VerdictPill,
 } from "./bits";
 import { Peekable, type PeekItem } from "./Peek";
+import { BatchSelect } from "./Pickers";
 
 const KPI_ORDER = [
   "si_graphite_ratio", "si_area_frac", "si_d50_um", "si_d90_um", "si_internal_void_frac",
@@ -36,7 +37,6 @@ interface RunState {
   phase: "uploading" | "measuring";
   done: number;
   total: number;
-  tile: string | null;
   error?: string;
 }
 
@@ -56,10 +56,15 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
   const dict = useApi(getKpiDictionary);
   const [run, setRun] = useState<RunState | null>(null);
   const [picked, setPicked] = useState<string | null>(null);  // a one-off baseline chosen in the picker this visit
+  const [notice, setNotice] = useState<{ text: string; at: string } | null>(null);
+  const [finished, setFinished] = useState<{ batch: string; baseline: string; to: string } | null>(null);
   const folder = useRef<HTMLInputElement>(null);
 
   const defaultBaseline = config.data?.baseline ?? null;
-  const candidates = (batches.data ?? []).filter((b) => !isFixture(b.name) || b.name === routeBatch);
+  const unfrozen = !!settings.data && !settings.data.rules_frozen_commit;
+  const candidates = (batches.data ?? []).filter((b) => !isFixture(b.name));
+  const tileCount = (name: string) => (tiles.data ?? []).filter((t) => t.batch === name).length;
+  const canBase = (b: BatchSummary) => b.has_images && !isUploadBatch(b.name) && tileCount(b.name) >= MIN_BASELINE_TILES;
   const selected =
     routeBatch && candidates.some((b) => b.name === routeBatch)
       ? routeBatch
@@ -67,34 +72,57 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
         candidates.find((b) => b.verdict)?.name ??
         candidates[0]?.name;
   const oneOff =
-    routeBaseline && routeBaseline !== defaultBaseline && routeBaseline !== selected && candidates.some((b) => b.name === routeBaseline)
+    routeBaseline && routeBaseline !== defaultBaseline && routeBaseline !== selected && candidates.some((b) => b.name === routeBaseline && canBase(b))
       ? routeBaseline
       : null;
   const baseline = oneOff ?? defaultBaseline;
-  const unknown = !!routeBatch && !!batches.data && !candidates.some((b) => b.name === routeBatch);
+  const checked = !!batches.data && !!tiles.data && !!config.data;
+  const settled = checked && !batches.loading && !tiles.loading;  // not a stale list while a reload after a run is in flight
   const neverRun = !oneOff && !!selected && !candidates.find((b) => b.name === selected)?.verdict;
   const evidence = useApi(
-    () => (selected && defaultBaseline && !neverRun ? getEvidence(selected, oneOff) : Promise.resolve(null)),
-    [selected, oneOff, defaultBaseline, neverRun, reload],
+    () => (checked && selected && defaultBaseline && !neverRun ? getEvidence(selected, oneOff) : Promise.resolve(null)),
+    [checked, selected, oneOff, defaultBaseline, neverRun, reload],
   );
   const missing = neverRun || evidence.status === 404;
 
   // a failed run belongs to the comparison it was for
   useEffect(() => setRun((r) => (r?.error ? null : r)), [selected, oneOff]);
 
+  const here = href.compare(routeBatch, routeBaseline);
+  const canonical = selected ? href.compare(selected, oneOff) : here;
+  useEffect(() => {
+    setNotice((n) => (n?.at === here ? n : null));
+    setFinished((f) => (f?.to === here ? null : f));
+  }, [here]);
+  useEffect(() => {
+    if (!settled || canonical === here) return;
+    const text =
+      routeBatch && routeBatch !== selected
+        ? `No batch called ${batchLabel(routeBatch)} — showing ${batchLabel(selected!)}.`
+        : routeBaseline && routeBaseline !== oneOff && routeBaseline !== defaultBaseline
+          ? `${batchLabel(routeBaseline)} can't be a baseline — showing ${batchLabel(defaultBaseline ?? "")}.`
+          : null;
+    setNotice(text ? { text, at: canonical } : null);
+    replaceRoute(canonical);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settled, here, canonical]);
+
   async function startRun(batch: string, against: string | null, files?: File[]) {
-    setRun({ batch, baseline: against, phase: files ? "uploading" : "measuring", done: 0, total: 0, tile: null });
+    const from = window.location.hash;
+    setRun({ batch, baseline: against, phase: files ? "uploading" : "measuring", done: 0, total: 0 });
     try {
       if (files) await uploadBatch(batch, files);
       setRun((r) => r && { ...r, phase: "measuring" });
       await runBatch(batch, against, (event) => {
         if (event.type === "progress")
-          setRun((r) => r && { ...r, done: event.done, total: event.total, tile: event.tile });
+          setRun((r) => r && { ...r, done: event.done, total: event.total });
         if (event.type === "error") setRun((r) => r && { ...r, error: event.message });
         if (event.type === "done") {
+          const to = href.compare(event.evidence.batch, against);
           setRun(null);
           setReload((n) => n + 1);
-          window.location.hash = href.compare(event.evidence.batch, against);
+          if ([from, to].includes(window.location.hash)) window.location.hash = to;
+          else setFinished({ batch: event.evidence.batch, baseline: event.evidence.baseline, to });
         }
       });
     } catch (err) {
@@ -116,41 +144,43 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
   const ready = evidence.data && selected && config.data && evidence.data.baseline === baseline && evidence.data.batch === selected;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 px-10 pt-9 pb-16">
+    <div className={`${PAGE} gap-6`}>
       <div className="flex flex-wrap items-center gap-2.5">
-        <BatchPicker
-          batches={candidates}
-          selected={selected}
-          tiles={tiles.data ?? []}
+        <BatchSelect
+          label="Batch"
+          value={selected}
+          sub={selected && plural(tileCount(selected), "tile")}
+          options={candidates.map((b) => ({ name: b.name, note: `${plural(tileCount(b.name), "tile")}${b.verdict ? "" : " · not run"}` }))}
           onPick={(name) => (window.location.hash = href.compare(name, name === oneOff ? null : oneOff))}
         />
         <span className="mono px-0.5 text-[13px] text-cx-faint">vs</span>
         {baseline && (
-          <BaselinePicker
-            batches={candidates.filter(
-              (b) => b.name === baseline || (b.has_images && !isUploadBatch(b.name) && (tiles.data ?? []).filter((t) => t.batch === b.name).length >= MIN_BASELINE_TILES),
-            )}
-            selected={selected}
-            baseline={baseline}
-            defaultBaseline={defaultBaseline}
-            tiles={tiles.data ?? []}
+          <BatchSelect
+            label="Baseline"
+            accent
+            value={baseline}
+            sub={`${plural(tileCount(baseline), "tile")} · ${oneOff ? "one-off" : "default"}`}
+            options={candidates.filter((b) => b.name === baseline || canBase(b)).map((b) => ({
+              name: b.name,
+              note: b.name === selected ? "being compared" : plural(tileCount(b.name), "tile"),
+              badge: b.name === defaultBaseline ? "default" : undefined,
+              disabled: b.name === selected,
+            }))}
             onPick={(name) => {
               setPicked(name === defaultBaseline ? null : name);
               window.location.hash = href.compare(selected, name === defaultBaseline ? null : name);
             }}
+            footer={unfrozen && (
+              <a href={href.settings()} className="flex min-h-10 items-center justify-between px-2.5 text-[13px]">
+                Change the default baseline <span aria-hidden>→</span>
+              </a>
+            )}
           />
         )}
         {oneOff && defaultBaseline && (
-          <span className="inline-flex items-center gap-2.5 text-[13px] text-cx-text-2">
-            For this comparison only.{" "}
-            {settings.data?.rules_frozen_commit ? (
-              <span className="text-cx-faint" title="Rules are frozen: the default baseline can't change">Default locked</span>
-            ) : (
-              <a href={href.settings()}>Make default</a>
-            )}
-            <a href={href.compare(selected)} className="text-cx-muted">
-              Back to {batchLabel(defaultBaseline)}
-            </a>
+          <span className="inline-flex items-center gap-3 px-1 text-[13px] whitespace-nowrap">
+            <a href={href.compare(selected)} className="text-cx-muted">Back to {batchLabel(defaultBaseline)}</a>
+            {unfrozen && <a href={href.settings()}>Make default</a>}
           </span>
         )}
         <div className="ml-auto flex flex-wrap gap-2">
@@ -191,8 +221,8 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
                 ? `Uploading ${batchLabel(run.batch)}…`
                 : `Comparing ${batchLabel(run.batch)} with ${batchLabel(run.baseline ?? defaultBaseline ?? "the baseline")}`}
             </div>
-            <div className="mono text-xs text-cx-faint">
-              {run.total ? `measuring ${run.done}/${run.total} · ${run.tile ?? ""}` : "starting up"}
+            <div className="text-xs text-cx-faint">
+              {run.total ? `Measuring tile ${Math.min(run.done + 1, run.total)} of ${run.total}` : "Starting…"}
             </div>
             {/* the same line as Identify's scan: real per-tile progress from /api/runs, indeterminate until the first tile */}
             <div className="relative mt-2.5 h-1 overflow-hidden rounded-full bg-white/[0.07]" role="progressbar" aria-valuemin={0} aria-valuemax={run.total || undefined} aria-valuenow={run.total ? run.done : undefined}>
@@ -206,10 +236,16 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
         </Panel>
       )}
       {run?.error && <ErrorPanel title="Run failed" message={run.error} />}
-
-      {unknown && (
-        <ErrorPanel title={`No batch called ${routeBatch}`} message={`There's no folder data/${routeBatch}. Showing ${selected ? batchLabel(selected) : "nothing"} instead.`} />
+      {finished && finished.to !== here && (
+        <Note>
+          <span className="text-cx-accept-text"><IconCheck size={15} /></span>
+          <span>
+            {batchLabel(finished.batch)} vs {batchLabel(finished.baseline)} is ready · <a href={finished.to}>Open</a>
+          </span>
+        </Note>
       )}
+      {notice?.at === here && <Note>{notice.text}</Note>}
+
       {(evidence.error || missing) && !run && (
         missing && selected && baseline ? (
           <Panel className="flex flex-wrap items-center gap-4 text-sm text-cx-muted">
@@ -224,7 +260,7 @@ export default function Compare({ routeBatch, routeBaseline }: { routeBatch?: st
             )}
           </Panel>
         ) : (
-          <ErrorPanel title={`No evidence for ${selected ?? "this batch"}`} message={evidence.error ?? ""} />
+          <ErrorPanel title={`No evidence for ${selected ? batchLabel(selected) : "this batch"}`} message={evidence.error ?? ""} />
         )
       )}
 
@@ -294,10 +330,15 @@ function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null
     return () => window.removeEventListener("keydown", onKey);
   }, [step, steps.length]);
 
+  const toured = useRef(false);
+  useEffect(() => {
+    if (step == null && toured.current) document.querySelector<HTMLButtonElement>("[data-walkthrough-start]")?.focus({ preventScroll: true });
+    toured.current = step != null;
+  }, [step]);
+
   const finish = () => {
     setStep(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
-    document.querySelector<HTMLButtonElement>("[data-walkthrough-start]")?.focus({ preventScroll: true });
   };
   const tour = (id?: GuideTarget) => (section == null ? "" : id === section ? "tour-on" : "tour-off");
   const card = (id: GuideTarget) =>
@@ -334,7 +375,7 @@ function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null
           onPrefer={setPrefer}
           onStart={() => steps.length && setStep(0)}
           touring={step != null}
-          settings={settings}
+          model={settings?.claude.model}
         />
       </div>
       <div data-tour="moved" className={`tour-section scroll-mt-6 ${tour("moved")}`}>
@@ -352,194 +393,6 @@ function Result({ ctx, settings, oneOff }: { ctx: Ctx; settings: Settings | null
         <Everything ctx={ctx} open={open} onToggle={(id) => setOpen((o) => ({ ...o, [id]: !o[id] }))} />
       </div>
     </>
-  );
-}
-
-function BatchPicker({
-  batches,
-  selected,
-  tiles,
-  onPick,
-}: {
-  batches: BatchSummary[];
-  selected: string | undefined;
-  tiles: Tile[];
-  onPick: (name: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const current = batches.find((b) => b.name === selected);
-  return (
-    <Dropdown
-      open={open}
-      setOpen={setOpen}
-      label="Batch"
-      className="border-cx-line bg-white/[0.06]"
-      value={
-        <>
-          {current && <BatchDot name={current.name} size={10} />}
-          {current ? batchLabel(current.name) : "Choose…"}
-          <span className="text-[13px] font-normal text-cx-faint">
-            {plural(tiles.filter((t) => t.batch === selected).length, "tile")}
-          </span>
-        </>
-      }
-    >
-      <div className="lbl px-2.5 pt-2 pb-1.5">Compare</div>
-      {batches.map((b) => (
-        <button
-          key={b.name}
-          type="button"
-          role="option"
-          aria-selected={b.name === selected}
-          onClick={() => {
-            setOpen(false);
-            onPick(b.name);
-          }}
-          className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-[10px] border-0 px-2.5 text-left text-sm text-cx-text hover:bg-white/5 ${b.name === selected ? "bg-white/[0.08]" : "bg-transparent"}`}
-        >
-          <BatchDot name={b.name} size={10} />
-          <span className="flex-1">{batchLabel(b.name)}</span>
-          <span className="text-xs text-cx-faint">
-            {plural(tiles.filter((t) => t.batch === b.name).length, "tile")}{b.verdict ? "" : " · not run"}
-          </span>
-        </button>
-      ))}
-    </Dropdown>
-  );
-}
-
-function BaselinePicker({
-  batches,
-  selected,
-  baseline,
-  defaultBaseline,
-  tiles,
-  onPick,
-}: {
-  batches: BatchSummary[];
-  selected: string | undefined;
-  baseline: string;
-  defaultBaseline: string | null;
-  tiles: Tile[];
-  onPick: (name: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const isDefault = baseline === defaultBaseline;
-  const count = (name: string) => tiles.filter((t) => t.batch === name).length;
-  return (
-    <Dropdown
-      open={open}
-      setOpen={setOpen}
-      label="Baseline"
-      labelClass="text-[#5EEAD4]"
-      className={isDefault ? "border-cx-batch-3/35 bg-cx-batch-3/[0.08]" : "border-cx-batch-2/40 bg-cx-batch-2/[0.08]"}
-      value={
-        <>
-          <BatchDot name={baseline} size={10} />
-          {batchLabel(baseline)}
-          <span className="text-[13px] font-normal text-cx-faint">
-            {plural(count(baseline), "tile")} · {isDefault ? "default" : "one-off"}
-          </span>
-        </>
-      }
-    >
-      <div className="lbl px-2.5 pt-2 pb-1.5">Compare against</div>
-      {batches.map((b) => {
-        const disabled = b.name === selected;
-        return (
-          <button
-            key={b.name}
-            type="button"
-            role="option"
-            aria-selected={b.name === baseline}
-            aria-disabled={disabled}
-            disabled={disabled}
-            onClick={() => {
-              setOpen(false);
-              onPick(b.name);
-            }}
-            className={`flex min-h-11 items-center gap-2.5 rounded-[10px] border-0 px-2.5 text-left text-sm text-cx-text ${disabled ? "cursor-not-allowed opacity-45" : "cursor-pointer hover:bg-white/5"} ${b.name === baseline ? "bg-white/[0.08]" : "bg-transparent"}`}
-          >
-            <BatchDot name={b.name} size={10} />
-            <span className="flex-1">{batchLabel(b.name)}</span>
-            {b.name === defaultBaseline && (
-              <span className="mono rounded-[5px] border border-cx-batch-3/45 px-1.5 py-0.5 text-[10px] text-[#5EEAD4]">DEFAULT</span>
-            )}
-            <span className="text-xs text-cx-faint">{disabled ? "being compared" : plural(count(b.name), "tile")}</span>
-          </button>
-        );
-      })}
-      <a
-        href={href.settings()}
-        onClick={() => setOpen(false)}
-        className="mt-1 flex min-h-10 items-center justify-between border-t border-cx-line px-2.5 text-[13px]"
-      >
-        Change the default baseline
-        <span aria-hidden>→</span>
-      </a>
-    </Dropdown>
-  );
-}
-
-/** A picker button with a floating glass list; closes on outside click and Escape. */
-function Dropdown({
-  open,
-  setOpen,
-  label,
-  labelClass = "",
-  value,
-  className,
-  children,
-}: {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  label: string;
-  labelClass?: string;
-  value: ReactNode;
-  className: string;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, setOpen]);
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className={`flex min-h-[52px] cursor-pointer items-center gap-3 rounded-[14px] border px-3.5 text-cx-text ${className}`}
-        style={{ font: "inherit" }}
-      >
-        <span className="flex flex-col items-start gap-0.5">
-          <span className={`lbl text-[10px] ${labelClass}`}>{label}</span>
-          <span className="flex items-center gap-2 text-[15px] font-medium">{value}</span>
-        </span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
-      {open && (
-        <div
-          role="listbox"
-          aria-label={label}
-          className="glass absolute top-[60px] left-0 z-20 flex w-[300px] flex-col gap-0.5 rounded-[18px] p-2"
-          style={{ background: "rgba(24,25,29,.9)" }}
-        >
-          {children}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -562,19 +415,12 @@ function Answer({ evidence }: { evidence: Evidence }) {
 function Caveats({ ctx }: { ctx: Ctx }) {
   const { evidence, dict } = ctx;
   const paused = evidence.differences.filter((d) => d.note === "imaging changed").map((d) => quantityLabel(d.name, dict).toLowerCase());
-  const items: { key: string; title: string; body: ReactNode; details?: ReactNode }[] = [];
+  const items: { key: string; title: string; body: ReactNode }[] = [];
   if (evidence.imaging.changed)
     items.push({
       key: "imaging",
       title: "Imaging differs from the baseline.",
       body: `${imagingWords(evidence.imaging.changed_metrics)}, so ${joinAnd(paused) || "brightness-based properties"} ${paused.length === 1 ? "is" : "are"} paused. Check the microscope settings.`,
-      details: (
-        <span className="mono flex flex-wrap gap-1.5 pt-1 text-[11px] text-cx-faint">
-          {evidence.imaging.changed_metrics.map((m) => (
-            <span key={m} className="rounded border border-cx-line px-1.5 py-0.5">{m}</span>
-          ))}
-        </span>
-      ),
     });
   if (evidence.batch === evidence.baseline)
     items.push({
@@ -609,7 +455,6 @@ function Caveats({ ctx }: { ctx: Ctx }) {
           <span className="flex-1">
             <span className="font-medium">{item.title}</span> <span className="text-cx-text-2">{item.body}</span>
           </span>
-          {item.details && <Details>{item.details}</Details>}
         </div>
       ))}
     </div>
@@ -629,7 +474,7 @@ function GuidePanel({
   onPrefer,
   onStart,
   touring,
-  settings,
+  model,
 }: {
   guide: Guide | null;
   loading: boolean;
@@ -643,40 +488,41 @@ function GuidePanel({
   onPrefer: (p: "claude" | "template") => void;
   onStart: () => void;
   touring: boolean;
-  settings: Settings | null;
+  model: string | undefined;
 }) {
   const [how, setHow] = useState(false);
   if (error) return null;
   const byClaude = guide?.source === "claude";
   const numbers = (guide?.summary ?? []).reduce((n, s) => n + (s.match(/\{(diff|shift|interval|tile|range|whatif|count):[^{}\s]+\}/g)?.length ?? 0), 0);
-  const note = !claudeOn
-    ? "Claude's summary is off, so this is the fixed wording."
-    : claudeFallback && !canSwitch
-      ? `Claude's version couldn't be used (${claudeFallback}), so this is the fixed wording.`
-      : onAsk
-        ? "Fixed wording. Claude can rewrite it from the same evidence; the numbers stay Catalyst's."
-        : null;
-  const noteTitle = !claudeOn ? settings?.claude.reason ?? undefined : claudeFallback ?? undefined;
+  const note = claudeFallback && !canSwitch
+    ? `Claude's version couldn't be used (${claudeFallback}), so this is the fixed wording.`
+    : onAsk
+      ? "Fixed wording. Claude can rewrite it from the same evidence; the numbers stay Catalyst's."
+      : "Numbers are filled in by Catalyst. Hover one to see where it comes from.";
   return (
     <section aria-label="What stood out" className="flex flex-col gap-4 rounded-[22px] border border-white/10 bg-[#15161A] px-6 py-5">
       <div className="flex flex-wrap items-center gap-2.5">
         <h2 className="m-0 text-lg font-semibold tracking-[-0.01em]">What stood out</h2>
-        {guide && (byClaude ? <span className="tag-claude">WRITTEN BY CLAUDE</span> : (
-          <span className="mono rounded-[5px] border border-white/20 px-1.5 py-0.5 text-[10px] text-cx-muted">FIXED TEMPLATE</span>
-        ))}
+        {byClaude && <span className="tag-claude">WRITTEN BY CLAUDE</span>}
         {asking && (
           <span className="inline-flex items-center gap-2 text-xs text-cx-faint">
             <Spinner size={12} /> Claude is writing…
           </span>
         )}
-        {numbers > 0 && (
+        {byClaude && numbers > 0 && (
           <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-cx-accept-text" title="Every number is filled in by Catalyst from the evidence; hover one to see where it comes from.">
             <IconCheck size={13} /> {numbers === 1 ? "1 number" : `${numbers} numbers`}, all from the evidence
           </span>
         )}
       </div>
       {loading ? (
-        <div className="flex items-center gap-2.5 text-sm text-cx-muted"><Spinner size={16} /> Reading the evidence…</div>
+        <div aria-hidden className="flex max-w-[900px] flex-col text-base leading-[1.65]">
+          {["100%", "94%", "62%"].map((w) => (
+            <span key={w} className="flex h-[1.65em] items-center">
+              <span className="h-3 rounded-full bg-white/[0.06]" style={{ width: w }} />
+            </span>
+          ))}
+        </div>
       ) : guide && (
         <p className={`m-0 max-w-[900px] leading-[1.65] ${byClaude ? "text-[18px] text-cx-text" : "text-base text-cx-text-2"}`}>
           {guide.summary.map((s, i) => (
@@ -703,35 +549,37 @@ function GuidePanel({
             {prefer === "claude" ? "Show the plain template" : "Show Claude's summary"}
           </button>
         )}
-        <span className="ml-auto max-w-[520px] text-right text-xs text-cx-faint" title={noteTitle}>
-          {note ?? "Numbers are filled in by Catalyst. Hover one to see where it comes from."}
-        </span>
-      </div>
-      <div className="border-t border-white/[0.07] pt-1">
-        <button
-          type="button"
-          aria-expanded={how}
-          onClick={() => setHow((h) => !h)}
-          className="flex min-h-10 w-full cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-[13px] text-cx-muted"
-        >
-          <span className="tag-claude">CLAUDE</span>
-          <span className="flex-1">How Claude is used on this page</span>
-          <span aria-hidden>{how ? "−" : "+"}</span>
-        </button>
-        {how && (
-          <ul className="m-0 flex flex-col gap-1.5 pt-1 pb-1 pl-5 text-[13px] leading-normal text-cx-muted">
-            <li>Catalyst sets the verdict with fixed rules. Claude never measures, decides or changes it.</li>
-            <li>Claude reads the evidence file and the property dictionary. Never the images.</li>
-            <li>It can't write numbers: each one is a slot that Catalyst fills in from the evidence.</li>
-            <li>It's only asked when you press the button; its checked answer is kept for this comparison.</li>
-            <li>A sentence that writes its own number, names a verdict, or gives a property a status it doesn't have is dropped; two drops and the page shows the fixed template.</li>
-            <li>Its one what-if, the batch without its odd tiles, is recomputed by Catalyst.</li>
-            <li>
-              {settings?.claude.available ? `Model: ${settings.claude.model}.` : "Without an API key, the page uses the fixed template."}
-            </li>
-          </ul>
+        {claudeOn && (
+          <span className="ml-auto max-w-[520px] text-right text-xs text-cx-faint" title={claudeFallback ?? undefined}>
+            {note}
+          </span>
         )}
       </div>
+      {claudeOn && (
+        <div className="border-t border-white/[0.07] pt-1">
+          <button
+            type="button"
+            aria-expanded={how}
+            onClick={() => setHow((h) => !h)}
+            className="flex min-h-10 w-full cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-[13px] text-cx-muted"
+          >
+            <span className="tag-claude">CLAUDE</span>
+            <span className="flex-1">How Claude is used on this page</span>
+            <span aria-hidden>{how ? "−" : "+"}</span>
+          </button>
+          {how && (
+            <ul className="m-0 flex flex-col gap-1.5 pt-1 pb-1 pl-5 text-[13px] leading-normal text-cx-muted">
+              <li>Catalyst sets the verdict with fixed rules. Claude never measures, decides or changes it.</li>
+              <li>Claude reads the evidence file and the property dictionary. Never the images.</li>
+              <li>It can't write numbers: each one is a slot that Catalyst fills in from the evidence.</li>
+              <li>It's only asked when you press the button; its checked answer is kept for this comparison.</li>
+              <li>A sentence that writes its own number, names a verdict, or gives a property a status it doesn't have is dropped; two drops and the page shows the fixed template.</li>
+              <li>Its one what-if, the batch without its odd tiles, is recomputed by Catalyst.</li>
+              <li>Model: {model}.</li>
+            </ul>
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -763,11 +611,7 @@ function TourCard({
           {index + 1} / {guide.steps.length}
         </span>
         <span className="text-[15px] font-semibold">{step.title}</span>
-        <span className="ml-auto">
-          {guide.source === "claude" ? <span className="tag-claude">CLAUDE</span> : (
-            <span className="mono rounded-[5px] border border-white/20 px-1.5 py-0.5 text-[10px] text-cx-muted">TEMPLATE</span>
-          )}
-        </span>
+        {guide.source === "claude" && <span className="ml-auto"><span className="tag-claude">CLAUDE</span></span>}
       </div>
       <p className="m-0 max-w-[780px] text-base leading-[1.6] text-cx-text">
         {step.sentences.map((s, i) => (
@@ -776,38 +620,36 @@ function TourCard({
           </span>
         ))}
       </p>
-      <div className="flex flex-wrap items-center gap-2">
-        {step.source && <span className="mono text-[11px] text-cx-faint">source · {step.source}</span>}
-        <span className="ml-auto flex gap-2">
-          <button type="button" onClick={onExit} className="min-h-10 cursor-pointer rounded-[10px] border-0 bg-transparent px-3 text-[13px] text-cx-muted">
-            Exit
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onExit} className="min-h-10 cursor-pointer rounded-[10px] border-0 bg-transparent px-3 text-[13px] text-cx-muted">
+          Exit
+        </button>
+        {index > 0 && (
+          <button className="btn min-h-10" type="button" onClick={onBack}>
+            Back
           </button>
-          {index > 0 && (
-            <button className="btn min-h-10" type="button" onClick={onBack}>
-              Back
-            </button>
-          )}
-          <button className="btn pri min-h-10" type="button" onClick={onNext} autoFocus>
-            {last ? "Finish" : "Next"}
-          </button>
-        </span>
+        )}
+        <button className="btn pri min-h-10" type="button" onClick={onNext} autoFocus>
+          {last ? "Finish" : "Next"}
+        </button>
       </div>
     </div>
   );
 }
 
-const RANK_WHY = ["Largest", "Second-largest", "Third-largest"];
-
 /** At most three cards from the top of the backend's ranking (evidence.drivers). */
 function LookHere({ ctx }: { ctx: Ctx }) {
-  const cards = rankedFindings(ctx.evidence).slice(0, 3);
+  const { evidence, config, dict } = ctx;
+  const cards = rankedFindings(evidence).slice(0, 3);
+  const paused = evidence.differences.filter((d) => d.key && d.note === "imaging changed").length;
+  const also = dropTwinShare(evidence.differences, evidence).filter(
+    (d) => d.status === "DIFFERENT" && d.note !== "imaging changed" && !cards.some((c) => c.name === d.name),
+  );
   return (
     <section aria-label="Look here first" className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Look here first</h2>
-        <span className="text-[13px] text-cx-faint">
-          The key properties that moved most against their tolerance and aren't settled as similar, from the comparison's own ranking.
-        </span>
+        <span className="text-[13px] text-cx-faint">Largest shifts against the ±{config.similar_margin}σ tolerance.</span>
       </div>
       {cards.length ? (
         <div className="grid grid-cols-3 gap-3.5">
@@ -818,8 +660,25 @@ function LookHere({ ctx }: { ctx: Ctx }) {
       ) : (
         <Panel className="flex items-center gap-3 text-sm text-cx-muted">
           <Cat mood="sure" size={30} />
-          Nothing to look at first: every key property is within the tolerance of the baseline.
+          {paused
+            ? `Every key property that could be checked is within tolerance; ${paused} paused (imaging changed).`
+            : "Nothing to look at first: every key property is within the tolerance of the baseline."}
         </Panel>
+      )}
+      {also.length > 0 && (
+        <p className="m-0 text-[13px] text-cx-muted">
+          <span className="text-cx-reject-text">Also differs:</span>{" "}
+          {also.map((d, i) => {
+            const s = sigmaOf(d, d.difference, config);
+            return (
+              <span key={d.name}>
+                {i ? ", " : ""}
+                {quantityLabel(d.name, dict)}{" "}
+                <span className="mono">{s == null ? fmtPair(d.reference, d.batch, d.unit || dictEntry(d.name, dict).unit) : fmtSigma(s)}</span>
+              </span>
+            );
+          })}
+        </p>
       )}
     </section>
   );
@@ -833,13 +692,13 @@ function FindingCard({ ctx, d, n }: { ctx: Ctx; d: Difference; n: number }) {
   const odd = [...oddByTile(evidence).entries()]
     .flatMap(([tile, odds]) => odds.filter((o) => o.quantity === d.name).map((o) => ({ tile, o })))
     .slice(0, 3);
-  const status = { UNCLEAR: ["Not settled", "text-cx-investigate-text"], DIFFERENT: ["Differs", "text-cx-reject-text"], SIMILAR: ["Similar", "text-cx-accept-text"] }[d.status];
+  const chip = statusChip(d.status, d.note === "imaging changed");
   const note = quantityNote(d.name, dict);
   return (
     <article className="flex min-w-0 flex-col gap-3.5 rounded-[22px] border border-white/10 bg-[#15161A] p-5" style={{ boxShadow: "0 20px 40px -28px rgba(0,0,0,.9)" }}>
       <div className="flex items-center gap-2.5">
         <span className="mono grid h-[26px] w-[26px] flex-none place-items-center rounded-lg bg-cx-text-strong text-[13px] font-semibold text-cx-bg">{n}</span>
-        <span className={`text-xs ${status[1]}`}>{status[0]}</span>
+        <span className={`inline-flex min-h-[22px] items-center rounded-full px-2 text-xs ${chip.className}`}>{chip.label}</span>
         <span className="mono ml-auto text-[13px] text-cx-text-2">{fmtSigma(sigmaOf(d, d.difference, config))}</span>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -894,10 +753,6 @@ function FindingCard({ ctx, d, n }: { ctx: Ctx; d: Difference; n: number }) {
           {entry.why_it_matters} {entry.supplier_check && <span className="text-cx-muted">At the supplier: {entry.supplier_check}</span>}
         </p>
       )}
-      <div className="mt-auto flex items-start gap-2 border-t border-white/[0.07] pt-3 text-xs leading-snug text-cx-faint">
-        <span aria-hidden>ⓘ</span>
-        <span>Why it's here: {RANK_WHY[n - 1]} shift against its tolerance among the key properties that aren't settled.</span>
-      </div>
     </article>
   );
 }
@@ -907,7 +762,7 @@ function WithinTolerance({ ctx }: { ctx: Ctx }) {
   const byName = new Map(ctx.evidence.differences.map((d) => [d.name, d]));
   const similar = ctx.evidence.explanations.within_tolerance.map((q) => byName.get(q)!).filter(Boolean);
   if (!similar.length) return null;
-  const shown = all ? similar : similar.slice(0, 6);
+  const shown = all || similar.length <= 7 ? similar : similar.slice(0, 6);
   return (
     <div className="flex flex-wrap items-center gap-2 text-[13px] text-cx-muted">
       <span className="mr-1.5 inline-flex items-center gap-2 text-cx-accept-text">
@@ -915,7 +770,7 @@ function WithinTolerance({ ctx }: { ctx: Ctx }) {
         {similar.length} {similar.length === 1 ? "property" : "properties"} within tolerance
       </span>
       {shown.map((d) => (
-        <span key={d.name} title={d.name} className="rounded-full border border-cx-line px-2.5 py-1">
+        <span key={d.name} title={quantityNote(d.name, ctx.dict) ?? quantityLabel(d.name, ctx.dict)} className="rounded-full border border-cx-line px-2.5 py-1">
           {quantityLabel(d.name, ctx.dict)}
         </span>
       ))}
@@ -951,15 +806,17 @@ function Everything({ ctx, open, onToggle }: { ctx: Ctx; open: Record<string, bo
   const shown = dropTwinShare(evidence.differences, evidence);
   const isPaused = (d: Difference) => d.note === "imaging changed";
   const count = (f: (d: Difference) => boolean) => shown.filter(f).length;
+  const differ = count((d) => !isPaused(d) && d.status === "DIFFERENT");
   const parts = [
-    [count((d) => !isPaused(d) && d.status === "DIFFERENT"), "differ"],
-    [count((d) => !isPaused(d) && d.status === "UNCLEAR"), "unclear"],
+    [differ, differ === 1 ? "differs" : "differ"],
+    [count((d) => !isPaused(d) && d.status === "UNCLEAR"), "not settled"],
     [count((d) => !isPaused(d) && d.status === "SIMILAR"), "similar"],
     [count(isPaused), "paused"],
   ].filter(([n]) => n).map(([n, w]) => `${n} ${w}`).join(" · ");
   const odd = oddByTile(evidence).size;
   const batchTiles = tiles.filter((t) => t.batch === evidence.batch).length;
   const baseTiles = tiles.filter((t) => t.batch === evidence.baseline).length;
+  const self = evidence.batch === evidence.baseline;
   const prov = evidence.provenance;
   return (
     <Folds
@@ -976,10 +833,12 @@ function Everything({ ctx, open, onToggle }: { ctx: Ctx; open: Record<string, bo
         {
           id: "gallery",
           title: "All tiles",
-          summary: `${batchTiles} ${batchLabel(evidence.batch)} · ${baseTiles} ${batchLabel(evidence.baseline)} · ${odd} flagged`,
+          summary: self
+            ? `${plural(batchTiles, "tile")} · ${odd} flagged`
+            : `${batchTiles} ${batchLabel(evidence.batch)} · ${baseTiles} ${batchLabel(evidence.baseline)} · ${odd} flagged`,
           body: () => <Galleries ctx={ctx} />,
         },
-        { id: "explain", title: "Explain it to an operator, engineer, scientist or manager", summary: "4 versions", body: () => <Explain evidence={evidence} /> },
+        { id: "explain", title: "Explain it to an operator, engineer, scientist or manager", summary: null, body: () => <Explain evidence={evidence} /> },
         {
           id: "run",
           title: "Run details",
@@ -1003,7 +862,7 @@ function Differences({ ctx }: { ctx: Ctx }) {
             <span>Property</span>
             <div className="mono relative h-3.5 text-[10px] normal-case">
               <span className="absolute left-0">−4σ</span>
-              <span className="absolute left-1/2 -translate-x-1/2 text-cx-batch-3">baseline · ±{m}σ tolerance</span>
+              <span className="absolute left-1/2 -translate-x-1/2 text-cx-batch-3">baseline · tolerance ±{m}σ</span>
               <span className="absolute right-0">+4σ</span>
             </div>
             <span className="text-right">{batchLabel(evidence.baseline)} → {batchLabel(evidence.batch)}</span>
@@ -1017,13 +876,10 @@ function Differences({ ctx }: { ctx: Ctx }) {
             const unit = d.unit || dictEntry(d.name, dict).unit;
             return (
               <div key={d.name} className={`grid min-h-[52px] grid-cols-[240px_minmax(0,1fr)_150px_88px] items-center gap-5 border-b border-cx-line-soft ${paused ? "opacity-55" : ""}`}>
-                <div className="flex min-w-0 flex-col gap-[3px]">
-                  <span className="flex items-center gap-2 text-sm">
-                    {quantityLabel(d.name, dict)}
-                    {d.key && <span className="mono rounded border border-cx-orange-text/50 px-1 py-px text-[9px] text-cx-orange-text">KEY</span>}
-                  </span>
-                  <span className="mono truncate text-[11px] text-cx-faint" title={quantityNote(d.name, dict) ?? undefined}>{d.name}</span>
-                </div>
+                <span className="flex min-w-0 items-center gap-2 text-sm" title={quantityNote(d.name, dict) ?? undefined}>
+                  {quantityLabel(d.name, dict)}
+                  {d.key && <span className="mono rounded border border-cx-orange-text/50 px-1 py-px text-[9px] text-cx-orange-text">KEY</span>}
+                </span>
                 <ShiftBand s={s} lo={sigmaOf(d, d.interval?.[0], config)} hi={sigmaOf(d, d.interval?.[1], config)} margin={m}
                   color={d.status === "SIMILAR" ? "var(--cx-accept-text)" : batchColor(evidence.batch)} height={30} />
                 {notMeasured ? (
@@ -1049,10 +905,8 @@ function Differences({ ctx }: { ctx: Ctx }) {
         </div>
       </div>
       <p className="m-0 pt-3 text-[13px] leading-normal text-cx-faint">
-        Bar = {Math.round(config.ci_level * 100)}% interval of the shift. Different = the interval clears the tolerance and the
-        family-wise p is below {config.alpha}. Similar = the interval sits inside the tolerance. Anything else is unclear, and we
-        say so. Brightness-based properties pause when the microscope settings changed. Of two complementary particle-type
-        shares, one is shown.
+        Bar = {Math.round(config.ci_level * 100)}% interval of the shift: Differs when it clears the tolerance with a family-wise
+        p below {config.alpha}, Similar when it sits inside, otherwise not settled.
       </p>
     </div>
   );
@@ -1095,7 +949,7 @@ function TileBands({ ctx }: { ctx: Ctx }) {
         return (
           <div key={kpi} className="grid grid-cols-[230px_minmax(0,1fr)] items-center gap-4">
             <div className="flex min-w-0 flex-col gap-[2px]">
-              <span className="flex flex-wrap items-center gap-x-1.5 text-[13px] leading-snug" title={kpi}>
+              <span className="flex flex-wrap items-center gap-x-1.5 text-[13px] leading-snug">
                 {quantityLabel(kpi, dict)}
                 {key && <span className="mono rounded border border-cx-orange-text/50 px-1 py-px text-[9px] text-cx-orange-text">KEY</span>}
               </span>
@@ -1111,25 +965,25 @@ function TileBands({ ctx }: { ctx: Ctx }) {
               {base.map((v, i) => (
                 <div key={i} className="absolute h-[5px] w-[5px] rounded-full bg-cx-batch-3 opacity-90" style={{ left: `calc(${x(v)}% - 2.5px)`, top: JITTER[i % JITTER.length] % 12 }} />
               ))}
-              {values.map((tile, i) => {
-                const isOdd = oddOn.has(`${tile.id}|${kpi}`);
-                return (
+              {values
+                .map((tile, i) => ({ ...tile, i, isOdd: oddOn.has(`${tile.id}|${kpi}`) }))
+                .sort((a, b) => Number(a.isOdd) - Number(b.isOdd))
+                .map((tile) => (
                   <a
                     key={tile.id}
                     href={href.library(evidence.batch, tile.id)}
                     title={`${tile.id} · ${fmt(tile.v, unit)}`}
                     className="absolute rounded-full"
                     style={{
-                      left: `calc(${x(tile.v)}% - ${isOdd ? 6 : 4}px)`,
-                      bottom: JITTER[(i + 3) % JITTER.length] % 12,
-                      width: isOdd ? 12 : 8,
-                      height: isOdd ? 12 : 8,
+                      left: `calc(${x(tile.v)}% - ${tile.isOdd ? 6 : 4}px)`,
+                      bottom: JITTER[(tile.i + 3) % JITTER.length] % 12,
+                      width: tile.isOdd ? 12 : 8,
+                      height: tile.isOdd ? 12 : 8,
                       background: batchColor(evidence.batch),
-                      boxShadow: isOdd ? "0 0 0 2px #111215, 0 0 0 4px var(--cx-investigate)" : "none",
+                      boxShadow: tile.isOdd ? "0 0 0 2px #111215, 0 0 0 4px var(--cx-investigate)" : "none",
                     }}
                   />
-                );
-              })}
+                ))}
             </div>
           </div>
         );
@@ -1142,12 +996,13 @@ function Galleries({ ctx }: { ctx: Ctx }) {
   const { evidence, tiles } = ctx;
   const oddIds = new Set(oddByTile(evidence).keys());
   const byOdd = (a: Tile, b: Tile) => Number(oddIds.has(b.image_id)) - Number(oddIds.has(a.image_id));
+  const self = evidence.batch === evidence.baseline;
   const columns = [
-    { name: evidence.batch, tiles: tiles.filter((t) => t.batch === evidence.batch).sort(byOdd) },
+    { name: evidence.batch, tiles: tiles.filter((t) => t.batch === evidence.batch).sort(byOdd), baseline: self },
     { name: evidence.baseline, tiles: tiles.filter((t) => t.batch === evidence.baseline), baseline: true },
-  ];
+  ].slice(0, self ? 1 : 2);
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className={`grid gap-4 ${self ? "grid-cols-1" : "grid-cols-2"}`}>
       {columns.map((col, c) => (
         <div key={`${c}-${col.name}`} className={`flex flex-col gap-3 rounded-[18px] border p-4 ${col.baseline ? "border-cx-batch-3/20" : "border-cx-line"}`}>
           <div className="flex items-center justify-between">
@@ -1156,9 +1011,9 @@ function Galleries({ ctx }: { ctx: Ctx }) {
               {batchLabel(col.name)}
               {col.baseline && <span className="font-normal text-cx-faint">baseline</span>}
             </h3>
-            <span className="text-[13px] text-cx-faint">{col.tiles.length} tiles</span>
+            <span className="text-[13px] text-cx-faint">{plural(col.tiles.length, "tile")}</span>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className={`grid gap-2 ${self ? "grid-cols-6" : "grid-cols-3"}`}>
             {col.tiles.map((tile, i) => (
               <Peekable
                 key={tile.image_id}
@@ -1170,7 +1025,7 @@ function Galleries({ ctx }: { ctx: Ctx }) {
               >
                 <img src={imageUrl(tile.batch, tile.image_id, "BSE")} alt="" loading="lazy" className="block h-full w-full object-cover" />
                 <span className="mono absolute bottom-2 left-2 rounded-md px-1.5 py-0.5 text-[11px]" style={{ background: "rgba(10,11,13,.75)", color: oddIds.has(tile.image_id) ? "var(--cx-investigate-text)" : "var(--cx-text)" }}>
-                  {tile.image_id}{oddIds.has(tile.image_id) ? " · odd" : ""}
+                  {tile.image_id}
                 </span>
               </Peekable>
             ))}
@@ -1191,7 +1046,7 @@ function peekItem(tile: Tile, ctx: Ctx, oddIds: Set<string>): PeekItem {
     title: `Tile ${tile.image_id}`,
     note: oddIds.has(tile.image_id)
       ? `Outside the baseline range on ${joinAnd(odds.map((o) => `${quantityLabel(o.quantity, ctx.dict).toLowerCase()} (${fmt(o.value, unit(o.quantity))})`))}.`
-      : `${batchLabel(tile.batch)}${tile.batch === ctx.evidence.baseline ? ", the baseline" : ""}.`,
+      : undefined,
     detectors: tile.detectors,
     hasLayers: tile.has_layers,
   };
@@ -1266,13 +1121,6 @@ function RunDetails({ ctx }: { ctx: Ctx }) {
           </ul>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2 text-[13px] text-cx-faint">
-        Every reason as the rules wrote it: <Details label="show">
-          <ul className="mono m-0 flex flex-col gap-1 pt-2 pl-4 text-[11px] leading-normal text-cx-muted">
-            {evidence.reasons.map((r, i) => <li key={i}>{r}</li>)}
-          </ul>
-        </Details>
-      </div>
     </div>
   );
 }

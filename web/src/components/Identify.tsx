@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   getAttribution, getModelStatus, imageUrl, listAttributions, runAttribution, uploadBatch,
 } from "../api";
-import { batchLabel, isFixture, localTime, modelName, record, useApi } from "../lib";
+import { batchLabel, isFixture, joinAnd, localTime, plural, record, uploadName, useApi } from "../lib";
 import { href } from "../router";
 import type { Attribution, AttributionStage, ModelStatus } from "../types";
-import { BatchDot, CAT, Cat, ErrorPanel, IconWarn, Panel, Spinner } from "./bits";
+import { BatchDot, CAT, Cat, ErrorPanel, IconWarn, PAGE, PageHeader, Panel, Spinner } from "./bits";
 import IdentifyResult from "./IdentifyResult";
 
 const DETECTOR_SLOTS = [
@@ -16,20 +16,39 @@ const DETECTOR_SLOTS = [
 
 const DETECTOR_ALIASES: Record<string, string> = { bse: "BSE", etd: "ETD", se: "ETD", inlens: "InLens" };
 
-function tileOf(file: File): { id: string; det: string } | null {
-  const match = file.name.match(/^(?:img_)?(.+)_([A-Za-z]+)\.tiff?$/i);
-  if (!match) return null;
-  return { id: match[1], det: DETECTOR_ALIASES[match[2].toLowerCase()] ?? match[2] };
+type TileFiles = { id: string; detectors: string[] };
+
+/** The tiles in a drop (img_<id>_<detector>.tif, the backend's qc.io.field_paths), or what's wrong with it. */
+function readDrop(files: File[]): { tifs: File[]; tiles: TileFiles[] } | string {
+  const tifs = files.filter((f) => /\.tiff?$/i.test(f.name));
+  if (!tifs.length) return "Drop the .tif images of a tile.";
+  const groups = new Map<string, string[]>();
+  const problems: string[] = [];
+  for (const file of tifs) {
+    const m = /^img_([\w.-]+)_([A-Za-z0-9]+)\.[Tt][Ii][Ff][Ff]?$/.exec(file.name);
+    const det = m && DETECTOR_ALIASES[m[2].toLowerCase()];
+    if (!m) problems.push(`${file.name} isn't named img_<id>_<detector>.tif.`);
+    else if (!det) problems.push(`${file.name}: ${m[2]} isn't BSE, ETD, SE or InLens.`);
+    else {
+      const dets = groups.get(m[1]) ?? [];
+      if (dets.includes(det)) problems.push(`${m[1]} has two ${det} images.`);
+      groups.set(m[1], [...dets, det]);
+    }
+  }
+  for (const [id, dets] of groups) {
+    const missing = DETECTOR_SLOTS.map((s) => s.det).filter((d) => !dets.includes(d));
+    if (missing.length) problems.push(`${id} is missing ${joinAnd(missing)}.`);
+  }
+  if (problems.length) return problems.slice(0, 3).join("\n") + (problems.length > 3 ? `\nAnd ${problems.length - 3} more.` : "");
+  return { tifs, tiles: [...groups].map(([id, dets]) => ({ id, detectors: [...new Set(dets)].sort() })) };
 }
 
-type Phase = "idle" | "working" | "done" | "error";
+/** drop_<YYYYMMDD>-<HHMMSS>, or "" (sorts last) for folders that aren't uploads. */
+const stampOf = (name: string) => /^drop_(\d{8}-\d{6})$/.exec(name)?.[1] ?? "";
 
-export default function Identify() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [runName, setRunName] = useState<string | null>(null);
-  const [attribution, setAttribution] = useState<Attribution | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [tiles, setTiles] = useState<{ id: string; detectors: string[] }[]>([]);
+export default function Identify({ routeDrop, routeImage }: { routeDrop?: string; routeImage?: string }) {
+  const [run, setRun] = useState<{ name: string; tiles: TileFiles[] } | null>(null);
+  const [error, setError] = useState<{ text: string; raw?: string } | null>(null);
   const [uploaded, setUploaded] = useState(false);
   const [progress, setProgress] = useState<Progress>({ stage: "load", done: 0, total: 0, events: false });
   const [dragging, setDragging] = useState(false);
@@ -37,14 +56,14 @@ export default function Identify() {
   const picker = useRef<HTMLInputElement>(null);
   const runId = useRef(0);  // reset() bumps it, so a cancelled run's late events are ignored
   const model = useApi(getModelStatus, []);
+  const saved = useApi(() => (routeDrop ? getAttribution(routeDrop) : Promise.resolve(null)), [routeDrop]);
   const recent = useApi(async () => {
-    const names = (await listAttributions()).filter((n) => !isFixture(n));
+    const names = (await listAttributions()).filter((n) => !isFixture(n)).sort((a, b) => stampOf(b).localeCompare(stampOf(a)));
     const results = await Promise.allSettled(names.map((n) => getAttribution(n)));
     const runs = names
       .map((name, i) => ({ name, result: results[i] }))
       .filter((r): r is { name: string; result: PromiseFulfilledResult<Attribution> } => r.result.status === "fulfilled")
-      .map(({ name, result }) => ({ name, attribution: result.value, times: 1 }))
-      .reverse();  // drop_<date>-<time>: newest first
+      .map(({ name, result }) => ({ name, attribution: result.value, times: 1 }));
     // the same tiles uploaded again: keep the newest and say how often
     const seen = new Map<string, (typeof runs)[number]>();
     for (const run of runs) {
@@ -55,34 +74,60 @@ export default function Identify() {
     }
     return [...seen.values()].slice(0, 6);
   }, [reload]);
+  const idle = !run && !routeDrop;
+
+  useEffect(() => {
+    if (!routeDrop) return;
+    setError(null);
+    window.scrollTo(0, 0);
+  }, [routeDrop]);
+
+  // a file dropped anywhere on the page goes into the zone, not into a new browser tab
+  useEffect(() => {
+    if (!idle) return;
+    const files = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files");
+    const over = (e: DragEvent) => {
+      if (!files(e)) return;
+      e.preventDefault();
+      setDragging(true);
+    };
+    const leave = (e: DragEvent) => !e.relatedTarget && setDragging(false);
+    const drop = (e: DragEvent) => {
+      if (!files(e)) return;
+      e.preventDefault();
+      setDragging(false);
+      void start([...e.dataTransfer!.files]);
+    };
+    window.addEventListener("dragover", over);
+    window.addEventListener("dragleave", leave);
+    window.addEventListener("drop", drop);
+    return () => {
+      window.removeEventListener("dragover", over);
+      window.removeEventListener("dragleave", leave);
+      window.removeEventListener("drop", drop);
+      setDragging(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idle]);
 
   async function start(files: File[]) {
-    const tifs = files.filter((f) => /\.tiff?$/i.test(f.name));
-    if (!tifs.length) return;
-    const groups = new Map<string, Set<string>>();
-    for (const file of tifs) {
-      const tile = tileOf(file);
-      if (!tile) continue;
-      groups.set(tile.id, (groups.get(tile.id) ?? new Set()).add(tile.det));
-    }
-    if (!groups.size) {
-      setError("Files must be named img_<id>_<detector>.tif (BSE, ETD or InLens).");
-      setPhase("error");
-      return;
-    }
-    const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
-    const name = `drop_${stamp.slice(0, 8)}-${stamp.slice(8)}`;
-    setTiles([...groups.entries()].map(([id, detectors]) => ({ id, detectors: [...detectors].sort() })));
-    setRunName(name);
-    setAttribution(null);
+    const drop = readDrop(files);
+    if (typeof drop === "string") return setError({ text: drop });
+    const name = uploadName();
+    setRun({ name, tiles: drop.tiles });
     setError(null);
-    setPhase("working");
     setUploaded(false);
-    setProgress({ stage: "load", done: 0, total: groups.size, events: false });
+    setProgress({ stage: "load", done: 0, total: drop.tiles.length, events: false });
     const id = ++runId.current;
     const live = () => id === runId.current;
+    const fail = (text: string, raw: string) => {
+      setError({ text: raw.includes("--fit") ? "There's no fitted model to identify with yet." : text, raw });
+      setRun(null);
+    };
+    let uploading = true;
     try {
-      await uploadBatch(name, tifs);
+      await uploadBatch(name, drop.tifs);
+      uploading = false;
       if (!live()) return;
       setUploaded(true);
       setProgress((p) => ({ ...p, stage: "features", done: 0 }));
@@ -99,49 +144,47 @@ export default function Identify() {
           // let the line sweep to the end before the result opens
           window.setTimeout(() => {
             if (!live()) return;
-            setAttribution(event.attribution);
-            setPhase("done");
+            setRun(null);
+            window.location.hash = href.identify(name);
           }, 600);
         }
-        if (event.type === "error") {
-          setError(event.message);
-          setPhase("error");
-        }
+        if (event.type === "error") fail("The analysis stopped before it finished.", event.message);
       });
     } catch (err) {
       if (!live()) return;
-      setError(err instanceof Error ? err.message : String(err));
-      setPhase("error");
+      fail(uploading ? "The upload didn't go through." : "The analysis stopped before it finished.", err instanceof Error ? err.message : String(err));
     }
     setReload((r) => r + 1);
   }
 
   function reset() {
     runId.current += 1;
-    setPhase("idle");
-    setRunName(null);
-    setAttribution(null);
-    setError(null);
-    setTiles([]);
+    setRun(null);
   }
 
-  if (phase === "working" && runName)
-    return <Working name={runName} tiles={tiles} uploaded={uploaded} progress={progress} onCancel={reset} />;
-  if (phase === "done" && attribution && runName)
-    return <IdentifyResult name={runName} attribution={attribution} onReset={reset} />;
+  if (run)
+    return <Working name={run.name} tiles={run.tiles} uploaded={uploaded} progress={progress} onCancel={reset} />;
+  if (routeDrop) {
+    if (saved.data) return <IdentifyResult name={routeDrop} attribution={saved.data} imageId={routeImage} />;
+    if (saved.error)
+      return (
+        <div className={`${PAGE} gap-4`}>
+          <ErrorPanel
+            title={`No identification called ${batchLabel(routeDrop)}`}
+            message={saved.status && saved.status < 500 ? "There's no saved result for this link." : saved.error}
+          />
+          <a className="btn w-fit" href={href.identify()}>Identify a tile</a>
+        </div>
+      );
+    return <div className="grid flex-1 place-items-center py-24"><Spinner /></div>;
+  }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-10 px-10 py-12">
-      <div className="flex flex-col gap-2.5">
-        <div className="lbl text-cx-orange-text">Identify</div>
-        <h1 className="m-0 text-[40px] leading-[1.1] font-semibold tracking-[-0.03em]">
-          Which batch is this tile from?
-        </h1>
-        <p className="m-0 max-w-[620px] text-base leading-[1.55] text-cx-muted">
-          Drop the three detector images of one tile. Catalyst segments it, measures every silicon
-          particle and tells you which known batch it matches, and how sure it is.
-        </p>
-      </div>
+    <div className={`${PAGE} gap-10`}>
+      <PageHeader
+        title="Which batch is this tile from?"
+        intro="Drop the three detector images of one tile. Catalyst segments it, measures every silicon particle and tells you which known batch it matches, and how sure it is."
+      />
 
       <div className="relative pt-11">
         <img
@@ -152,19 +195,7 @@ export default function Identify() {
         />
         <section
           aria-label="Drop zone"
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragging(false);
-            void start([...e.dataTransfer.files]);
-          }}
-          className={`glass relative flex flex-col gap-8 rounded-[28px] p-10 transition ${
-            dragging ? "outline-cx-orange/60" : ""
-          }`}
+          className="glass relative flex flex-col gap-8 rounded-[28px] p-10 transition"
           style={{ outline: `1.5px dashed ${dragging ? "rgba(255,122,47,.6)" : "rgba(255,255,255,.16)"}`, outlineOffset: -12 }}
         >
           <div className="grid grid-cols-3 gap-4">
@@ -173,12 +204,9 @@ export default function Identify() {
                 key={slot.det}
                 className="flex min-h-[150px] flex-col gap-3.5 rounded-[18px] border border-cx-line bg-black/25 p-5"
               >
-                <div className="flex items-center justify-between">
-                  <span className="mono text-[13px] font-semibold text-cx-text">
-                    {slot.det === "ETD" ? "ETD / SE" : slot.det}
-                  </span>
-                  <span className="h-[22px] w-[22px] rounded-full border-[1.5px] border-dashed border-white/25" />
-                </div>
+                <span className="mono text-[13px] font-semibold text-cx-text">
+                  {slot.det === "ETD" ? "ETD / SE" : slot.det}
+                </span>
                 <div
                   className="flex-1 rounded-[10px]"
                   style={{
@@ -199,9 +227,7 @@ export default function Identify() {
               </div>
               <div className="flex flex-col gap-1">
                 <div className="text-lg font-medium">Drop images here</div>
-                <div className="mono text-xs text-cx-faint">
-                  img_&lt;id&gt;_BSE.tif · _ETD.tif (or _SE) · _InLens.tif, any case, paired by ID
-                </div>
+                <div className="mono text-xs text-cx-faint">img_&lt;id&gt;_BSE / _ETD (or _SE) / _InLens .tif</div>
               </div>
             </div>
             <div className="flex flex-wrap gap-2.5">
@@ -231,71 +257,53 @@ export default function Identify() {
         </div>
       </div>
 
-      {phase === "error" && (
+      {error && (
         <ErrorPanel
-          title="Attribution failed"
-          message={error ?? "Something went wrong."}
-          command={error?.includes("attribute") || error?.includes("model")
-            ? "uv run python -m qc.attribute --fit"
-            : undefined}
+          title="Couldn't identify the tile"
+          message={<span className="whitespace-pre-line">{error.text}</span>}
+          details={error.raw}
+          command={error.raw?.includes("--fit") ? "uv run python -m qc.attribute --fit" : undefined}
         />
       )}
 
       <div className="grid grid-cols-3 gap-4">
         <Panel className="col-span-2 overflow-hidden p-0">
-          <div className="flex items-center justify-between border-b border-cx-line px-5 py-4">
-            <h2 className="m-0 text-[15px] font-medium">Recent identifications</h2>
-          </div>
+          <h2 className="m-0 border-b border-cx-line px-5 py-4 text-[15px] font-medium">Recent identifications</h2>
           {recent.data?.length ? (
-            <table className="w-full min-w-[520px] border-collapse text-sm">
-              <thead>
-                <tr className="lbl text-left">
-                  <th className="px-5 py-3 font-normal">Drop</th>
-                  <th className="px-2 py-3 font-normal">Closest batch per tile</th>
-                  <th className="px-5 py-3 text-right font-normal">Tiles</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.data.map(({ name, attribution: a, times }) => {
-                  return (
-                    <tr
-                      key={name}
-                      className="cursor-pointer border-t border-cx-line-soft hover:bg-white/[0.03]"
-                      onClick={() => {
-                        setRunName(name);
-                        setAttribution(a);
-                        setTiles(a.images.map((i) => ({ id: i.image_id, detectors: ["BSE"] })));
-                        setPhase("done");
-                      }}
-                    >
-                      <td className="mono px-5 py-3.5 text-cx-text">
-                        {name}
-                        {times > 1 && <span className="pl-2 font-sans text-xs text-cx-faint">uploaded {times}×</span>}
-                      </td>
-                      <td className="px-2 py-3.5">
-                        <span className="flex flex-wrap gap-x-4 gap-y-1">
-                          {a.images.slice(0, 4).map((img) => (
-                            <span key={img.image_id} className="inline-flex items-center gap-2">
-                              {a.images.length > 1 && <span className="mono text-xs text-cx-faint">{img.image_id}</span>}
-                              <BatchDot name={img.predicted} size={8} />
-                              {batchLabel(img.predicted)}
-                              <span className="mono text-cx-muted">{img.confidence != null ? `${Math.round(img.confidence * 100)}%` : "—"}</span>
-                              {img.unfamiliar && (
-                                <span className="inline-flex items-center gap-1 text-cx-investigate" title="Outside the range of the batch it was assigned to">
-                                  <IconWarn /> unfamiliar
-                                </span>
-                              )}
-                            </span>
-                          ))}
-                          {a.images.length > 4 && <span className="text-cx-faint">+{a.images.length - 4} more</span>}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-right text-cx-faint">{a.images.length}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="flex flex-col text-sm">
+              <div className="lbl grid grid-cols-[200px_minmax(0,1fr)] gap-4 px-5 py-3">
+                <span>Upload</span>
+                <span>Closest batch per tile</span>
+              </div>
+              {recent.data.map(({ name, attribution: a, times }) => (
+                <a
+                  key={name}
+                  href={href.identify(name)}
+                  className="grid min-h-12 grid-cols-[200px_minmax(0,1fr)] items-center gap-4 border-t border-cx-line-soft px-5 py-3 text-cx-text hover:bg-white/[0.03]"
+                >
+                  <span>
+                    {batchLabel(name)}
+                    {times > 1 && <span className="pl-2 text-xs text-cx-faint">uploaded {times}×</span>}
+                  </span>
+                  <span className="flex flex-wrap gap-x-4 gap-y-1">
+                    {a.images.slice(0, 4).map((img) => (
+                      <span key={img.image_id} className="inline-flex items-center gap-2">
+                        {a.images.length > 1 && <span className="mono text-xs text-cx-faint">{img.image_id}</span>}
+                        <BatchDot name={img.predicted} size={8} />
+                        {batchLabel(img.predicted)}
+                        <span className="mono text-cx-muted">{img.confidence != null ? `${Math.round(img.confidence * 100)}%` : "—"}</span>
+                        {img.unfamiliar && (
+                          <span className="inline-flex items-center gap-1 text-cx-investigate" title="Outside the range of the batch it was assigned to">
+                            <IconWarn /> unfamiliar
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                    {a.images.length > 4 && <span className="text-cx-faint">+{a.images.length - 4} more</span>}
+                  </span>
+                </a>
+              ))}
+            </div>
           ) : (
             <div className="flex items-center gap-3 px-5 py-8 text-sm text-cx-muted">
               <Cat mood="ready" size={34} />
@@ -313,9 +321,6 @@ export default function Identify() {
               No model yet — run <code className="mono text-cx-text-2">uv run python -m qc.attribute --fit</code>.
             </p>
           )}
-          <p className="m-0 mt-auto text-[13px] leading-normal text-cx-muted">
-            Every tile gets a batch. Each answer says how sure it is and how often answers that sure were right.
-          </p>
         </Panel>
       </div>
     </div>
@@ -326,55 +331,39 @@ export default function Identify() {
 function ModelGauge({ model }: { model: ModelStatus }) {
   const acc = model.loso_balanced_accuracy;
   const chance = model.classes.length ? 1 / model.classes.length : null;
-  const cal = model.calibration;
-  const total = Object.values(model.n_trained_on).reduce((a, b) => a + b, 0);
+  const stages = model.calibration?.stages;
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4">
       {acc != null && (
-        <>
-          <div className="flex items-baseline gap-2.5">
-            <span className="text-[40px] font-semibold tracking-[-0.03em]">{Math.round(acc * 100)}%</span>
-            <span className="text-[13px] text-cx-muted">balanced accuracy on held-out strips, all {model.classes.length} batches</span>
-          </div>
+        <div className="flex flex-col gap-2.5">
+          <span className="text-[40px] leading-none font-semibold tracking-[-0.03em]">{Math.round(acc * 100)}%</span>
           <div className="relative h-2 rounded bg-white/[0.07]">
             <div className="absolute inset-y-0 left-0 rounded bg-cx-text" style={{ width: `${acc * 100}%` }} />
             {chance != null && (
               <div className="absolute -top-1 -bottom-1 w-0.5 bg-cx-orange" style={{ left: `${chance * 100}%` }} />
             )}
           </div>
-        </>
+          <span className="text-[13px] text-cx-muted">
+            balanced accuracy on held-out strips ·{" "}
+            <span className="text-cx-orange-text">chance {chance != null ? `${Math.round(chance * 100)}%` : "—"}</span>
+          </span>
+        </div>
       )}
       <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 text-[13px]">
-        {cal?.stages.baseline && (
+        {stages?.baseline && (
           <>
-            <dt className="text-cx-muted">{batchLabel(model.baseline)} or not</dt>
-            <dd className="mono m-0 text-right">{record(cal.stages.baseline)}</dd>
+            <dt className="text-cx-muted">Baseline or not</dt>
+            <dd className="mono m-0 text-right">{record(stages.baseline)}</dd>
           </>
         )}
-        {cal?.stages.variation && (
+        {stages?.variation && (
           <>
             <dt className="text-cx-muted">Which other batch</dt>
-            <dd className="mono m-0 text-right">{record(cal.stages.variation)}</dd>
+            <dd className="mono m-0 text-right">{record(stages.variation)}</dd>
           </>
         )}
-        {cal?.tiers.map((t) => (
-          <div key={t.tier} className="contents">
-            <dt className="text-cx-muted">Calls marked {t.tier}</dt>
-            <dd className="mono m-0 text-right">{record(t)}</dd>
-          </div>
-        ))}
       </dl>
-      <div className="flex flex-col gap-1 text-xs text-cx-faint">
-        <span>
-          Chance <span className="text-cx-orange-text">{chance != null ? `${Math.round(chance * 100)}%` : "—"}</span> ·{" "}
-          {total} training tiles
-        </span>
-        <span>{modelName(model)}</span>
-        <span>
-          Fitted <span className="mono">{localTime(model.fitted_at)}</span> ·{" "}
-          {model.matches_frozen ? "frozen" : model.matches_frozen === false ? "differs from the frozen model" : "not frozen"}
-        </span>
-      </div>
+      <span className="mt-auto text-xs text-cx-faint">Fitted {localTime(model.fitted_at).slice(0, 10)}</span>
     </div>
   );
 }
@@ -392,9 +381,9 @@ interface Progress {
 
 /** Share of the line per stage, tuned to real timings (DINOv2 and segmentation dominate). */
 const STAGES: { stage: Stage; from: number; to: number; label: (n: number) => string }[] = [
-  { stage: "load", from: 0, to: 10, label: (n) => `Uploading ${n} tile${n === 1 ? "" : "s"}, detectors paired by ID` },
+  { stage: "load", from: 0, to: 10, label: (n) => `Uploading ${plural(n, "tile")}` },
   { stage: "features", from: 10, to: 55, label: () => "Segmenting pore, graphite, silicon and binder; measuring" },
-  { stage: "deep", from: 55, to: 90, label: () => "Image features (DINOv2)" },
+  { stage: "deep", from: 55, to: 90, label: () => "Image features" },
   { stage: "predict", from: 90, to: 99, label: () => "Scoring against the known batches" },
   { stage: "done", from: 100, to: 100, label: () => "Saving the result" },
 ];
@@ -426,7 +415,7 @@ function Working({
   onCancel,
 }: {
   name: string;
-  tiles: { id: string; detectors: string[] }[];
+  tiles: TileFiles[];
   uploaded: boolean;
   progress: Progress;
   onCancel: () => void;
@@ -446,22 +435,22 @@ function Working({
   const current = STAGES.findIndex((st) => st.stage === progress.stage);
   const motion = !reducedMotion();
   return (
-    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-7 px-10 py-12">
-      <div className="flex flex-wrap items-end justify-between gap-5">
-        <div className="flex flex-col gap-2.5">
-          <div className="lbl text-cx-orange-text">Identify · working</div>
-          <h1 className="m-0 text-[40px] leading-[1.1] font-semibold tracking-[-0.03em]">
+    <div className={`${PAGE} gap-7`}>
+      <PageHeader
+        title={
+          <>
             Reading {tiles.length === 1 ? "tile" : `${tiles.length} tiles`}{" "}
             <span className="mono font-medium">
               {progress.stage === "features" || progress.stage === "deep" ? progress.tile?.split("/").pop() ?? first?.id : first?.id ?? name}
             </span>
-          </h1>
-          <p className="m-0 text-base text-cx-muted">Nothing leaves this machine.</p>
-        </div>
+          </>
+        }
+        intro="Nothing leaves this machine."
+      >
         <button className="btn" type="button" onClick={onCancel}>
           Cancel
         </button>
-      </div>
+      </PageHeader>
 
       {first && (
         <section aria-label="Scan" className="relative aspect-[1800/536] overflow-hidden rounded-3xl border border-cx-line bg-black">
@@ -500,14 +489,11 @@ function Working({
 
       <div className="grid grid-cols-3 gap-4">
         <Panel className="glass col-span-2 flex flex-col gap-4 border-0">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="m-0 text-[15px] font-medium">Pipeline</h2>
-            {progress.stage !== "done" && <Spinner size={18} />}
-          </div>
+          <h2 className="m-0 text-[15px] font-medium">Pipeline</h2>
           <ol className="m-0 flex list-none flex-col p-0">
             {STAGES.map((st, i) => {
               const state = progress.stage === "done" || i < current ? "done" : i === current ? "running" : "pending";
-              const count = st.stage === progress.stage && progress.total && st.stage !== "predict" && st.stage !== "load"
+              const count = st.stage === progress.stage && progress.total > 1 && st.stage !== "predict" && st.stage !== "load"
                 ? `${Math.min(progress.done, progress.total)}/${progress.total}` : null;
               return (
                 <li key={st.stage} className="flex min-h-11 items-center gap-3.5 border-b border-cx-line-soft last:border-0">
@@ -531,20 +517,23 @@ function Working({
         </Panel>
         <Panel className="flex flex-col gap-4">
           <h2 className="m-0 text-[15px] font-medium">Detectors</h2>
-          <div className="flex flex-col gap-2.5">
-            {tiles.map((tile) =>
-              tile.detectors.map((d) => (
-                <div key={`${tile.id}-${d}`} className="flex items-center gap-3">
-                  {uploaded ? (
-                    <img src={imageUrl(name, tile.id, d)} alt={d} className="h-10 w-24 rounded-lg border border-cx-line object-cover" />
-                  ) : (
-                    <span className="h-10 w-24 animate-pulse rounded-lg border border-cx-line bg-white/[0.04]" />
-                  )}
-                  <span className="mono flex-1 text-[13px]">{d}</span>
-                  <span className={uploaded ? "text-xs text-cx-accept" : "text-xs text-cx-faint"}>{uploaded ? "Loaded" : "Uploading"}</span>
-                </div>
-              )),
-            )}
+          <div className="flex flex-col gap-4">
+            {tiles.map((tile) => (
+              <div key={tile.id} className="flex flex-col gap-2.5">
+                {tiles.length > 1 && <span className="mono text-xs text-cx-faint">{tile.id}</span>}
+                {tile.detectors.map((d) => (
+                  <div key={d} className="flex items-center gap-3">
+                    {uploaded ? (
+                      <img src={imageUrl(name, tile.id, d)} alt={d} className="h-10 w-24 rounded-lg border border-cx-line object-cover" />
+                    ) : (
+                      <span className="h-10 w-24 animate-pulse rounded-lg border border-cx-line bg-white/[0.04]" />
+                    )}
+                    <span className="mono flex-1 text-[13px]">{d}</span>
+                    <span className={uploaded ? "text-xs text-cx-accept" : "text-xs text-cx-faint"}>{uploaded ? "Loaded" : "Uploading"}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
           <div className="mt-auto flex items-center gap-3 border-t border-cx-line pt-4">
             <Cat mood="sniffing" size={34} />

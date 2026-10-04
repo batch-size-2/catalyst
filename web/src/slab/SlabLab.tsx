@@ -2,9 +2,10 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createRef, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { getConfig, listBatches } from "../api";
 import { BatchDot, Cat, ErrorPanel, Folds, IconWarn, Panel, Seg, Spinner } from "../components/bits";
+import { BatchSelect } from "../components/Pickers";
 import { batchColor, batchLabel } from "../lib";
 import { Chart, Legend } from "./Charts";
 import { COLORS } from "./materials";
@@ -28,28 +29,41 @@ function formatIndicator(ind: Indicator, v: number | null | undefined): string {
   return pct(v, v < 0.2 ? 1 : 0);
 }
 
-/** One line for the top of the page: the chosen batch against the baseline on the three headline indicators,
+/** One line for the top of the page: the baseline and the chosen batch on the three headline indicators,
     and whether the gap is bigger than the image-to-image spread within each batch. Numbers only, no verdict. */
 function takeaway(base: Loaded, other: Loaded | null): ReactNode {
   const keys = ["si_capacity_share", "thickness_swell_full", "plating_onset_c"] as const;
-  const words = { si_capacity_share: "Si share of capacity", thickness_swell_full: "swell at full", plating_onset_c: "plating from" };
-  const shown = other ?? base;
+  const words = { si_capacity_share: "Si share of capacity", thickness_swell_full: "swell at full charge", plating_onset_c: "plating above" };
+  const pair = other ? [base, other] : [base];
   const overlap = !other || keys.every((k) => {
     const a = base.indicators[k].range, b = other.indicators[k].range;
     return !a || !b || (a[0] <= b[1] && b[0] <= a[1]);
   });
   return (
     <>
-      {keys.map((k, i) => (
-        <span key={k} className="whitespace-nowrap">
-          {i > 0 && <span className="text-cx-faint"> · </span>}
-          <span className="text-cx-muted">{words[k]} </span>
-          <span className="mono text-cx-text">{formatIndicator(shown.indicators[k], shown.indicators[k].value)}</span>
-          {other && <span className="mono text-cx-faint"> vs {formatIndicator(base.indicators[k], base.indicators[k].value)}</span>}
+      {keys.map((k) => (
+        <span key={k} className="inline-flex items-center gap-2 whitespace-nowrap">
+          <span className="text-cx-muted">{words[k]}</span>
+          {pair.map((m) => (
+            <span key={m.batch} className="mono inline-flex items-center gap-1.5 text-cx-text">
+              <BatchDot name={m.batch} size={8} />{formatIndicator(m.indicators[k], m.indicators[k].value)}
+            </span>
+          ))}
         </span>
       ))}
-      {other && <span className="text-cx-faint">{overlap ? " — all within image-to-image spread" : " — at least one gap beyond image-to-image spread"}</span>}
+      {other && <span className="text-cx-faint">{overlap ? "all within image-to-image spread" : "at least one gap beyond image-to-image spread"}</span>}
     </>
+  );
+}
+
+function BaselineTag({ name }: { name: string }) {
+  const color = batchColor(name);
+  return (
+    <div className="flex min-h-[52px] flex-col justify-center gap-0.5 rounded-[14px] border px-3.5"
+      style={{ borderColor: `color-mix(in srgb, ${color} 40%, transparent)`, background: `color-mix(in srgb, ${color} 9%, transparent)` }}>
+      <span className="lbl text-[10px]" style={{ color }}>Baseline</span>
+      <span className="flex items-center gap-2 text-[15px] font-medium whitespace-nowrap"><BatchDot name={name} size={10} />{batchLabel(name)}</span>
+    </div>
   );
 }
 
@@ -108,16 +122,19 @@ function Swatch({ color, label, round = false }: { color: string; label: string;
 
 function BatchHead({ names }: { names: string[] }) {
   return (
-    <thead>
-      <tr className="text-cx-faint">
-        <th className="pb-1.5 text-left font-normal" />
-        {names.map((n) => (
-          <th key={n} className="whitespace-nowrap pb-1.5 pl-3 text-right font-medium text-cx-text-2">
-            <span className="inline-flex items-center gap-1.5"><BatchDot name={n} size={7} />{batchLabel(n)}</span>
-          </th>
-        ))}
-      </tr>
-    </thead>
+    <>
+      <colgroup><col />{names.map((n) => <col key={n} className="w-20" />)}</colgroup>
+      <thead>
+        <tr className="text-cx-faint">
+          <th className="pb-1.5 text-left font-normal" />
+          {names.map((n) => (
+            <th key={n} className="whitespace-nowrap pb-1.5 pl-3 text-right font-medium text-cx-text-2">
+              <span className="inline-flex items-center gap-1.5"><BatchDot name={n} size={7} />{batchLabel(n)}</span>
+            </th>
+          ))}
+        </tr>
+      </thead>
+    </>
   );
 }
 
@@ -145,6 +162,7 @@ export default function SlabLab() {
   });
   const set = (patch: Partial<Drive>) => setDrive((d) => ({ ...d, ...patch }));
   const labelRoot = useRef<HTMLDivElement>(null!);
+  const requested = useRef(new Set<string>());
 
   useEffect(() => {
     Promise.all([getConfig(), listBatches()]).then(([cfg, batches]) => {
@@ -157,7 +175,8 @@ export default function SlabLab() {
 
   useEffect(() => {
     for (const name of [baseline, other]) {
-      if (!name || models[name]) continue;
+      if (!name || models[name] || requested.current.has(name)) continue;
+      requested.current.add(name);
       loadSlab(name).then((m) => setModels((all) => ({ ...all, [name]: m }))).catch((e) => setError(`${name}: ${e}`));
     }
   }, [baseline, other, models]);
@@ -180,12 +199,16 @@ export default function SlabLab() {
     return () => cancelAnimationFrame(frame);
   }, [playing, drive.cRate]);
 
-  // Swap the whole set at once: slabs appearing one by one would re-key the 3D labels mid-render.
+  // Swap the whole set at once, once it has loaded: slabs appearing one by one would re-key the 3D labels mid-render.
   const wanted = [baseline, other].filter(Boolean);
-  const shown = wanted.length && wanted.every((n) => models[n]) ? wanted : [];
+  const ready = wanted.length > 0 && wanted.every((n) => models[n]);
+  const [shown, setShown] = useState<string[]>([]);
+  if (ready && wanted.join() !== shown.join()) setShown(wanted);
+  const switching = !ready && shown.length > 0 && !error;
   const states = useMemo(() => Object.fromEntries(shown.map((n) => [n, state(models[n], drive.soc, drive.cRate, drive.cycles)])) as Record<string, State>,
-    [shown.join(), models, drive.soc, drive.cRate, drive.cycles]); // eslint-disable-line react-hooks/exhaustive-deps
-  const colors = useMemo(() => Object.fromEntries(shown.map((n) => [n, cssColor(batchColor(n))])), [shown.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+    [shown, models, drive.soc, drive.cRate, drive.cycles]);
+  const colors = useMemo(() => Object.fromEntries(shown.map((n) => [n, cssColor(batchColor(n))])), [shown]);
+  const keepOuts = useMemo(() => shown.map(() => createRef<THREE.Mesh>()), [shown]);
   const spacing = 76;
   const base = shown[0] ? models[shown[0]] : null;
   const compared = shown[1] ? models[shown[1]] : null;
@@ -199,18 +222,24 @@ export default function SlabLab() {
         ? <span className="inline-flex items-center gap-1 text-cx-reject-text"><IconWarn size={12} />plating</span>
         : `+${(s.margin[0] * 1000).toFixed(0)} mV`,
     },
-    { label: `Capacity left after ${drive.cycles} cycles`, value: (s) => `${(s.capacity[0] * 100).toFixed(0)}–${pct(s.capacity[1])}`, hint: "Scenario range, not a prediction" },
+    {
+      label: "Capacity left", hint: `After ${drive.cycles} cycles`,
+      value: (s) => {
+        const [lo, hi] = s.capacity.map((v) => Math.round(v * 100));
+        return lo === hi ? `${hi}%` : `${lo}–${hi}%`;
+      },
+    },
   ];
   const rest: Readout[] = [
     { label: "Current flowing", value: (s) => cRateText(s.current), hint: "Constant current to 80%, then it tapers (CC-CV)" },
     { label: "Pore space", value: (s) => pct(s.porosity, 1) },
-    { label: "Lithium transport through the pores", value: (s, m) => `×${((s.porosity / m.targets.porosity) ** 1.5).toFixed(2)}`, hint: "Compared with the empty cell; Bruggeman, porosity^1.5" },
+    { label: "Lithium transport through the pores", value: (s, m) => `×${((s.porosity / m.targets.porosity) ** 1.5).toFixed(2)}`, hint: "Compared with the empty cell; Bruggeman relation, porosity¹·⁵" },
     { label: "Charge taken up: silicon / graphite", value: (s) => `${(s.xSi * 100).toFixed(0)}/${pct(s.xGr)}` },
     { label: "Silicon cracked / lost contact", value: (s) => `${(s.crackedShare * 100).toFixed(0)}/${pct(s.deadShare)}` },
   ];
-  const rows = (list: Readout[], head = true) => (
-    <table className="w-full text-[12px]">
-      {head && <BatchHead names={shown} />}
+  const rows = (list: Readout[]) => (
+    <table className="w-full table-fixed text-[12px]">
+      <BatchHead names={shown} />
       <tbody>
         {list.map((r) => (
           <tr key={r.label} className="border-t border-cx-line-soft" title={r.hint}>
@@ -227,8 +256,8 @@ export default function SlabLab() {
 
   return (
     <div className="flex h-[calc(100vh-64px)] min-h-[600px] overflow-hidden">
-      <div className="relative min-w-0 flex-1" ref={labelRoot}>
-        <Canvas flat dpr={[1, 2]} camera={{ position: [0, 40, 230], fov: 36, near: 1, far: 3000 }}
+      <div className="relative isolate min-w-0 flex-1 overflow-hidden">
+        <Canvas flat dpr={[1, 2]} camera={{ position: [0, 40, 230], fov: 36, near: 1, far: 3000 }} className="cursor-grab active:cursor-grabbing"
           onCreated={({ gl, scene }) => {
             gl.localClippingEnabled = true;
             // Offline image-based lighting (no HDR download): metals read as metal, facets get contrast.
@@ -243,20 +272,22 @@ export default function SlabLab() {
           {shown.map((name, i) => (
             <Slab key={name} labelRoot={labelRoot} model={models[name]} drive={drive} st={states[name]} color={colors[name]}
               offsetX={shown.length > 1 ? (i - 0.5) * spacing : 0} labels={i === shown.length - 1}
+              keepOut={keepOuts[i]} occluders={keepOuts.filter((_, j) => j !== i) as RefObject<THREE.Object3D>[]}
               title={`${batchLabel(name)}${name === baseline ? " · baseline" : ""}`}
               subtitle={`median of ${models[name].n_images} images · ${models[name].n_particles_measured.toLocaleString()} Si particles`} />
           ))}
           <OrbitControls makeDefault enableDamping target={[0, 26, 0]} maxDistance={600} minDistance={30} maxPolarAngle={Math.PI * 0.6} />
           <CameraRig count={shown.length} />
         </Canvas>
+        <div ref={labelRoot} className="pointer-events-none absolute inset-0 isolate" />
 
-        <div className="glass pointer-events-none absolute inset-x-4 top-4 flex items-center gap-3 rounded-[14px] px-4 py-2.5">
-          <span className="lbl shrink-0 whitespace-nowrap">Anode lab</span>
-          <span className="mono shrink-0 rounded-md border border-cx-orange/40 px-1.5 py-0.5 text-[10px] text-cx-orange-text">EXPERIMENTAL</span>
-          {base && <div className="line-clamp-2 min-w-0 text-[13px] leading-snug">{takeaway(base, compared)}</div>}
-        </div>
+        {base && (
+          <div className="glass pointer-events-none absolute inset-x-4 top-4 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-[14px] px-4 py-2.5 text-[13px] leading-snug">
+            {takeaway(base, compared)}
+          </div>
+        )}
 
-        {!base && (
+        {(error || !base) && (
           <div className="absolute inset-0 grid place-items-center">
             {error ? (
               <div className="w-[480px]"><ErrorPanel title="The anode lab couldn't load" message={error} command="uv run uvicorn qc.api:app" /></div>
@@ -285,13 +316,14 @@ export default function SlabLab() {
                 <Swatch color={COLORS.siHot} label="stress while charging" round />
                 <Swatch color={COLORS.ion} label="lithium ions" round />
                 <Swatch color={COLORS.lithium} label="lithium metal (plating)" />
-                <Swatch color={COLORS.sei} label={`surface film, SEI (${SEI_EXAGGERATION}× thicker)`} />
+                <Swatch color={COLORS.sei} label={`surface film (SEI, drawn ${SEI_EXAGGERATION}× thicker)`} />
                 <Swatch color={COLORS.siDead} label="silicon that lost contact" />
                 <Swatch color={COLORS.separator} label="separator (top)" />
                 <Swatch color={COLORS.copper} label="copper foil (bottom)" />
               </div>
               <div className="mt-2 text-[10px] text-cx-faint">
-                A {base?.box_um.join(" × ") ?? "60 × 50 × 30"} µm block packed to the measured fractions; dark gaps are pores filled with electrolyte. An illustration, never used in a verdict.
+                A {base?.box_um.join(" × ") ?? "60 × 50 × 30"} µm block packed to the measured fractions; dark gaps are pores filled with electrolyte.
+                An illustration driven by measured statistics, not a 3D reconstruction or a cell simulation, and never used in a verdict.
               </div>
             </div>
           )}
@@ -306,25 +338,26 @@ export default function SlabLab() {
       </div>
 
       <aside className="flex w-[360px] shrink-0 flex-col gap-4 overflow-y-auto py-4 pr-4 [&>*]:shrink-0">
-        <Panel className="!p-5">
-          <div className="flex items-center gap-2 text-[13px]">
-            <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-cx-line px-3">
-              {baseline && <BatchDot name={baseline} size={8} />}{batchLabel(baseline || "…")}
-            </span>
-            <span className="text-cx-faint">vs</span>
-            <select value={other} onChange={(e) => setOther(e.target.value)} aria-label="Batch to compare"
-              className="min-h-8 flex-1 rounded-[10px] border border-cx-line bg-cx-bg px-2 text-cx-text">
-              <option value="">baseline only</option>
-              {options.map((n) => <option key={n} value={n}>{batchLabel(n)}</option>)}
-            </select>
+        <Panel className="p-5">
+          <div className="flex items-center gap-2">
+            <BatchSelect label="Compare with" value={other || null} sub={switching ? <Spinner size={12} /> : undefined}
+              options={options.map((name) => ({ name }))} onPick={setOther}
+              footer={
+                <button type="button" onClick={() => setOther("")}
+                  className={`flex min-h-10 w-full cursor-pointer items-center rounded-[10px] border-0 px-2.5 text-left text-[13px] text-cx-text-2 hover:bg-white/5 ${other ? "bg-transparent" : "bg-white/[0.08]"}`}>
+                  Baseline only
+                </button>
+              } />
+            <span className="mono text-[13px] text-cx-faint">vs</span>
+            {baseline && <BaselineTag name={baseline} />}
           </div>
 
           <div className="mt-4 flex items-center gap-2">
-            <button type="button" className="btn pri flex-1 whitespace-nowrap" style={{ minHeight: 36, padding: "0 14px", fontSize: 13 }}
+            <button type="button" className="btn pri min-h-9 flex-1 whitespace-nowrap px-3.5 text-[13px]"
               onClick={() => { if (drive.soc >= 0.999) set({ soc: 0 }); setPlaying(!playing); }}>
               {playing ? "Pause" : `Charge at ${cRateText(drive.cRate)}`}
             </button>
-            <button type="button" className="cursor-pointer border-0 bg-transparent px-2 text-[13px] text-cx-muted hover:text-cx-text"
+            <button type="button" className="btn min-h-9 px-3.5 text-[13px]" disabled={!playing && drive.soc === 0}
               onClick={() => { setPlaying(false); set({ soc: 0 }); }}>Empty</button>
           </div>
           <Slider label="State of charge" value={drive.soc} min={0} max={1} step={0.005} hint={pct(drive.soc)}
@@ -332,15 +365,15 @@ export default function SlabLab() {
           <Slider label="Charge rate" value={tFromC(drive.cRate)} min={0} max={1} step={0.005}
             hint={`${cRateText(drive.cRate)} · ${Math.round(60 / drive.cRate)} min`}
             onChange={(t) => set({ cRate: Number(cFromT(t).toFixed(2)) })} />
-          <Slider label="Ageing (cycles)" value={Math.sqrt(drive.cycles / 1000)} min={0} max={1} step={0.002}
-            hint={`${drive.cycles}`} onChange={(t) => set({ cycles: cyclesFromT(t) })} />
+          <Slider label="Ageing" value={Math.sqrt(drive.cycles / 1000)} min={0} max={1} step={0.002}
+            hint={`${drive.cycles} cycles`} onChange={(t) => set({ cycles: cyclesFromT(t) })} />
 
           <button type="button" onClick={() => setMore(!more)} aria-expanded={more}
             className="mt-4 flex w-full cursor-pointer items-center justify-between border-0 bg-transparent p-0 text-[12px] text-cx-muted hover:text-cx-text">
-            <span>More view options</span>
-            <span className="mono text-[11px] text-cx-faint">
-              {drive.sliceUm >= 30 ? "full block" : `cut ${(30 - drive.sliceUm).toFixed(0)} µm`}{drive.showSection ? " · SEM" : ""}{drive.showIons ? "" : " · no ions"} {more ? "▴" : "▾"}
-            </span>
+            More view options
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className={more ? "rotate-180" : ""}>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
           </button>
           {more && (
             <>
@@ -348,21 +381,21 @@ export default function SlabLab() {
                 hint={drive.sliceUm >= 30 ? "surface" : `${(30 - drive.sliceUm).toFixed(1)} µm in`} onChange={(v) => set({ sliceUm: 30 - v })} />
               <div className="mt-3.5 flex flex-wrap gap-2">
                 <Toggle label="Lithium ions" dot={COLORS.ion} on={drive.showIons} onChange={(showIons) => set({ showIons })} />
-                <Toggle label="SEM on cut" on={drive.showSection} onChange={(showSection) => set({ showSection })} />
+                <Toggle label="SEM image on the cut" on={drive.showSection} onChange={(showSection) => set({ showSection })} />
               </div>
             </>
           )}
         </Panel>
 
         {base && (
-          <Panel className="!p-5">
+          <Panel className="p-5">
             {rows(main)}
             <Seg className="mt-4 w-full" value={chart} onChange={setChart}
               options={[{ value: "plating", label: "Plating" }, { value: "depth", label: "Depth" }, { value: "ageing", label: "Ageing" }]} />
             {chart === "plating" && (
-              <Chart title="Plating margin while charging" caption={`mV at the separator side, ${cRateText(drive.cRate)}`}
-                x={[0, 1]} y={[-0.1, 0.3]} xTicks={socTicks} yTicks={[-0.1, 0, 0.1, 0.2, 0.3]} fx={fx} fy={(v) => `${(v * 1000).toFixed(0)}`}
-                markers={[{ x: drive.soc }]} hlines={[{ y: 0, label: "plating below 0" }]}
+              <Chart title="Plating margin while charging" caption={`at the separator side, ${cRateText(drive.cRate)}`}
+                x={[0, 1]} y={[-0.125, 0.2]} xTicks={socTicks} yTicks={[-0.1, 0, 0.1, 0.2]} fx={fx} fy={(v) => `${(v * 1000).toFixed(0)}`}
+                yUnit="mV" height={150} markers={[{ x: drive.soc }]} below={{ y: 0, label: "plating below 0" }}
                 series={shown.map((n) => ({
                   xs: models[n].charge.soc,
                   ys: models[n].charge.soc.map((s) => profile(models[n], models[n].fast_charge.plating_margin_v, drive.cRate, s)[0]),
@@ -370,14 +403,14 @@ export default function SlabLab() {
                 }))} />
             )}
             {chart === "depth" && (
-              <Chart title="How full, through the thickness" caption={`separator → collector, now (N/P ${base.np_ratio})`}
+              <Chart title="How full, through the thickness" caption={`now, with anode/cathode capacity ${base.np_ratio}`}
                 x={[0, 1]} y={[0, 1]} xTicks={[0, 0.5, 1]} yTicks={[0, 0.5, 1]}
                 fx={(v) => (v === 0 ? "separator" : v === 1 ? "collector" : "middle")} fy={fx}
                 series={shown.map((n) => ({ xs: models[n].fast_charge.depth, ys: states[n].localFill, color: colors[n] }))} />
             )}
             {chart === "ageing" && (
               <Chart title="Capacity over cycles" caption="scenario range"
-                x={[0, 1000]} y={[0.6, 1]} xTicks={[0, 250, 500, 750, 1000]} yTicks={[0.6, 0.8, 1]} fy={fx}
+                x={[0, 1000]} y={[0.6, 1]} xTicks={[0, 500, 1000]} yTicks={[0.6, 0.8, 1]} fy={fx} xUnit="cycles"
                 markers={[{ x: drive.cycles }]}
                 bands={shown.map((n) => ({ xs: models[n].ageing.cycles, lo: models[n].ageing.capacity_low, hi: models[n].ageing.capacity_high, color: colors[n] }))} />
             )}
@@ -389,7 +422,7 @@ export default function SlabLab() {
             {
               id: "measurements",
               title: "All measurements",
-              summary: `${rest.length + 7} rows`,
+              summary: null,
               body: () => (
                 <>
                   {rows(rest)}
@@ -402,44 +435,17 @@ export default function SlabLab() {
                     ])} />
                   <Legend items={[{ color: SI_LINE, label: "silicon" }, { color: COLORS.graphiteStages[3][0], label: "graphite" },
                     ...(shown.length > 1 ? [{ color: "#8A8C92", label: `dashed: ${batchLabel(shown[1])}`, dash: true }] : [])]} />
-                  <div className="lbl mt-5 mb-1.5">Packing check</div>
-                  <table className="w-full text-[12px]">
-                    <tbody>
-                      {(["si_frac", "graphite_frac", "porosity"] as const).map((k) => (
-                        <tr key={k} className="border-t border-cx-line-soft">
-                          <td className="py-1.5 text-cx-muted">{{ si_frac: "silicon", graphite_frac: "graphite", porosity: "pore" }[k]} volume</td>
-                          {shown.map((n) => (
-                            <td key={n} className="mono py-1.5 pl-3 text-right text-cx-text">
-                              {pct(models[n].achieved[k], 1)} <span className="text-cx-faint">/ {pct(models[n].targets[k], 1)}</span>
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                      {[
-                        ["apparent 2D porosity", (m: Loaded) => pct(m.targets.porosity_apparent, 1)],
-                        ["Si d50: 2D / 3D", (m: Loaded) => `${m.si_d50_um_2d.toFixed(1)} / ${m.si_d50_um_3d_volume.toFixed(1)} µm`],
-                        ["Si in clusters", (m: Loaded) => pct(m.targets.agglomerated)],
-                        ["particles drawn", (m: Loaded) => `${m.silicon.length} · ${m.graphite.length}`],
-                      ].map(([label, value]) => (
-                        <tr key={label as string} className="border-t border-cx-line-soft">
-                          <td className="py-1.5 text-cx-muted">{label as string}</td>
-                          {shown.map((n) => <td key={n} className="mono py-1.5 pl-3 text-right text-cx-text">{(value as (m: Loaded) => string)(models[n])}</td>)}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="mt-1.5 text-[11px] text-cx-faint">volume: achieved in the illustration / target from the measurements; particles: Si · graphite flakes</div>
                 </>
               ),
             },
             {
               id: "consequences",
               title: "What this would mean in a cell",
-              summary: formatIndicator(base.indicators.si_capacity_share, (compared ?? base).indicators.si_capacity_share.value) + " Si capacity",
+              summary: null,
               body: () => (
                 <>
                   <div className="text-[11px] text-cx-faint">Batch median; below it, the 10th–90th percentile across that batch's images.</div>
-                  <table className="mt-2 w-full text-[12px]">
+                  <table className="mt-2 w-full table-fixed text-[12px]">
                     <BatchHead names={shown} />
                     <tbody>
                       {Object.entries(base.indicators).map(([key, ind]) => (
@@ -458,29 +464,38 @@ export default function SlabLab() {
                       ))}
                     </tbody>
                   </table>
-                  <div className="mt-2 text-[11px] leading-relaxed text-cx-faint">
-                    If the additive is SiOx rather than Si, silicon's share of the capacity drops to {pct(base.indicators.si_capacity_share.siox_value ?? NaN)} ({batchLabel(base.batch)}).
-                    Thickening spans {pct(base.indicators.thickness_swell_full.assumption_range?.[0] ?? NaN)}–{pct(base.indicators.thickness_swell_full.assumption_range?.[1] ?? NaN)} depending on how much swelling the pores absorb.
-                  </div>
                 </>
               ),
             },
             {
               id: "assumptions",
               title: "Assumptions and sources",
-              summary: `${base.assumptions.length}`,
+              summary: null,
               body: () => (
-                <>
-                  <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-[12px]">
-                    {base.assumptions.map((a) => (
-                      <li key={a.name}>
-                        <div className="text-cx-text-2">{a.name}: <span className="text-cx-muted">{a.value}</span></div>
-                        <div className="text-[11px] text-cx-faint">{a.source}</div>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-3 text-[11px] text-cx-faint">{base.label} Computed in <span className="mono">qc/slab.py</span>; this page only draws it.</div>
-                </>
+                <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-[12px]">
+                  {base.assumptions.map((a) => (
+                    <li key={a.name}>
+                      <div className="text-cx-text-2">{a.name}: <span className="text-cx-muted">{a.value}</span></div>
+                      <div className="text-[11px] text-cx-faint">{a.source}</div>
+                    </li>
+                  ))}
+                  {([
+                    ["If the additive is SiOₓ", "silicon's share of the capacity drops to",
+                      (m: Loaded) => pct(m.indicators.si_capacity_share.siox_value ?? NaN)],
+                    ["Thickening at full charge", "depending on how much swelling the pores absorb",
+                      (m: Loaded) => {
+                        const [lo, hi] = m.indicators.thickness_swell_full.assumption_range ?? [NaN, NaN];
+                        return `${(lo * 100).toFixed(0)}–${pct(hi)}`;
+                      }],
+                  ] as const).map(([name, value, each]) => (
+                    <li key={name}>
+                      <div className="text-cx-text-2">{name}: <span className="text-cx-muted">{value}</span></div>
+                      <div className="mono mt-0.5 flex gap-3 text-[11px] text-cx-text-2">
+                        {shown.map((n) => <span key={n} className="inline-flex items-center gap-1.5"><BatchDot name={n} size={7} />{each(models[n])}</span>)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               ),
             },
           ]} />
