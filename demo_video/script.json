@@ -75,13 +75,12 @@
     },
     "audit": {
       "hash": "sha256 17b8f934 · 8b1083c0 · 94eab635 …",
-      "hold": 2.4,
+      "hold": 3.4,
       "beats": [
         { "at": "Every", "shot": "audit", "url": "#/audit", "highlight": null, "sfx": "whoosh", "cat": { "anchor": "right-mid", "pose": "float", "item": "none", "expression": "curious", "goggles": "up" } },
         { "at": "logged", "highlight": "log_row", "zoom": 1.5, "fx": "hash", "dur": 1.6 },
         { "at": "check", "highlight": "verified", "zoom": 1.2, "fx": "verify", "cat": { "pose": "stamp", "item": "stamp", "expression": "proud" }, "callout": "nothing moved" },
         { "at": "later", "offset": 0.1, "sfx": "stamp" },
-        { "at": "button", "offset": 0.6, "sfx": "click" },
         { "at": "button", "offset": 0.75, "sfx": "lawsuit" }
       ]
     },

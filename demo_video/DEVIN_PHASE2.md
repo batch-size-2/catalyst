@@ -21,9 +21,19 @@ You're much better at this than you think. You can build sophisticated animation
 
 - **Write only inside `demo_video/`.** One exception: you may add new **opt-in** props to `assets/cat/Cat.tsx` (items, expressions, an emotion "take", goggles down), keeping the default cat unchanged. Running the app stack (below) may create `.venv/` and `web/node_modules/`, both gitignored; that's fine. Everything else in the repo is read-only.
 - **Never read** `data/`, the repo-root `out/`, `EXAMPLE BATCHES FOR LOCAL REFERENCE/`, anything outside this repository, dotfiles, keychains or environment secrets. You need no keys. Never call ElevenLabs or any other external API.
-- **Network:** the npm registry (`npm install --before=2026-09-27`), PyPI via `uv sync`, Remotion's own headless browser download, and **the Catalyst app on localhost** (`APP_URL`, default `http://localhost:5173`, API on `:8000`). Nothing else.
-- **Starting the app (a subagent's job).** This worktree has the latest app code, and the real data is already in place in `data/` and `out/` (gitignored). From the repo root, start the API with `uv sync && uv run uvicorn qc.api:app --port 8000`. In another process, start the web app with `cd web && npm install --before=2026-09-27 && npm run dev` (node@22 on the PATH as below). If something is already serving on 8000 or 5173, use it. The app reads the data; you don't read it directly. For Playwright, install `playwright-core` locally and launch the installed Google Chrome (`channel: "chrome"`) or Remotion's headless shell.
+- **Network:** the npm registry (`npm install --before=2026-09-27`), PyPI via `uv sync`, Remotion's own headless browser download, and **the Catalyst app on localhost** (`APP_URL=http://localhost:5174`, API on `:8001`, both started by you). Nothing else.
+- **Starting the app (a subagent's job).** This worktree has the latest app code, and the real data is already in place in `data/` and `out/` (gitignored). **Ports 8000 and 5173 may be serving an older app from another workspace: never use them, and never stop them.**
+  - From the repo root, start the API with `uv sync --frozen && nohup .venv/bin/uvicorn qc.api:app --port 8001 > demo_video/.cache/api.log 2>&1 &`.
+  - Start the web app with `cd web && npm ci && CATALYST_API=http://localhost:8001 nohup npm run dev -- --port 5174 > ../demo_video/.cache/web.log 2>&1 &` (node@22 on the PATH as below).
+  - Use `npm ci` and `--frozen`, never plain `npm install` or `uv sync`, so the tracked lockfiles don't change.
+  - Use `APP_URL=http://localhost:5174`. Before capturing, `GET http://localhost:8001/openapi.json` must list `/api/impact/{batch}` and `/api/slab/{batch}`.
+  - Kill only the processes you started.
+
+  The app reads the data; you don't read it directly. The app's own caches under `out/` are fine. In this brief, `out/` always means `demo_video/out/`, except here. For Playwright, install `playwright-core` locally and launch the installed Google Chrome (`channel: "chrome"`) or Remotion's headless shell.
 - **The live app runs on our real data. Look, don't change.** Allowed: navigating, scrolling, tabs, switches, sliders, the anode lab's controls, Verify buttons (they only re-hash), and the Audit page's **GENERATE LAWSUIT** button (a client-side parody; confirm in the network log that it sends no writes, otherwise skip it). **Never** start a run, measurement or upload, press "Ask Claude" (a paid call), or change settings or the baseline. Don't mock or fake API responses: what's on screen is what the app really shows.
+  - **Hidden writes to avoid:** opening an Identify result whose tile has no measurements auto-POSTs `/api/measure`, so open only rows whose tile already has KPIs (check `GET /api/tiles`). The Compare baseline picker runs a comparison immediately. Never use it, "Compare now", Settings or Print.
+  - **Seatbelt:** in Playwright, add a `page.route` that aborts every non-GET request except `POST /api/verify/*`, and logs each blocked call. That blocks writes; it isn't mocking.
+  - Playwright's `channel: "chrome"` runs with a temporary profile. Never use the user's Chrome profile, and never run `npx playwright install`.
 - **No git commands that change anything** (commit, push, checkout, switch, reset, stash, rebase, merge, branch, clean, config). Read-only git is fine. We commit.
 - **The voice is final:** never run `tools/voice.py`, never edit `narration.json`'s text or voice settings, never cut narration. `public/audio/`, `public/sfx/`, `public/music/` and `tools/` are read-only.
 - No `sudo`, global installs or edits outside the repo. Caches and temp files go in `demo_video/.cache/`.
@@ -35,7 +45,7 @@ Environment (the system node is broken), from `demo_video/`:
 ## What changed since Phase 1 (facts)
 
 - **New narration, already voiced** (`narration.json` + `public/audio/<id>.{mp3,json}` with word timings). Ten scenes, in order: `news, science, compare, identify, inspect, audit, impact, lab, aged, outro`. `impact`, `lab` and `aged` are new. Every scene except `news` has new words, so **re-key the beats in `script.json`**: keep beats whose idea still fits, delete those whose words are gone, and add the new scenes. `voice.gap_seconds` is 0.3.
-- **Hard time cap: total ≤ 119.5 s; aim for 116–118 s.** Narration plus gaps is 108.5 s, which leaves about 9 s of lead and hold across the whole film. Starting point: news lead 0.6 and hold 0.4, compare hold 0.6, audit hold about 3.0 (the lawsuit gag), lab hold about 1.5 (the charge animation plays between `lab` and `aged`), outro hold 2.0. Check with `ffprobe` after every full render.
+- **Hard time cap: total ≤ 119.5 s; aim for 116–118 s.** Narration plus gaps is 108.5 s, which leaves about 9 s of lead and hold across the whole film. Use these holds, checked against the real audio durations, for about **118.5 s** in total: news lead 0.6 and hold 0.4; science 0.3; compare 1.0 (so the Manager tab can be read); identify 0.4; inspect 0.4; audit 3.4 (the lawsuit gag); impact 0; lab 1.3 (the charge animation plays between `lab` and `aged`); aged 0.6 ("cracked" lands late in a 3 s line); outro 1.6. Check with `ffprobe` after every full render.
 - **The real app now has everything the script mentions.** Routes:
   - `#/compare/<batch>[/<baseline>]`
   - `#/identify`
@@ -46,7 +56,7 @@ Environment (the system node is broken), from `demo_video/`:
 
   Read `web/src/router.ts`, `web/src/components/*` and `web/src/slab/*` (read-only) for labels and ARIA. The UI is still being polished, so locate everything by visible text and ARIA, never by pixel position. We'll re-run your capture when the UI settles.
 - **A meow for the ending:** `public/sfx/meow.mp3` (mix 0.09) plays once in the outro hold as the cat blinks. Keep `mrrp` once on the cat's first entrance. No other cat sounds.
-- **The lawsuit sound is wired:** `public/sfx/lawsuit.mp3` (2.08 s, mix 1.0) fires 0.75 s after the word "button" in `audit`, with a `click` at 0.6 s. Move the cursor's click exactly onto it.
+- **The lawsuit sound is wired:** `public/sfx/lawsuit.mp3` (2.08 s, mix 1.0) fires 0.75 s after the start of the word "button" in `audit`, about 10.78 s into the scene. The cursor's press frame must be exactly that frame. The separate click sfx on it has been removed.
 - **News: a generic "BREAKING NEWS" treatment in our own style.** Build on the current fact cards in `script.json`:
   - a bold **BREAKING NEWS** banner or ticker (generic news-broadcast energy, no real outlet's name, logo or look);
   - big headline type for each story, with the year shown, e.g. "BREAKING NEWS · 2021";
@@ -55,7 +65,7 @@ Environment (the system node is broken), from `demo_video/`:
 
 ## Creative direction
 
-**The hook (0–5 s) decides everything.** Big, confident motion type, plus the news cards, plus a camera that's already moving on frame 1. For example: a BREAKING NEWS banner slams in, the Bolt card slides in tilted in 3D, the camera pushes into the headline, and "EVERY CHEVY BOLT. RECALLED." lands as huge Geist type on the empty side of the frame. `$1.9 BILLION` counts up big. Make a viewer with the sound off want to keep watching.
+**The hook (0–5 s) decides everything.** Big, confident motion type, plus the news cards, plus a camera that's already moving on frame 1. For example: a BREAKING NEWS banner slams in, the Bolt card slides in tilted in 3D, the camera pushes into the headline, and "GM RECALLED EVERY CHEVY BOLT" lands word by word, in spoken order, as huge Geist type on the empty side of the frame. `$1.9 BILLION` counts up big. Make a viewer with the sound off want to keep watching.
 
 **Text as a motion-graphics layer, with variance.** Text holds attention. Most of the time the narration shows as clean subtitles (the current `Captions.tsx`, refined). At 6–8 **hero moments**, the line, or its key phrase, becomes big kinetic type composed into the shot, and the subtitle steps aside. Compose those shots for it: the window shifts to one side and the type owns the clean side. Candidates:
 - the hook: "every Chevy Bolt", "$1.9 billion", "82,000 cars"
@@ -102,10 +112,71 @@ Rhyme the ending with the opening.
 | **identify** | The cursor clicks Identify in the sidebar. "single image": the cat tosses a tile card onto the drop zone. "closest": the real result card lifts out; the bars grow. "sure": spotlight the confidence. "unfamiliar": the unfamiliar flag (hero type) | Carries the tile; proud, then surprised |
 | **inspect** | **Must include the app's region peek** (a favourite; see `design/canvas/Identify-Result-Peek.dc.html` and `design/README.md`). On "check my work": the cursor hovers a region of the result tile, the real ring draws around it, and the magnified peek pops out beside it (lift it in 2.5D and push the camera in). "Open any image": click to pin it, so the inspector or the library viewer opens (shared-element zoom). "overlay": the cursor flips the segmentation or silicon layer; grey cross-fades to silicon. "pores": pore layer on. Push close enough to see pixels. Capture the hover and pinned states as `@state` shots, or as a clip if the ring animates | Goggles down, magnifier |
 | **audit** | "fingerprint": a hash row lifts and the hash types itself. "verify": the cursor clicks Verify and ticks run down. "one more button": the camera pushes to the pulsing red GENERATE LAWSUIT button. The click lands exactly on the sfx, then a 2-frame shake, the real checklist clip (sped up if needed) and the "READY FOR COUNSEL" card lands. "Parody, not legal advice" stays readable. About 0.5 s to let it land | Tiny gavel or stamp (new opt-in item); smug |
-| **impact** | "experiments": the `EXPERIMENTAL` chip; the plate shifts to lab mode; the cursor clicks Labs → Wear & impact. "capacity", "charge": the camera moves card to card. "worst case": the chain draws itself step by step (ladder view if it reads best). "rule it out": spotlight what rules it out | Goggles up, thoughtful |
+| **impact** | "experiments": the `EXPERIMENTAL` chip; the plate shifts to lab mode; the cursor clicks Experimental → Wear & impact. "capacity", "charge": the camera moves card to card. "worst case": the chain draws itself step by step (ladder view if it reads best). "rule it out": spotlight what rules it out | Goggles up, thoughtful |
 | **lab** | "3D anode": the cursor opens the anode lab; the block rotates slowly (clip). "too fast": the cursor sets a high C-rate and presses charge; the fast-charge clip plays. "metal": plating visible; push in. **Hold** while it grows | Goggles down, leaning in |
 | **aged** | "eight hundred cycles": the cursor drags cycles to 800 and the aging clip plays (hero type "800 CYCLES"). "cracked": push in on the cracked silicon | Wince |
 | **outro** | The window scales down and fades and the coloured plate returns. Wordmark and subtitle, then "Team Batch Size 2". Rhymes with the opening | Curls up by the logo, slow blink, then a soft **meow** (`public/sfx/meow.mp3`, wired 0.9 s after the last word; time it to the blink, in the hold, never over the voice) |
+
+## Pre-flight facts and corrections (these override the storyboard and PROMPT.md where they differ)
+
+These come from a review of the current UI code. **The UI is still changing, and the Compare screen is being redesigned for two batches.** Re-check labels in `web/src` when you run, and map to whatever is there.
+
+**PROMPT.md instructions that are void:**
+- committing, pushing or opening a PR;
+- adding `data-demo` attributes in `web/`;
+- regenerating assets in `assets/cat`;
+- developing against fixtures by copying `tests/fixtures` into `out/` (**never do that: it would overwrite the real data**);
+- `@remotion/google-fonts`;
+- `.glass.png` captures (opaque only);
+- "at most two polish passes" (do at least two);
+- cat callouts that repeat the narration (remove them).
+
+When the window shifts aside for hero type, the cat moves to the free margin. Captions keep inside the 5% safe margin. "Calm" means confident, not timid: small springy overshoots on the cursor and lifts are wanted. The old `out/animatic.mp4` has the old narration; use it as a visual reference only.
+
+**Per scene:**
+- **news:** the hero type follows the spoken order ("GM recalled every Chevy Bolt"). 82,000 is spoken "eighty-two" (beat `at: "eighty-two"`). Start the `$1.9 billion` count-up on "nearly" so it lands on "billion". Illustrative art with no numbers (cars, cells, needles, fire) is fine. Data shown as data must be real.
+- **compare:**
+  - The verdict is `section[aria-label="Answer"]` and the next step is `section[aria-label="Next steps"]`.
+  - "What moved" is `section[aria-label="Look here first"]` (three finding cards). The per-property rows are in the collapsed "All N properties" fold.
+  - The explain tabs are in a collapsed fold, "Explain it to an operator, engineer, scientist or manager", near the bottom. The tabs are `role="tab"`: Operator, Process engineer, Materials scientist, Manager.
+  - Open the fold on "tabs". Spread the four clicks evenly from "explain" to "manager", with Manager landing on "manager". Hold for reading.
+  - Use a batch whose verdict is INVESTIGATE (`GET /api/batches`); never hard-code batch names or image ids.
+- **identify:**
+  - The sidebar link is "Identify tile". The result is `section[aria-label="Answer"]`, with an "Unfamiliar tile" or "Familiar tile" chip. The bars are static in the app; animate them in Remotion.
+  - Uploading is forbidden, so there's no live "analyzing" state. Drop that beat, or animate the drop over the empty state.
+  - If no tile in the data is unfamiliar, spotlight the real chip in its real state, or an "unfamiliar" flag in Recent identifications if one exists. Never fake it.
+- **inspect (the region peek):** it lives on the **Identify result** page, so it continues straight on from identify.
+  - Numbered spots have aria-labels "Silicon particle N, …". Hover shows a `role="tooltip"` popover (ring, magnified crop, zoom factor, scale bar). It's `position: fixed` and ignores the pointer, so capture **viewport** frames, not full-page.
+  - Click pins `aside[aria-label="Region inspector"]`, which has `role="switch"` "Silicon" and "Pore". They're disabled unless the tile has layers, so pick a tile that does.
+  - Beats: hover on "check my work", pin on "Open any image", Silicon on "silicon", Pore on "pores".
+- **audit:**
+  - Select the INVESTIGATE row first: the passport and the lawsuit card follow the selected row. Replace the stand-in `audit.hash` in `script.json` with the real passport text.
+  - Verify sets all its ✓ marks at once. Stagger them in Remotion over the real states.
+  - The lawsuit button (`section[aria-label="Generate lawsuit"]`) pulses only while running, so add an idle pulse in Remotion.
+  - The real checklist takes about 5 s to reach "READY FOR COUNSEL*". Play it about 2× so the final card is readable for at least 1 s before the scene ends.
+- **impact:**
+  - `?warnings=` goes **before** the hash (`/?warnings=ladder#/impact/<batch>/<baseline>`). It persists in localStorage; the default is cards.
+  - "What rules it out" shows only when a chain is open (the ladder opens the worst one).
+- **lab / aged:**
+  - The controls are a button "Charge at 1.0C" (it becomes "Pause") and sliders "State of charge", "Charge rate" (log scale 0.25–8C) and "Ageing (cycles)". The ageing slider can't land on exactly 800.
+  - URL params `?soc=&c=&cycles=` set states deterministically: use `cycles=800` for the end state.
+  - There's no auto-rotate, so rotate with a scripted mouse drag.
+  - A charge at 8C takes about 3 s. "Silicon cracked / lost contact" is inside the collapsed "All measurements" fold.
+- **outro:** the meow plays in the hold after the last word **ends**, timed to the blink.
+
+**If a live state is missing** (no unfamiliar tile, a verdict that isn't INVESTIGATE, no layers): show the nearest real state, note it in the report, and never fake it.
+
+**Capture feasibility and freeze:**
+- Time-box any deterministic-capture spike to 30 minutes.
+- For the lab and aged clips, the simplest reliable method is to set the slider or URL state per frame and screenshot, with no fake clock. The fallback ladder is `page.clock` plus `getAnimations()`, then a CDP screencast, then stills animated in Remotion.
+- 2x full-page screenshots over about 6,000 CSS px can hit Chrome's 16,384 px limit, so capture per section.
+- Clips: ≤ 6 s, 30 fps, `-crf 18 -g 15 -pix_fmt yuv420p -movflags +faststart`.
+- **Freeze `public/screens` and `public/clips` about 45 minutes in**, and re-capture only to fix bugs. We'll re-run the capture when the UI is final.
+
+**Render budget:**
+- `@remotion/motion-blur` isn't installed. Install it pinned to 4.0.529, and use it only on sub-second travel with ≤ 5 samples.
+- Iterate with partial renders (`--frames=a-b --scale=0.5`). At most 5 full renders.
+- Checkpoints, logged in PROGRESS: about T+1h, the first full render; T+2h, the first review pass done; T+2h40, freeze and the final render.
 
 ## How to work
 
