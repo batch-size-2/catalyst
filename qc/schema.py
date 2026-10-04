@@ -151,7 +151,8 @@ class Odd(BaseModel):
 
 class ImagingCheck(BaseModel):
     changed: bool = False
-    changed_metrics: list[str] = []      # e.g. "BSE.black_level"
+    changed_metrics: list[str] = []      # acquisition metrics that can change the verdict, most out of range first
+    report_metrics: list[str] = []       # other metrics outside the range; reported, never a verdict trigger
     outliers_in_reference: list[str] = []  # baseline image_ids left out of the imaging range (§3.3)
     curtained_images: list[str] = []      # image_ids whose run-length descriptors were blanked
 
@@ -246,6 +247,7 @@ class Evidence(BaseModel):
 
 CONFIG_PATH = Path("config/decision.yaml")
 OUT_DIR = Path("out")
+CONTROLS_JSON = OUT_DIR / "controls.json"
 KPI_TABLE = OUT_DIR / "kpis.csv"
 PARTICLE_TABLE = OUT_DIR / "particles.csv"
 IMAGING_TABLE = OUT_DIR / "imaging.csv"

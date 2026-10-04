@@ -1,5 +1,5 @@
 import type {
-  Attribution, AttributionEvaluation, AttributionEvent, BatchSummary, Config, Decision, Evidence, Guide,
+  Attribution, AttributionEvaluation, AttributionEvent, BatchSummary, Config, Decision, Evidence, Guide, Health,
   KpiDictionary, MeasureEvent, ModelStatus, RunEvent, Settings, Tile, TileParticles, VerifyResult,
 } from "./types";
 
@@ -18,6 +18,7 @@ export class ApiError extends Error {
 const enc = encodeURIComponent;
 const withBaseline = (baseline?: string | null) => (baseline ? `?baseline=${enc(baseline)}` : "");
 
+export const getHealth = () => getJson<Health>("/api/health");
 export const getConfig = () => getJson<Config>("/api/config");
 export const getSettings = () => getJson<Settings>("/api/settings");
 export const listBatches = () => getJson<BatchSummary[]>("/api/batches");

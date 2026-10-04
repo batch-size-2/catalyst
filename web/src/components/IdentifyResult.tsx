@@ -52,11 +52,7 @@ export default function IdentifyResult({
   const reasons = [...image.reasons].sort((a, b) => (b.contribution ?? 0) - (a.contribution ?? 0));
   const toward = reasons.filter((r) => (r.contribution ?? 0) > 0);
   const away = reasons.filter((r) => (r.contribution ?? 0) < 0).reverse();
-  // up to three reasons for the call; the strongest one against only when it outweighs the weakest of those
-  const fors = toward.slice(0, 3);
-  const weakest = Math.abs(fors[fors.length - 1]?.contribution ?? 0);
-  const against = away[0] && Math.abs(away[0].contribution ?? 0) >= weakest ? away[0] : null;
-  const picks = against ? [...fors.slice(0, 2), against] : fors;
+  const picks = pickReasonGroups(groupReasons(reasons, dict.data));
   const beyond = kpisBeyond(tile, tiles.data ?? [], baseline);
   const src = imageUrl(name, image.image_id, "BSE", 2048);
   const importance = attribution.model.importance;
@@ -113,8 +109,8 @@ export default function IdentifyResult({
         </div>
       )}
 
-      <section aria-label="Look here first" className="flex flex-col gap-4">
-        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Look here first</h2>
+      <section aria-label="Largest silicon particles" className="flex flex-col gap-4">
+        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Largest silicon particles</h2>
         <div
           className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black"
           style={{ aspectRatio: particles.data ? `${particles.data.width} / ${particles.data.height}` : "3 / 1" }}
@@ -128,15 +124,19 @@ export default function IdentifyResult({
               <Spots name={name} imageId={image.image_id} data={particles.data} dict={dict.data} hasLayers={!!tile?.has_layers} detectors={tile?.detectors} />
               {!!particles.data?.particles.length && !!particles.data.px_um && (
                 <span className="glass absolute right-3 bottom-3 rounded-[10px] px-2.5 py-1 text-[11px] text-cx-text-2" style={{ background: "rgba(14,15,18,.6)" }}>
-                  Largest silicon particles · hover to look closer
+                  Hover a ring to look closer
                 </span>
               )}
             </>
           )}
         </div>
+      </section>
+
+      <section aria-label="Look here first" className="flex flex-col gap-4">
+        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Look here first</h2>
         <div className="grid gap-3.5" style={{ gridTemplateColumns: `repeat(${Math.max(1, picks.length)}, minmax(0, 1fr))` }}>
-          {picks.map((r, i) => (
-            <ReasonCard key={r.feature} reason={r} n={i + 1} image={image} baseline={baseline} dict={dict.data} />
+          {picks.map((group, i) => (
+            <ReasonCard key={group.key} members={group.members} n={i + 1} image={image} baseline={baseline} dict={dict.data} />
           ))}
         </div>
       </section>
@@ -213,7 +213,7 @@ function Spots({ name, imageId, data, dict, hasLayers, detectors }: {
     return {
       batch: name,
       imageId,
-      title: `Silicon particle ${i + 1}`,
+      title: `P${i + 1}`,
       note: `${p.d_um.toFixed(1)} µm across${p.type ? ` · type ${p.type}${kind ? ` (${prettyText(kind)})` : ""}` : ""}.`,
       region: { x: p.x, y: p.y, r: (p.d_um / px / 2) * 1.4 },
       hasLayers,
@@ -228,16 +228,18 @@ function Spots({ name, imageId, data, dict, hasLayers, detectors }: {
           items={items}
           index={i}
           label={`${items[i].title}, ${items[i].note}`}
-          className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.06]"
+          className="absolute -translate-x-1/2 -translate-y-1/2 grid place-items-center rounded-full bg-black/35"
           style={{
             left: `${(p.x / data.width) * 100}%`,
             top: `${(p.y / data.height) * 100}%`,
-            width: `max(16px, ${((p.d_um / px) / data.width) * 140}%)`,
+            width: `max(22px, ${((p.d_um / px) / data.width) * 140}%)`,
             aspectRatio: "1",
-            border: "1.5px solid rgba(246,245,242,.85)",
+            border: "1.5px dashed rgba(255,176,102,.95)",
             boxShadow: "0 0 0 2px rgba(10,11,13,.45)",
           }}
-        />
+        >
+          <span className="pointer-events-none text-[10px] font-semibold tracking-wide text-[#ffb066]">P{i + 1}</span>
+        </Peekable>
       ))}
     </>
   );
@@ -257,24 +259,39 @@ const setsText = (sets: NonNullable<NonNullable<AttributionModelInfo["calibratio
 const distanceText = (d: number | null | undefined, limit: number | null | undefined) =>
   d != null && limit != null ? ` (distance ${d.toFixed(1)} against a limit of ${limit.toFixed(1)})` : "";
 
+function setTitle(classes: string[]): string {
+  const labels = [...classes].sort().map(batchLabel);
+  if (labels.length > 0 && labels.every((label) => label.startsWith("Batch ")))
+    return `Batch ${labels.map((label) => label.slice("Batch ".length)).join(" or ")}`;
+  return labels.join(" or ");
+}
+
 function Answer({ image, model }: { image: AttributedImage; model: AttributionModelInfo }) {
   const probs = model.classes.map((cls) => ({ cls, p: image[`p_${cls}`] ?? 0 }));
-  const rec = image.unfamiliar ? null : image.confidence_record;
-  const others = (image.prediction_set ?? []).filter((c) => c !== image.predicted);
+  const close = (image.prediction_set?.length ?? 0) > 1;
+  const rec = image.unfamiliar || close ? null : image.confidence_record;
+  const others = close ? [] : (image.prediction_set ?? []).filter((c) => c !== image.predicted);
   const sets = model.calibration?.conformal;
   const first = image.stage_baseline;
+  const headline = close ? setTitle(image.prediction_set ?? []) : batchLabel(image.predicted);
   return (
     <section aria-label="Answer" className="glass grid grid-cols-12 items-center gap-7 rounded-[24px] px-7 py-6">
       <div className="col-span-7 flex min-w-0 flex-col gap-3">
         <div className="lbl">
-          Tile <span className="mono text-cx-text-2 normal-case">{image.image_id}</span> · closest match
+          Tile <span className="mono text-cx-text-2 normal-case">{image.image_id}</span> · {close ? "could be either" : "closest match"}
         </div>
         <div className="flex flex-wrap items-center gap-3.5">
-          <span className="h-4 w-4 rounded-[5px]" style={{ background: batchColor(image.predicted), boxShadow: `0 0 20px ${batchColor(image.predicted)}` }} />
-          <span className="text-[48px] leading-none font-semibold tracking-[-0.04em]">{batchLabel(image.predicted)}</span>
-          {image.confidence != null && <span className="mono text-2xl text-cx-text-2">{pct(image.confidence)}</span>}
+          {close ? (
+            (image.prediction_set ?? []).slice().sort().map((cls) => (
+              <span key={cls} className="h-4 w-4 rounded-[5px]" style={{ background: batchColor(cls) }} />
+            ))
+          ) : (
+            <span className="h-4 w-4 rounded-[5px]" style={{ background: batchColor(image.predicted), boxShadow: `0 0 20px ${batchColor(image.predicted)}` }} />
+          )}
+          <span className="text-[48px] leading-none font-semibold tracking-[-0.04em]">{headline}</span>
+          {!close && image.confidence != null && <span className="mono text-2xl text-cx-text-2">{pct(image.confidence)}</span>}
         </div>
-        <p className="m-0 text-base leading-normal text-cx-text-2">{heroSentence(image, probs, model.baseline)}</p>
+        <p className="m-0 text-base leading-normal text-cx-text-2">{close ? closeCallSentence(image, probs, model.baseline) : heroSentence(image, probs, model.baseline)}</p>
       </div>
       <div className="col-span-5 flex min-w-0 flex-col gap-2.5">
         <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-[5px]">
@@ -295,7 +312,7 @@ function Answer({ image, model }: { image: AttributedImage; model: AttributionMo
               When it's this sure, it was right {record(rec)} times
             </Chip>
           )}
-          {first?.interval && (
+          {first?.interval && !close && (
             <Chip tone="plain" title="The range the held-out tiles allow for that probability (Venn–Abers)">
               {first.call === model.baseline ? "Baseline" : "Not the baseline"}: {rangeText(first.interval)}
             </Chip>
@@ -329,6 +346,18 @@ function Chip({ tone, title, children }: { tone: keyof typeof TONE; title?: stri
       {children}
     </span>
   );
+}
+
+function closeCallSentence(image: AttributedImage, probs: { cls: string; p: number }[], baseline: string): string {
+  const set = image.prediction_set ?? [];
+  const lead = image.unfamiliar ? "Unfamiliar tile. " : "";
+  const baselineP = probs.find((p) => p.cls === baseline)?.p ?? 0;
+  const labels = [...set].sort().map(batchLabel);
+  if (!set.includes(baseline) && labels.length === 2)
+    return `${lead}Not ${batchLabel(baseline)} (${pct(1 - baselineP)}). ${labels[0]} vs ${labels[1]} is close to a coin flip.`;
+  if (!set.includes(baseline))
+    return `${lead}Not ${batchLabel(baseline)} (${pct(1 - baselineP)}). Still possible: ${labels.join(" or ")}.`;
+  return `${lead}Could be ${labels.join(" or ")}.`;
 }
 
 function heroSentence(image: AttributedImage, probs: { cls: string; p: number }[], baseline: string): string {
@@ -368,7 +397,58 @@ function finding(reason: AttributionReason, label: string): string {
   return text ? text[0].toUpperCase() + text.slice(1) : "—";
 }
 
-function ReasonCard({ reason, n, image, baseline, dict }: { reason: AttributionReason; n: number; image: AttributedImage; baseline: string; dict: KpiDictionary | null }) {
+interface ReasonGroup { key: string; members: AttributionReason[] }
+
+/** "BSE texture local contrast at 0.05 µm" shares a card with the same name at another scale. */
+function scaleOf(name: string): { stem: string; scale: string } | null {
+  const match = /^(.*) at ([\d.]+) µm$/.exec(name);
+  return match ? { stem: match[1], scale: match[2] } : null;
+}
+
+function scalesPhrase(scales: string[]): string {
+  const ordered = [...scales].sort((a, b) => Number(a) - Number(b));
+  if (ordered.length <= 1) return ordered[0] ? `at ${ordered[0]} µm` : "";
+  if (ordered.length === 2) return `at ${ordered[0]} and ${ordered[1]} µm`;
+  return `at ${ordered.slice(0, -1).join(", ")} and ${ordered[ordered.length - 1]} µm`;
+}
+
+function groupReasons(reasons: AttributionReason[], dict: KpiDictionary | null): ReasonGroup[] {
+  const groups: (ReasonGroup & { stem: string | null })[] = [];
+  for (const reason of reasons) {
+    const parsed = scaleOf(reasonName(reason, dict));
+    const sign = Math.sign(reason.contribution ?? 0);
+    const stem = parsed && sign !== 0 ? `${sign}:${parsed.stem}` : null;
+    const hit = stem ? groups.find((group) => group.stem === stem) : undefined;
+    if (hit) hit.members.push(reason);
+    else groups.push({ key: reason.feature, stem, members: [reason] });
+  }
+  return groups;
+}
+
+/** Up to three cards. A scale pair is one card, so the third slot can be a different reason. */
+function pickReasonGroups(groups: ReasonGroup[]): ReasonGroup[] {
+  const toward = groups.filter((group) => (group.members[0].contribution ?? 0) > 0);
+  const away = groups.filter((group) => (group.members[0].contribution ?? 0) < 0).reverse();
+  const fors = toward.slice(0, 3);
+  const weakest = Math.abs(fors[fors.length - 1]?.members[0].contribution ?? 0);
+  const against = away[0] && Math.abs(away[0].members[0].contribution ?? 0) >= weakest ? away[0] : null;
+  return against ? [...fors.slice(0, 2), against] : fors;
+}
+
+function cardTitle(members: AttributionReason[], dict: KpiDictionary | null): string {
+  const scales = members.flatMap((reason) => {
+    const parsed = scaleOf(reasonName(reason, dict));
+    return parsed ? [parsed.scale] : [];
+  });
+  if (scales.length > 1) {
+    const stem = scaleOf(reasonName(members[0], dict))?.stem ?? reasonName(members[0], dict);
+    return `${stem} ${scalesPhrase(scales)}`;
+  }
+  return reasonName(members[0], dict);
+}
+
+function ReasonCard({ members, n, image, baseline, dict }: { members: AttributionReason[]; n: number; image: AttributedImage; baseline: string; dict: KpiDictionary | null }) {
+  const reason = members[0];
   const p = pull(reason);
   const rawLabel = reason.label ?? featureLabel(reason.feature, dict);
   const z = reason.baseline_z;
@@ -390,7 +470,7 @@ function ReasonCard({ reason, n, image, baseline, dict }: { reason: AttributionR
           {p.tag}
         </span>
       </div>
-      <h3 className="m-0 text-[17px] leading-[1.3] font-semibold tracking-[-0.01em]">{reasonName(reason, dict)}</h3>
+      <h3 className="m-0 text-[17px] leading-[1.3] font-semibold tracking-[-0.01em]">{cardTitle(members, dict)}</h3>
       <p className="m-0 text-[13px] leading-normal text-cx-text-2">{finding(reason, rawLabel)}</p>
       {z != null && (
         <div className="mt-auto flex items-center gap-3 pt-1" title={`Against ${batchLabel(baseline)}: ±1σ and ±2σ shaded${off ? "; beyond ±3σ, off the scale" : ""}`}>

@@ -102,13 +102,21 @@ def test_imaging_check():
     assert evidence.imaging.outliers_in_reference == [outlier]
     assert evidence.imaging.changed is False
 
-    ids = set(tables["b"].kpis["image_id"])
-    target = sorted(ids)[0]
+    ids = sorted(set(tables["b"].kpis["image_id"]))
+    target, second = ids[0], ids[1]
+    one = imaging.copy()
+    one.loc[(one["image_id"] == target) & (one["channel"] == "BSE"), "black_level"] = 6
+    assert evaluate(split_tables(kpis, imaging=one), "b", CFG).imaging.changed is False
+
     changed_imaging = imaging.copy()
-    changed_imaging.loc[(changed_imaging["image_id"] == target)
+    changed_imaging.loc[changed_imaging["image_id"].isin([target, second])
                         & (changed_imaging["channel"] == "BSE"), "black_level"] = 6
+    changed_imaging.loc[changed_imaging["image_id"].isin([target, second])
+                        & (changed_imaging["channel"] == "BSE"), "sharpness"] = 500
     changed = evaluate(split_tables(kpis, imaging=changed_imaging), "b", CFG)
     assert changed.imaging.changed and "BSE.black_level" in changed.imaging.changed_metrics
+    assert "BSE.sharpness" in changed.imaging.report_metrics
+    assert "BSE.sharpness" not in changed.imaging.changed_metrics
     for name in ("si_contrast_ratio", "porosity_apparent"):
         difference = next(d for d in changed.differences if d.name == name)
         assert not difference.used and difference.note == "imaging changed"
@@ -120,6 +128,24 @@ def test_imaging_check():
                        & (padded_imaging["channel"] == "BSE"), "black_level"] = 1
     padded = evaluate(split_tables(kpis, imaging=padded_imaging), "b", CFG)
     assert padded.imaging.changed is False
+
+
+def test_imaging_next_action_names_at_most_three_acquisition_metrics():
+    layout = {"r": {f"R{i}": 1 for i in range(4)}, "b": {f"B{i}": 1 for i in range(4)}}
+    kpis = synth_kpis(layout)
+    imaging = imaging_table(kpis)
+    batch_ids = set(kpis.loc[kpis["batch"] == "b", "image_id"])
+    for metric in ("black_level", "p50", "noise"):
+        imaging.loc[imaging["image_id"].isin(batch_ids), metric] = 80
+    evidence = evaluate(
+        split_tables(kpis, imaging=imaging), "b",
+        CFG | {"odd_sd": None, "margins": {q: 100.0 for q in CFG["key_descriptors"]}},
+    )
+    assert len(evidence.imaging.changed_metrics) == 9
+    assert evidence.next_action.startswith("Check the imaging settings (")
+    inside = evidence.next_action.split("(", 1)[1].split(")", 1)[0]
+    assert inside.endswith("and 6 more")
+    assert inside.split(" and ")[0].count(",") == 2
 
 
 def test_curtaining_blanks_run_lengths():

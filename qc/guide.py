@@ -25,8 +25,11 @@ from qc.explain import (
 )
 from qc.schema import DETECTORS, KPI_TABLE, KPI_UNITS, Evidence, Tables, guide_path, load_config
 
-MODEL = os.environ.get("CATALYST_CLAUDE_MODEL", "claude-opus-5")  # PLAN_v4 §3.10: Claude Opus
-PROMPT_VERSION = 2
+MODEL = os.environ.get("CATALYST_CLAUDE_MODEL", "claude-opus-5-5")  # current Opus; override with CATALYST_CLAUDE_MODEL
+# Opus 5.5 defaults to medium. High is set on purpose: the answer is short and the house rules are tight.
+# A live medium-vs-high comparison was not run (no API key, and spending credits isn't allowed).
+EFFORT = "high"
+PROMPT_VERSION = 3
 TIMEOUT_S = 90
 TARGETS = ("verdict", "moved", "tiles", "next")
 TITLES = {"verdict": "What decided it", "moved": "The biggest move", "tiles": "Where it comes from",
@@ -435,22 +438,47 @@ def payload(evidence: Evidence, dictionary: dict, table: dict, ifs: list[dict]) 
 
 
 def available() -> str | None:
-    """None when Claude can be called, else why not."""
-    return None if os.environ.get("ANTHROPIC_API_KEY") else "Claude isn't configured: set ANTHROPIC_API_KEY for the API process."
+    """None when a Claude client has credentials, else why not. Building the client does not call the API.
+
+    The SDK resolves ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, and an `ant auth login` profile.
+    """
+    try:
+        import anthropic
+    except ImportError as error:
+        return f"Claude isn't configured: {error}. Set ANTHROPIC_API_KEY for the API process."
+    try:
+        client = anthropic.Anthropic(timeout=TIMEOUT_S, max_retries=0)
+    except Exception as error:
+        return (f"Claude isn't configured: {type(error).__name__}: {error}. "
+                "Set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN for the API process.")
+    if client.api_key or client.auth_token or getattr(client, "credentials", None):
+        return None
+    return ("Claude isn't configured: set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN for the API process "
+            "(an ant auth login profile counts too).")
+
+
+def parse_claude(response) -> dict:
+    """Claude's message as JSON. A refusal is unusable text, not a JSON document."""
+    text = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
+    if response.stop_reason == "refusal":
+        raise ValueError("Claude refused")
+    if response.stop_reason == "max_tokens":
+        raise ValueError("Claude's answer was cut off")
+    if not text.strip():
+        raise ValueError("Claude returned no text")
+    return json.loads(text)
 
 
 def call_claude(body: dict) -> dict:
     import anthropic
 
+    # thinking is left unset: Opus 5.5 rejects thinking: {"type": "disabled"}.
     response = anthropic.Anthropic(timeout=TIMEOUT_S, max_retries=1).messages.create(
         model=MODEL, max_tokens=4000, system=SYSTEM,
         messages=[{"role": "user", "content": json.dumps(body, ensure_ascii=False)}],
-        output_config={"format": {"type": "json_schema", "schema": SCHEMA}},
+        output_config={"effort": EFFORT, "format": {"type": "json_schema", "schema": SCHEMA}},
     )
-    text = "".join(block.text for block in response.content if getattr(block, "type", "") == "text")
-    if response.stop_reason == "max_tokens":
-        raise ValueError("Claude's answer was cut off")
-    return json.loads(text)
+    return parse_claude(response)
 
 
 def read_cache(path: Path, key: str) -> dict | None:
