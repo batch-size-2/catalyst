@@ -1,4 +1,4 @@
-"""Decision statistics: t-intervals, family-wise permutation p, statuses, verdict (PLAN_v4 §3.5)."""
+"""Decision statistics: t-intervals, family-wise permutation p, statuses, verdict (PLAN §3.5)."""
 
 import itertools
 from pathlib import Path

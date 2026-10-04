@@ -81,7 +81,7 @@ One ticket per agent. Paste **Common context** plus the ticket into each agent. 
 
 ```
 Repo: batch-size-2/catalyst. Branch from main (b5d850e or later) as pat/<ticket-id>-<slug>; open a PR, don't push to main.
-Read first: AGENTS.md; docs/PLAN_v4.md §1, §2 (Rules), §3.14–3.17, §12–12.3; docs/MODEL_LITERATURE_REVIEW.md §5 and §8.
+Read first: AGENTS.md; docs/PLAN.md §1, §2 (Rules), §3.14–3.17, §12–12.3; docs/MODEL_LITERATURE_REVIEW.md §5 and §8.
 Setup: uv sync. Data must exist locally at data/Batch_1, data/Batch_2, data/Batch_3 (gitignored; 31 samples x 3 detectors).
   If it is missing, STOP and ask for it; never download or invent data.
   out/features.csv may be missing: build it once with `uv run python -m qc.features` then `uv run python -m qc.deep`
@@ -230,7 +230,7 @@ Hard rules:
    - InLens dark graphite is imaging (75%);
    - top is the surface, bottom the foil (95%).
    Add one line each from T1, T2 and T3's readings.
-5. Do not rewrite `results/Hackathon-Polaron-test.json`. Write `results/Hackathon-Polaron-test.reworded.json`, regenerated from the same frozen model, and check its numbers match the committed file exactly. Note in PLAN_v4 §12.3 that only the text differs.
+5. Do not rewrite `results/Hackathon-Polaron-test.json`. Write `results/Hackathon-Polaron-test.reworded.json`, regenerated from the same frozen model, and check its numbers match the committed file exactly. Note in PLAN §12.3 that only the text differs.
 
 **Done when:** tests pass, the reworded results file matches on every number, and the README limits section exists.
 
@@ -242,7 +242,7 @@ Hard rules:
    - F-distribution interval on image values, plus the strip view next to it like the existing `other_unit`;
    - add the field to `qc/schema.py` `Evidence`, `web/src/types.ts` and the fixtures (adding a field is allowed by AGENTS.md);
    - it does **not** enter the verdict and needs **no** `decision.yaml` key (that file is frozen).
-2. Silicon content %: check whether PLAN_v4 §3.8 is already built (commit `478102d` touched the label). If not, show `si_area_frac` and Si / (Si + graphite + binder) per batch with an interval in the Compare view, plus the sentence "area fraction ≈ volume fraction; does not sort the batches".
+2. Silicon content %: check whether PLAN §3.8 is already built (commit `478102d` touched the label). If not, show `si_area_frac` and Si / (Si + graphite + binder) per batch with an interval in the Compare view, plus the sentence "area fraction ≈ volume fraction; does not sort the batches".
 3. Fixed batch statements in the "What's different" view, with numbers from the evidence:
    - Batch_1: a different silicon population (strip 2316) and the most variable batch;
    - Batch_2: not materially different from the baseline in anything we measure;
@@ -275,7 +275,7 @@ For each live image, run the T1 nuisance set {noise5, blur1, gain120, shade125, 
 
 ## After the submission: research for a v2 model
 
-These produce candidates only. **Decided (Pat, 3 Oct): the model stays frozen.** Pat will un-freeze only once a clearly better alternative exists, and that decision will be disclosed. Each ticket is one pre-registered entry in a best-of-list. Report each against the **best-of-list null** of all entries tried so far (PLAN_v4 §3.17), not only its own null.
+These produce candidates only. **Decided (Pat, 3 Oct): the model stays frozen.** Pat will un-freeze only once a clearly better alternative exists, and that decision will be disclosed. Each ticket is one pre-registered entry in a best-of-list. Report each against the **best-of-list null** of all entries tried so far (PLAN §3.17), not only its own null.
 
 ### T8 · Train-time augmentation (the original idea, done properly) — P1, needs T1's cache
 
@@ -334,7 +334,7 @@ Review §7.2:
 - Inside each fold, fit k-means (k = 8, label-free) on all tile embeddings of the training images (about 1,700 tiles).
 - Per image: the tile-type shares, plus p10/p90 per deep PC instead of mean and SD.
 - Logistic on the shares (one list entry) and on the quantiles (one entry).
-- Deliverable either way: 6 example tiles per type. These are the example-based reasons ("looks like these") on PLAN_v4 §5's open list.
+- Deliverable either way: 6 example tiles per type. These are the example-based reasons ("looks like these") on PLAN §5's open list.
 
 ### T13 · Report-only materials descriptors for question A — P1 (can start tonight if an agent is free; touches only new functions)
 

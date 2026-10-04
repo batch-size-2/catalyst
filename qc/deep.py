@@ -1,4 +1,4 @@
-"""Pretrained DINOv2 image features: the `deep_` family (PLAN_v4 §3.15). Owned by the ML engineer.
+"""Pretrained DINOv2 image features: the `deep_` family (PLAN §3.15). Owned by the ML engineer.
 
 Optional: `uv sync --extra deep` installs CPU torch and transformers. The weights are the public
 facebook/dinov2-small checkpoint at a pinned revision, downloaded once into the Hugging Face cache;

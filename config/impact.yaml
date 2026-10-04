@@ -1,4 +1,4 @@
-# Indicative battery impact (qc/impact.py, PLAN_v4 §3.8 and §3.19, docs/APP.md feature 6).
+# Indicative battery impact (qc/impact.py, PLAN §3.8 and §3.19, docs/APP.md feature 6).
 # Textbook constants and their ranges. Never an input to the verdict; not covered by `rules-frozen`.
 # Every number here is shown in the UI next to the result it produced.
 
@@ -8,7 +8,7 @@ seed: 0
 similar_within: 0.05    # |relative change| below this on the whole interval reads "about the same"
 min_units: 3            # fewer strips (or unstripped images) than this in a batch: every effect reads "not settled"
 
-# The silicon chemistry is not confirmed (PLAN_v4 §10 Q9), so every silicon-dependent number is
+# The silicon chemistry is not confirmed (PLAN §10 Q9), so every silicon-dependent number is
 # computed for both end members and the range spans them.
 silicon:
   - name: Si (Li15Si4)

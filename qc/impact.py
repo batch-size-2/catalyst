@@ -1,4 +1,4 @@
-"""Indicative battery impact of a batch against the baseline (PLAN_v4 §3.8, §3.19; docs/APP.md feature 6).
+"""Indicative battery impact of a batch against the baseline (PLAN §3.8, §3.19; docs/APP.md feature 6).
 
 Textbook relations on the batch means of the measured descriptors. The sampling interval comes
 from a hierarchical bootstrap (strips, then images within a strip); the constant ranges in
