@@ -2,32 +2,32 @@ import { useEffect, useRef, useState } from "react";
 import {
   getAttributionEvaluation, getKpiDictionary, getModelStatus, getParticles, getTiles, imageUrl, measureFolder,
 } from "../api";
-import { batchColor, batchLabel, dictEntry, featureLabel, localTime, modelName, prettyText, record, shortHash, sigmaPos, useApi } from "../lib";
-import { href } from "../router";
+import { batchColor, batchLabel, dictEntry, featureLabel, fmtSigma, localTime, modelName, prettyText, record, useApi } from "../lib";
+import { href, replaceRoute } from "../router";
 import type {
   Attribution, AttributedImage, AttributionEvaluation, AttributionModelInfo, AttributionReason, KpiDictionary, ModelStatus,
 } from "../types";
-import { Folds, IconCheck, IconWarn, kpisBeyond, TileKpiGrid } from "./bits";
+import { Folds, IconWarn, kpisBeyond, PAGE, SigmaBand, TileKpiGrid } from "./bits";
 import { Peekable, type PeekItem } from "./Peek";
 
 export default function IdentifyResult({
   name,
   attribution,
-  onReset,
+  imageId,
 }: {
   name: string;
   attribution: Attribution;
-  onReset: () => void;
+  imageId?: string;
 }) {
-  const [index, setIndex] = useState(0);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [measured, setMeasured] = useState(0);
   const [measuring, setMeasuring] = useState<string | null>(null);
+  const [broken, setBroken] = useState<string | null>(null);
   const dict = useApi(getKpiDictionary);
   const current = useApi(getModelStatus);
   const evaluation = useApi(getAttributionEvaluation);
   const tiles = useApi(getTiles, [measured], { keep: true });
-  const image = attribution.images[Math.min(index, attribution.images.length - 1)];
+  const image = attribution.images.find((i) => i.image_id === imageId) ?? attribution.images[0];
   const baseline = attribution.model.baseline;
   const tile = tiles.data?.find((t) => t.batch === name && t.image_id === image?.image_id);
   const particles = useApi(() => (image ? getParticles(name, image.image_id, 6) : Promise.resolve(null)), [name, image?.image_id, measured], { keep: true });
@@ -51,44 +51,41 @@ export default function IdentifyResult({
   const reasons = [...image.reasons].sort((a, b) => (b.contribution ?? 0) - (a.contribution ?? 0));
   const toward = reasons.filter((r) => (r.contribution ?? 0) > 0);
   const away = reasons.filter((r) => (r.contribution ?? 0) < 0).reverse();
-  const picks = [...toward.slice(0, away.length ? 2 : 3), ...away.slice(0, 1)];
+  // up to three reasons for the call; the strongest one against only when it outweighs the weakest of those
+  const fors = toward.slice(0, 3);
+  const weakest = Math.abs(fors[fors.length - 1]?.contribution ?? 0);
+  const against = away[0] && Math.abs(away[0].contribution ?? 0) >= weakest ? away[0] : null;
+  const picks = against ? [...fors.slice(0, 2), against] : fors;
   const beyond = kpisBeyond(tile, tiles.data ?? [], baseline);
+  const src = imageUrl(name, image.image_id, "BSE", 2048);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 px-10 pt-9 pb-16">
+    <div className={`${PAGE} gap-6`}>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3 text-sm text-cx-muted">
-          <span className="lbl text-cx-orange-text">Identify · result</span>
-          <span>
-            from <span className="mono">{name}</span>
-            {attribution.images.length > 1 ? ` · ${attribution.images.length} tiles` : ""}
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-2.5">
+        {attribution.images.length > 1 && (
+          <div className="flex flex-wrap gap-3" role="tablist" aria-label="Tiles in this drop">
+            {attribution.images.map((img) => (
+              <button
+                key={img.image_id}
+                type="button"
+                role="tab"
+                aria-selected={img === image}
+                title={`${img.image_id} · ${batchLabel(img.predicted)}`}
+                onClick={() => replaceRoute(href.identify(name, img.image_id))}
+                className="relative block h-16 w-[72px] cursor-pointer overflow-hidden rounded-xl border-0 bg-black p-0"
+                style={{ boxShadow: img === image ? `0 0 0 2px ${batchColor(img.predicted)}, 0 0 0 4px var(--cx-bg)` : "0 0 0 1px var(--cx-line)" }}
+              >
+                <img src={imageUrl(name, img.image_id, "BSE")} alt="" className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
+                <span className="mono absolute inset-x-0 bottom-0 truncate bg-black/70 px-1 text-[11px] text-cx-text">{img.image_id}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="ml-auto flex flex-wrap gap-2.5">
           <a className="btn" href={href.library(name, image.image_id)}>Open in viewer</a>
-          <button className="btn pri" type="button" onClick={onReset}>Identify another</button>
+          <a className="btn pri" href={href.identify()}>Identify another</a>
         </div>
       </div>
-
-      {attribution.images.length > 1 && (
-        <div className="flex flex-wrap gap-3" role="tablist" aria-label="Tiles in this drop">
-          {attribution.images.map((img, i) => (
-            <button
-              key={img.image_id}
-              type="button"
-              role="tab"
-              aria-selected={i === index}
-              title={`${img.image_id} · ${batchLabel(img.predicted)}`}
-              onClick={() => setIndex(i)}
-              className="relative block h-16 w-16 cursor-pointer overflow-hidden rounded-xl border-0 bg-black p-0"
-              style={{ boxShadow: i === index ? `0 0 0 2px ${batchColor(img.predicted)}, 0 0 0 4px var(--cx-bg)` : "0 0 0 1px var(--cx-line)" }}
-            >
-              <img src={imageUrl(name, img.image_id, "BSE")} alt="" className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
-              <span className="mono absolute inset-x-0 bottom-0 truncate bg-black/70 px-1 text-[9px] text-cx-text">{img.image_id}</span>
-            </button>
-          ))}
-        </div>
-      )}
 
       {current.data && current.data.fitted_at !== attribution.model.fitted_at && (
         <div role="note" className="flex items-start gap-3 rounded-[14px] border border-cx-investigate/25 bg-cx-investigate/[0.05] px-4 py-3 text-sm">
@@ -115,37 +112,31 @@ export default function IdentifyResult({
       )}
 
       <section aria-label="Look here first" className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Look here first</h2>
-          <span className="text-[13px] text-cx-faint">
-            The model's strongest reasons for this call{away.length ? ", plus the strongest one against it" : "; none points against it"}.
-          </span>
-        </div>
+        <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em]">Look here first</h2>
         <div
           className="relative overflow-hidden rounded-[22px] border border-white/10 bg-black"
-          style={{ aspectRatio: particles.data ? `${particles.data.width} / ${particles.data.height}` : "1800 / 536" }}
+          style={{ aspectRatio: particles.data ? `${particles.data.width} / ${particles.data.height}` : "3 / 1" }}
         >
-          <span aria-hidden className="absolute inset-0 grid place-items-center text-[13px] text-cx-faint">The images of this drop are no longer in data/{name}.</span>
-          <img src={imageUrl(name, image.image_id, "BSE", 2048)} alt={`BSE micrograph of tile ${image.image_id}`} className="absolute inset-0 h-full w-full object-cover brightness-[0.85]"
-            onError={(e) => (e.currentTarget.style.display = "none")} />
-          <Spots name={name} imageId={image.image_id} data={particles.data} dict={dict.data} hasLayers={!!tile?.has_layers} detectors={tile?.detectors} />
-          <span className="glass absolute right-3 bottom-3 rounded-[10px] px-2.5 py-1 text-[11px] text-cx-text-2" style={{ background: "rgba(14,15,18,.6)" }}>
-            {particles.data?.particles.length
-              ? "Largest silicon particles, as measured · hover to peek, click to pin"
-              : measuring === "measuring" ? "Measuring the tile; particle spots follow" : `BSE · ${image.image_id}`}
-          </span>
+          {broken === src ? (
+            <span className="absolute inset-0 grid place-items-center text-[13px] text-cx-faint">This upload's images are no longer on disk.</span>
+          ) : (
+            <>
+              <img src={src} alt={`BSE micrograph of tile ${image.image_id}`} className="absolute inset-0 h-full w-full object-cover brightness-[0.85]"
+                onError={() => setBroken(src)} />
+              <Spots name={name} imageId={image.image_id} data={particles.data} dict={dict.data} hasLayers={!!tile?.has_layers} detectors={tile?.detectors} />
+              {!!particles.data?.particles.length && !!particles.data.px_um && (
+                <span className="glass absolute right-3 bottom-3 rounded-[10px] px-2.5 py-1 text-[11px] text-cx-text-2" style={{ background: "rgba(14,15,18,.6)" }}>
+                  Largest silicon particles · hover to look closer
+                </span>
+              )}
+            </>
+          )}
         </div>
-        <div className="grid grid-cols-3 gap-3.5">
+        <div className="grid gap-3.5" style={{ gridTemplateColumns: `repeat(${Math.max(1, picks.length)}, minmax(0, 1fr))` }}>
           {picks.map((r, i) => (
             <ReasonCard key={r.feature} reason={r} n={i + 1} image={image} baseline={baseline} dict={dict.data} />
           ))}
         </div>
-        {image.unfamiliar === false && (
-          <div className="flex items-center gap-2.5 text-[13px] text-cx-accept-text">
-            <IconCheck size={14} />
-            Familiar: within the range of the {batchLabel(image.predicted)} tiles the model knows.
-          </div>
-        )}
       </section>
 
       <Folds
@@ -155,22 +146,21 @@ export default function IdentifyResult({
           {
             id: "reasons",
             title: `All ${image.reasons.length} model reasons`,
-            summary: `${toward.length} toward · ${away.length} away`,
+            summary: `${toward.length} for · ${away.length} against`,
             body: () => (
               <div className="flex flex-col">
                 <div className="lbl grid grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_150px] gap-5 border-b border-cx-line py-2">
                   <span>What the model looked at</span>
                   <span>What it found</span>
-                  <span className="text-right">Pull</span>
+                  <span className="text-right">Weight</span>
                 </div>
                 {reasons.map((r) => (
-                  <ReasonRow key={r.feature} reason={r} image={image} baseline={baseline} dict={dict.data}
+                  <ReasonRow key={r.feature} reason={r} image={image} dict={dict.data}
                     max={Math.max(1e-9, ...reasons.map((x) => Math.abs(x.contribution ?? 0)))} />
                 ))}
-                <p className="m-0 pt-2.5 text-[13px] leading-normal text-cx-faint">
-                  Pull = how far this feature moves the call of its stage. "Image patterns" are components of DINOv2 image
-                  features; they are described by the named measurements they move with (r = correlation).
-                </p>
+                {reasons.some((r) => r.related?.length) && (
+                  <p className="m-0 pt-2.5 text-[13px] leading-normal text-cx-faint">r is how closely an image pattern moves with that measurement.</p>
+                )}
               </div>
             ),
           },
@@ -192,7 +182,7 @@ export default function IdentifyResult({
           {
             id: "model",
             title: "Model and run",
-            summary: `${pct(attribution.model.loso_balanced_accuracy)} held-out · chance ${pct(1 / attribution.model.classes.length)} · fitted ${attribution.model.fitted_at.slice(0, 10)}`,
+            summary: `fitted ${attribution.model.fitted_at.slice(0, 10)}`,
             body: () => <ModelAndRun image={image} attribution={attribution} current={current.data} evaluation={evaluation.data} />,
           },
         ]}
@@ -237,9 +227,7 @@ function Spots({ name, imageId, data, dict, hasLayers, detectors }: {
             border: "1.5px solid rgba(246,245,242,.85)",
             boxShadow: "0 0 0 2px rgba(10,11,13,.45)",
           }}
-        >
-          <span className="mono absolute -top-2 -left-2 grid h-5 min-w-5 place-items-center rounded-md bg-cx-text-strong px-1 text-[10px] font-semibold text-cx-bg">{i + 1}</span>
-        </Peekable>
+        />
       ))}
     </>
   );
@@ -251,8 +239,8 @@ const distanceText = (d: number | null | undefined, limit: number | null | undef
   d != null && limit != null ? ` (distance ${d.toFixed(1)} against a limit of ${limit.toFixed(1)})` : "";
 
 function Answer({ image, model }: { image: AttributedImage; model: AttributionModelInfo }) {
-  const probs = model.classes.map((cls) => ({ cls, p: image[`p_${cls}`] ?? 0 })).sort((a, b) => b.p - a.p);
-  const rec = image.confidence_record;
+  const probs = model.classes.map((cls) => ({ cls, p: image[`p_${cls}`] ?? 0 }));
+  const rec = image.unfamiliar ? null : image.confidence_record;
   const others = (image.prediction_set ?? []).filter((c) => c !== image.predicted);
   const alpha = model.calibration?.conformal?.alpha;
   return (
@@ -283,7 +271,7 @@ function Answer({ image, model }: { image: AttributedImage; model: AttributionMo
         </div>
         <div className="flex flex-wrap gap-2 pt-1.5">
           {rec && (
-            <Chip tone={image.confidence_tier === "high" ? "good" : image.confidence_tier === "low" ? "warn" : "plain"}>
+            <Chip tone={image.confidence_tier === "low" ? "warn" : "plain"}>
               When it's this sure, it was right {record(rec)} times
             </Chip>
           )}
@@ -292,11 +280,7 @@ function Answer({ image, model }: { image: AttributedImage; model: AttributionMo
               Can't rule out {others.map(batchLabel).join(" or ")}
             </Chip>
           )}
-          {image.unfamiliar === true ? (
-            <Chip tone="warn">Unfamiliar tile</Chip>
-          ) : image.unfamiliar === false ? (
-            <Chip tone="good">Familiar tile</Chip>
-          ) : null}
+          {image.unfamiliar === false && <Chip tone="good">Familiar tile</Chip>}
           {model.loso_balanced_accuracy != null && (
             <Chip tone="plain">
               Held-out balanced accuracy {pct(model.loso_balanced_accuracy)} · chance {pct(1 / model.classes.length)}
@@ -325,25 +309,30 @@ function Chip({ tone, title, children }: { tone: keyof typeof TONE; title?: stri
 function heroSentence(image: AttributedImage, probs: { cls: string; p: number }[], baseline: string): string {
   const first = image.stage_baseline;
   const second = image.stage_variation;
-  if (first && first.call === baseline) return `Fits the baseline: ${pct(first.confidence)} that this tile is ${batchLabel(baseline)}.`;
+  const lead = image.unfamiliar ? "Unfamiliar tile. " : "";
+  if (first && first.call === baseline) return `${lead}Fits the baseline: ${pct(first.confidence)} that this tile is ${batchLabel(baseline)}.`;
   if (first && second) {
-    const other = probs.map((p) => p.cls).find((c) => c !== baseline && c !== second.call);
-    const weak = image.confidence_tier === "low" ? " That lean is weak; the first part is the reliable one." : "";
-    return `Different from the baseline: ${pct(first.confidence)} that it is not ${batchLabel(baseline)}. The second stage, ${batchLabel(second.call)}${other ? ` or ${batchLabel(other)}` : " or the rest"}, leans to ${batchLabel(second.call)}, ${Math.round(second.confidence * 100)} to ${Math.round((1 - second.confidence) * 100)}.${weak}`;
+    const rest = probs.filter((p) => p.cls !== baseline && p.cls !== second.call);
+    const among = rest.length === 1 ? `Between ${batchLabel(second.call)} and ${batchLabel(rest[0].cls)}` : "Among the other batches";
+    const weak = second.confidence < 0.6 || image.confidence_tier === "low" ? " — a weak lean" : "";
+    return `${lead}Not the baseline: ${pct(first.confidence)} that it isn't ${batchLabel(baseline)}. ${among} it leans to ${batchLabel(second.call)}, ${Math.round(second.confidence * 100)} to ${Math.round((1 - second.confidence) * 100)}${weak}.`;
   }
   if (first && image.predicted === baseline)
-    return `A weak call: ${batchLabel(baseline)} is the single most likely batch at ${pct(image.confidence)}, but the other batches together are ${pct(first.confidence)}.`;
-  const runnerUp = probs[1];
-  return runnerUp
-    ? `Closest to ${batchLabel(image.predicted)}, with ${batchLabel(runnerUp.cls)} next at ${pct(runnerUp.p)}.`
-    : `Closest to ${batchLabel(image.predicted)}.`;
+    return `${lead}A weak call: ${batchLabel(baseline)} is the single most likely batch at ${pct(image.confidence)}, but the other batches together are ${pct(first.confidence)}.`;
+  const runnerUp = probs.filter((p) => p.cls !== image.predicted).sort((a, b) => b.p - a.p)[0];
+  return `${lead}Closest to ${batchLabel(image.predicted)}${runnerUp ? `, with ${batchLabel(runnerUp.cls)} next at ${pct(runnerUp.p)}` : ""}.`;
 }
 
 /** Which way a reason pulls: for or against the call of its own stage. */
-function pull(reason: AttributionReason, baseline: string) {
+const pull = (reason: AttributionReason) => {
   const toward = (reason.contribution ?? 0) >= 0;
-  const stage = reason.stage === "baseline" ? `Stage 1: ${batchLabel(baseline)} or not` : reason.stage === "variation" ? "Stage 2: which other batch" : null;
-  return { toward, tag: toward ? "For this call" : "Against this call", stage };
+  return { toward, tag: toward ? "For this call" : "Against this call" };
+};
+
+/** A reason's name as people read it: "DINOv2 image pattern 04" -> "Image pattern 04". */
+function reasonName(reason: AttributionReason, dict: KpiDictionary | null): string {
+  const text = prettyText(reason.label ?? featureLabel(reason.feature, dict)).replace(/^DINOv2 /, "");
+  return text[0].toUpperCase() + text.slice(1);
 }
 
 /** Pat's sentence without its label prefix, first clause only: "5.6 SD above Batch 3". */
@@ -355,10 +344,10 @@ function finding(reason: AttributionReason, label: string): string {
 }
 
 function ReasonCard({ reason, n, image, baseline, dict }: { reason: AttributionReason; n: number; image: AttributedImage; baseline: string; dict: KpiDictionary | null }) {
-  const p = pull(reason, baseline);
+  const p = pull(reason);
   const rawLabel = reason.label ?? featureLabel(reason.feature, dict);
-  const label = prettyText(rawLabel);
-  const c = reason.contribution ?? 0;
+  const z = reason.baseline_z;
+  const off = z != null && Math.abs(z) > 3;
   const color = batchColor(image.predicted);
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-[20px] border border-white/10 bg-[#15161A] p-[18px]">
@@ -375,48 +364,29 @@ function ReasonCard({ reason, n, image, baseline, dict }: { reason: AttributionR
         >
           {p.tag}
         </span>
-        <span className="mono ml-auto text-xs text-cx-muted" title="How far this feature moves the call of its stage">
-          pull {c > 0 ? "+" : "−"}{Math.abs(c).toFixed(2)}
-        </span>
       </div>
-      <h3 className="m-0 text-[17px] leading-[1.3] font-semibold tracking-[-0.01em]">{label[0].toUpperCase() + label.slice(1)}</h3>
+      <h3 className="m-0 text-[17px] leading-[1.3] font-semibold tracking-[-0.01em]">{reasonName(reason, dict)}</h3>
       <p className="m-0 text-[13px] leading-normal text-cx-text-2">{finding(reason, rawLabel)}</p>
-      {reason.baseline_z != null && (
-        <div className="flex flex-col gap-1">
-          <div className="relative h-[14px]">
-            <div className="absolute inset-y-[4px] rounded bg-cx-batch-3/30" style={{ left: `${sigmaPos(-1)}%`, width: `${sigmaPos(1) - sigmaPos(-1)}%` }} />
-            <div className="absolute inset-y-0 left-1/2 w-px bg-white/[0.15]" />
-            <div className="absolute inset-y-0 w-0.5 bg-cx-text-strong" style={{ left: `calc(${sigmaPos(reason.baseline_z)}% - 1px)`, boxShadow: "0 0 0 3px #15161A" }} />
-          </div>
-          <span className="mono flex justify-between text-[10px] text-cx-faint">
-            <span>−3σ</span>
-            <span className="text-[#5EEAD4]">{batchLabel(baseline)} ±1σ</span>
-            <span>+3σ</span>
-          </span>
+      {z != null && (
+        <div className="mt-auto flex items-center gap-3 pt-1" title={`Against ${batchLabel(baseline)}: ±1σ and ±2σ shaded${off ? "; beyond ±3σ, off the scale" : ""}`}>
+          {off && z < 0 && <span aria-hidden className="text-sm leading-none text-cx-investigate">«</span>}
+          <div className="flex-1"><SigmaBand z={z} /></div>
+          {off && z > 0 && <span aria-hidden className="text-sm leading-none text-cx-investigate">»</span>}
+          <span className={`mono text-xs ${off ? "text-cx-investigate-text" : "text-cx-text-2"}`}>{fmtSigma(z)}</span>
         </div>
       )}
-      <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.07] pt-2.5">
-        <span className="mono truncate text-[11px] text-cx-faint" title={reason.feature}>
-          {p.stage ? `${p.stage} · ` : ""}{reason.feature}
-        </span>
-      </div>
     </article>
   );
 }
 
-function ReasonRow({ reason, image, baseline, dict, max }: { reason: AttributionReason; image: AttributedImage; baseline: string; dict: KpiDictionary | null; max: number }) {
-  const p = pull(reason, baseline);
+function ReasonRow({ reason, image, dict, max }: { reason: AttributionReason; image: AttributedImage; dict: KpiDictionary | null; max: number }) {
+  const p = pull(reason);
   const c = reason.contribution ?? 0;
   const width = Math.min(50, (Math.abs(c) / max) * 50);
   const rawLabel = reason.label ?? featureLabel(reason.feature, dict);
   return (
-    <div className="grid min-h-16 grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_150px] items-center gap-5 border-b border-cx-line-soft py-3">
-      <div className="flex min-w-0 flex-col gap-[3px]">
-        <span className="text-sm first-letter:uppercase">{prettyText(rawLabel)}</span>
-        <span className="mono text-[11px] break-all text-cx-faint">
-          {p.stage ? `${p.stage} · ` : ""}{reason.feature}
-        </span>
-      </div>
+    <div className="grid min-h-14 grid-cols-[minmax(0,1.3fr)_minmax(0,1.6fr)_150px] items-center gap-5 border-b border-cx-line-soft py-3">
+      <span className="text-sm">{reasonName(reason, dict)}</span>
       <div className="flex min-w-0 flex-col gap-1.5 text-[13px] leading-snug text-cx-text-2">
         {reason.related?.length ? (
           <>
@@ -442,19 +412,17 @@ function ReasonRow({ reason, image, baseline, dict, max }: { reason: Attribution
             style={p.toward ? { left: "50%", width: `${width}%`, background: batchColor(image.predicted) } : { right: "50%", width: `${width}%`, background: "#6B6D73" }}
           />
         </div>
-        <span className="text-right text-xs text-cx-muted">
-          <span className="mono">{`${c > 0 ? "+" : "−"}${Math.abs(c).toFixed(2)}`}</span> {p.toward ? "for" : "against"} the call
-        </span>
+        <span className="text-right text-xs text-cx-muted">{p.tag}</span>
       </div>
     </div>
   );
 }
 
 const FAMILY_NAMES: Record<string, string> = {
-  reg: "regions", edge: "stitch edges", tex: "texture", par: "particles", kpi: "whole-tile KPIs", img: "imaging", deep: "DINOv2 image features",
+  reg: "Regions", edge: "Stitch edges", tex: "Texture", par: "Particles", kpi: "Whole-tile KPIs", img: "Imaging", deep: "DINOv2 image features",
 };
 
-/** The model behind this call, and the held-out evaluation, flagged when it doesn't cover this model. */
+/** The model behind this call, and the held-out evaluation when it covers this model. */
 function ModelAndRun({ image, attribution, current, evaluation }: { image: AttributedImage; attribution: Attribution; current: ModelStatus | null; evaluation: AttributionEvaluation | null }) {
   const model = attribution.model;
   const stages = model.calibration?.stages;
@@ -463,29 +431,22 @@ function ModelAndRun({ image, attribution, current, evaluation }: { image: Attri
   const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
   const parts = model.staged ?? (model.families ? [model.families] : []);
   const missing = parts.filter((fams) => !sets.some(([, f]) => sameSet(f.families, fams)));
+  const call = (s: string) => prettyText(s).replace(/^./, (c) => c.toUpperCase());
   const rows: [string, React.ReactNode][] = [
     ["Model", modelName(model)],
     ["Fitted", <span className="mono">{localTime(model.fitted_at)}</span>],
-    ["Held-out accuracy", `${pct(model.loso_balanced_accuracy)} balanced accuracy on strips the model never saw · chance ${pct(1 / model.classes.length)}`],
   ];
-  if (current && !stale)
-    rows.push(["Frozen", current.matches_frozen ? <>Yes · <span className="mono">{shortHash(current.rules_frozen_commit, 7)}</span></> : "No"]);
+  if (current && !stale) rows.push(["Frozen with the rules", current.matches_frozen ? "Yes" : "No"]);
   if (image.stage_baseline)
-    rows.push([`${batchLabel(model.baseline)} or not`, `${prettyText(image.stage_baseline.call)} · ${pct(image.stage_baseline.confidence)}${stages?.baseline ? ` · this stage right ${record(stages.baseline)} held-out` : ""}`]);
+    rows.push(["Baseline or not", `${call(image.stage_baseline.call)} · ${pct(image.stage_baseline.confidence)}${stages?.baseline ? ` · this stage right ${record(stages.baseline)} held-out` : ""}`]);
   if (image.stage_variation)
     rows.push(["Which other batch", `${batchLabel(image.stage_variation.call)} · ${pct(image.stage_variation.confidence)}${stages?.variation ? ` · this stage right ${record(stages.variation)} held-out` : ""}`]);
   if (image.baseline_distance != null)
     rows.push([`Distance from ${batchLabel(model.baseline)}`, `${image.baseline_distance.toFixed(1)} against a limit of ${image.baseline_threshold?.toFixed(1) ?? "?"}${image.outside_baseline ? " · outside the baseline range" : image.outside_baseline === false ? " · inside the baseline range" : ""}`]);
   if (image.predicted_distance != null && image.predicted !== model.baseline)
     rows.push([`Distance from ${batchLabel(image.predicted)}`, `${image.predicted_distance.toFixed(1)} against a limit of ${image.predicted_threshold?.toFixed(1) ?? "?"}`]);
-  if (image.strip_id) rows.push(["Strip", <span className="mono">{image.strip_id}</span>]);
   return (
     <div className="flex flex-col gap-5">
-      {stale && (
-        <p className="m-0 rounded-xl border border-cx-investigate/40 bg-cx-investigate/10 px-3 py-2 text-[13px] leading-snug text-cx-investigate-text">
-          This result was made by an earlier model. Identify the tile again to use the current one.
-        </p>
-      )}
       <dl className="m-0 grid grid-cols-[200px_minmax(0,1fr)] gap-x-6 gap-y-2 text-[13px]">
         {rows.map(([k, v]) => (
           <div key={k} className="contents">
@@ -494,18 +455,12 @@ function ModelAndRun({ image, attribution, current, evaluation }: { image: Attri
           </div>
         ))}
       </dl>
-      {sets.length > 0 && (
+      {sets.length > 0 && !missing.length && (
         <div className="flex flex-col gap-3 border-t border-cx-line-soft pt-4">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <span className="text-sm font-medium">How well each family of features tells the batches apart</span>
             <span className="text-xs text-cx-faint">{evaluation!.n_images} tiles · held-out strips vs the shuffled-label threshold</span>
           </div>
-          {missing.length > 0 && (
-            <p className="m-0 rounded-xl border border-cx-investigate/30 bg-cx-investigate/[0.06] px-3 py-2 text-[13px] leading-snug text-cx-investigate-text">
-              This evaluation predates the model above: no row scores {missing.map((f) => f.map((x) => FAMILY_NAMES[x] ?? x).join(" + ")).join(" or ")} on
-              {missing.length === 1 && missing[0].length === 1 ? " its own" : " their own"}, the part of the model that makes this call, so read these rows as background, not as this model's record.
-            </p>
-          )}
           <div className="grid grid-cols-3 gap-2.5">
             {sets.map(([key, fam]) => {
               const acc = fam.balanced_accuracy;

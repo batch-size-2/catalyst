@@ -13,7 +13,7 @@ min_units: 3            # fewer strips (or unstripped images) than this in a bat
 silicon:
   - name: Si (Li15Si4)
     capacity_mah_g: 3579   # Li15Si4 is the fully lithiated phase at room temperature [obrovac2004]
-    expansion: 2.8         # about +280 % volume at full lithiation [obrovac2014]
+    expansion: 2.8         # about +280% volume at full lithiation [obrovac2014]
     density_g_cm3: 2.33
   - name: SiOx (SiO)
     capacity_mah_g: 1500   # reversible, ~1500-1700 mAh/g reported [sio_fade2018]
@@ -63,7 +63,7 @@ references:
 impacts:
   capacity:
     property: Capacity
-    measure: specific capacity of the active material (silicon + graphite)
+    measure: Specific capacity of the active material (silicon + graphite)
     unit: mAh/g
     higher_is: better
     if_higher: More capacity per gram of anode. Usually paid for in swelling and cycle life.
@@ -72,16 +72,16 @@ impacts:
     refs: [obrovac2004, obrovac2014, sio_fade2018]
   swelling:
     property: Swelling
-    measure: volume the active material gains at full charge, per electrode volume
+    measure: Volume the active material gains at full charge, per electrode volume
     unit: fraction
     higher_is: worse
     if_higher: More growth on every charge. Once the pores are full, the electrode thickens, which presses on the cell and loosens particle contacts.
     if_lower: Less growth on every charge, less mechanical stress on the cell.
-    mechanism: Silicon grows by up to 280 % on lithiation, graphite by about 10 %. The pores absorb some of it; the rest pushes the electrode thicker.
+    mechanism: Silicon grows by up to +280% on lithiation, graphite by about +10%. The pores absorb some of it; the rest pushes the electrode thicker.
     refs: [obrovac2014]
   transport:
     property: Fast charging
-    measure: effective ion transport through the pores, relative to free electrolyte
+    measure: Effective ion transport through the pores, relative to free electrolyte
     unit: fraction
     higher_is: better
     if_higher: Ions move more freely, so the anode charges faster before lithium starts to plate.
@@ -90,7 +90,7 @@ impacts:
     refs: [ebner2014, tomaszewska2019]
   sei:
     property: Lithium lost to SEI
-    measure: geometric surface of the resolved silicon particles per electrode volume (a lower bound on where the SEI grows)
+    measure: Geometric surface of the resolved silicon particles per electrode volume (a lower bound on where the SEI grows)
     unit: m²/cm³
     higher_is: worse
     if_higher: More surface for the SEI layer to grow on, so more lithium is locked away in the first cycles and over life.
@@ -99,7 +99,7 @@ impacts:
     refs: [pinson2013, sigr2021]
   cracking:
     property: Particle cracking
-    measure: coarse silicon size (D90), which sets the crack driving force
+    measure: Coarse silicon size (D90), which sets the crack driving force
     unit: um
     higher_is: worse
     if_higher: Larger silicon particles store more strain energy when they swell, so they crack sooner and expose fresh surface that consumes more lithium.
@@ -108,12 +108,12 @@ impacts:
     refs: [liu2012, mcdowell2013]
   agglomeration:
     property: Hot spots
-    measure: share of silicon inside Si-rich clumps larger than ~5 µm
+    measure: Share of silicon inside Si-rich clumps larger than ~5 µm
     unit: fraction
     higher_is: worse
     if_higher: Clumped silicon swells locally, pushes neighbours apart and can lose electrical contact, leaving dead silicon and uneven current.
     if_lower: Silicon is spread more evenly between graphite, so swelling and current are more uniform.
-    mechanism: A clump of silicon behaves like one large particle that swells by up to 280 %, with little graphite around it to carry current.
+    mechanism: A clump of silicon behaves like one large particle that swells by up to +280%, with little graphite around it to carry current.
     refs: [sigr2021]
 
 # "If you ignore this, what's the worst that could happen?" Shown only when a property moves the
@@ -132,7 +132,7 @@ worst_case:
       - Lithium plates as metal on the anode surface
       - Metallic lithium grows dendrites and reacts with the electrolyte, giving off heat and gas
       - In the worst case a dendrite pierces the separator, shorts the cell and starts thermal runaway
-    likelihood: Only if the cathode is matched to the expected anode capacity with a thin margin. The N/P figure below shows how much margin this batch eats.
+    likelihood: Only if the cathode is matched to the expected anode capacity with a thin margin.
     prevents: [Re-check the N/P ratio with this lot's measured capacity, Formation and three-electrode tests for plating, Charge cut-off set by the cell maker]
     refs: [kasnatscheew2017, waldmann2018, feng2018]
   swelling:
@@ -156,7 +156,7 @@ worst_case:
       - Lithium plates as metal instead of entering the graphite and silicon
       - Plated lithium grows dendrites and reacts with the electrolyte, giving off heat and gas
       - A dendrite through the separator shorts the cell
-      - Thermal runaway - venting, fire - in the worst case
+      - Thermal runaway – venting, fire – in the worst case
     likelihood: Low at gentle charging. Rises with charge rate, low temperature, high state of charge and a thin N/P margin.
     prevents: [Charge-rate limits from plating tests on this lot, Temperature-dependent charging in the battery management system]
     refs: [tomaszewska2019, waldmann2018, feng2018]

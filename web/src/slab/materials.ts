@@ -5,8 +5,8 @@ export const COLORS = {
   graphiteStages: [
     ["#55575d", "pristine"], // dark grey, as in the SEM images
     ["#2a4fb5", "stage 3/4"], // blue
-    ["#a32f2f", "stage 2, LiC12"], // red
-    ["#e9bb25", "stage 1, LiC6"], // gold
+    ["#a32f2f", "stage 2, LiC₁₂"], // red
+    ["#e9bb25", "stage 1, LiC₆"], // gold
   ] as [string, string][],
   siPristine: "#d6d6da",
   siLithiated: "#f2b98a", // LixSi: pale peach, kept apart from gold LiC6 and from the stress glow
