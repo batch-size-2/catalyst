@@ -12,6 +12,8 @@
     { "id": "stamp", "seconds": 0.6, "use": "the cat stamps the verified card",
       "prompt": "A soft rubber stamp pressed onto paper on a wooden desk: one gentle muted thump, close-miked, no reverb." },
     { "id": "mrrp", "seconds": 0.7, "use": "the cat's first entrance, once only",
-      "prompt": "A single short friendly house cat chirp, a soft trilled mrrp, close-miked, clean, no background noise." }
+      "prompt": "A single short friendly house cat chirp, a soft trilled mrrp, close-miked, clean, no background noise." },
+    { "id": "meow", "seconds": 1.0, "use": "the outro, once, as the cat curls up and blinks after the last line",
+      "prompt": "A single soft, content house cat meow, short, warm and slightly sleepy, close-miked, clean, no background noise." }
   ]
 }

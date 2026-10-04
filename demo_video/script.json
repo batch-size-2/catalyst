@@ -1,7 +1,7 @@
 {
   "note": "Beats per scene, keyed by the scene ids in narration.json. A beat fires at the first occurrence of its `at` word(s) at or after the previous beat (case and punctuation ignored); `offset` shifts it in seconds. Scene length = lead + audio duration + voice.gap_seconds + hold.",
   "music": { "file": "music/bed_v2_soft.mp3", "volume": 0.5, "fadeIn": 1.5, "fadeOut": 2.5 },
-  "sfxMix": { "click": 0.12, "done": 0.1, "drop": 0.28, "whoosh": 0.035, "stamp": 0.55, "mrrp": 0.14, "lawsuit": 1.0 },
+  "sfxMix": { "click": 0.12, "done": 0.1, "drop": 0.28, "whoosh": 0.035, "stamp": 0.55, "mrrp": 0.14, "lawsuit": 1.0, "meow": 0.09 },
   "scenes": {
     "news": {
       "lead": 0.6,
@@ -92,7 +92,8 @@
       "beats": [
         { "at": "Catalyst", "window": "out", "bg": "outro", "fx": "logo", "cat": { "anchor": "outro", "pose": "float", "expression": "happy", "item": "none", "lookAt": null } },
         { "at": "makes", "fx": "flicker", "dur": 1.6 },
-        { "at": "Made", "fx": "team" }
+        { "at": "Made", "fx": "team" },
+        { "at": "2", "offset": 0.9, "sfx": "meow" }
       ]
     }
   }

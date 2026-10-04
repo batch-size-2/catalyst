@@ -45,6 +45,7 @@ Environment (the system node is broken), from `demo_video/`:
   - `#/anode` (experimental 3D anode lab: a rotatable block with state-of-charge, C-rate, cycles and FIB-slice controls)
 
   Read `web/src/router.ts`, `web/src/components/*` and `web/src/slab/*` (read-only) for labels and ARIA. The UI is still being polished, so locate everything by visible text and ARIA, never by pixel position. We'll re-run your capture when the UI settles.
+- **A meow for the ending:** `public/sfx/meow.mp3` (mix 0.09) plays once in the outro hold as the cat blinks. Keep `mrrp` once on the cat's first entrance. No other cat sounds.
 - **The lawsuit sound is wired:** `public/sfx/lawsuit.mp3` (2.08 s, mix 1.0) fires 0.75 s after the word "button" in `audit`, with a `click` at 0.6 s. Move the cursor's click exactly onto it.
 - **News: a generic "BREAKING NEWS" treatment in our own style.** Build on the current fact cards in `script.json`:
   - a bold **BREAKING NEWS** banner or ticker (generic news-broadcast energy, no real outlet's name, logo or look);
@@ -104,7 +105,7 @@ Rhyme the ending with the opening.
 | **impact** | "experiments": the `EXPERIMENTAL` chip; the plate shifts to lab mode; the cursor clicks Labs → Wear & impact. "capacity", "charge": the camera moves card to card. "worst case": the chain draws itself step by step (ladder view if it reads best). "rule it out": spotlight what rules it out | Goggles up, thoughtful |
 | **lab** | "3D anode": the cursor opens the anode lab; the block rotates slowly (clip). "too fast": the cursor sets a high C-rate and presses charge; the fast-charge clip plays. "metal": plating visible; push in. **Hold** while it grows | Goggles down, leaning in |
 | **aged** | "eight hundred cycles": the cursor drags cycles to 800 and the aging clip plays (hero type "800 CYCLES"). "cracked": push in on the cracked silicon | Wince |
-| **outro** | The window scales down and fades and the coloured plate returns. Wordmark and subtitle, then "Team Batch Size 2". Rhymes with the opening | Curls up by the logo, slow blink; optional soft second `mrrp` |
+| **outro** | The window scales down and fades and the coloured plate returns. Wordmark and subtitle, then "Team Batch Size 2". Rhymes with the opening | Curls up by the logo, slow blink, then a soft **meow** (`public/sfx/meow.mp3`, wired 0.9 s after the last word; time it to the blink, in the hold, never over the voice) |
 
 ## How to work
 
