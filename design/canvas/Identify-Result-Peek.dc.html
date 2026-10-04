@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Catalyst · Tile result</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400..600&amp;display=swap">
+<style>
+body{margin:0;background:#0A0B0D}
+.cx{font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#EDECE8;background-color:#0A0B0D;background-image:linear-gradient(rgba(255,255,255,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.032) 1px,transparent 1px);background-size:32px 32px;-webkit-font-smoothing:antialiased}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.glass{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.025));-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 48px -24px rgba(0,0,0,.7)}
+.lbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8A8C92}
+.nav{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:10px;color:#A3A4A9;font-size:14px;text-decoration:none}
+.nav:hover{background:rgba(255,255,255,.05);color:#EDECE8}
+.nav.on{background:rgba(255,255,255,.07);color:#F6F5F2;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;font:500 14px 'Geist',sans-serif;color:#EDECE8;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);cursor:pointer;text-decoration:none}
+.btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.btn.pri{background:#FF7A2F;border-color:#FF7A2F;color:#1A0A00;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 24px -8px rgba(255,122,47,.6)}
+.btn.pri:hover{background:#FF8C4A;color:#1A0A00}
+a{color:#FF9A5C}a:hover{color:#FFB98A}
+</style>
+</helmet>
+<div class="cx" style="min-height: 1420px; display: flex; flex-wrap: wrap; align-items: stretch">
+
+<aside style="flex: 1 1 232px; max-width: 260px; box-sizing: border-box; padding: 20px 14px; display: flex; flex-direction: column; gap: 28px; border-right: 1px solid rgba(255,255,255,.07); background: rgba(8,9,11,.72)">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 4px 8px; text-decoration: none; color: #F6F5F2">
+    <svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"><path d="M12 38 L15 9 L27 19 L37 19 L49 9 L52 38 L42 55 L22 55 Z" fill="#FF7A2F" stroke="#FF7A2F" stroke-width="4" stroke-linejoin="round"></path><rect x="22.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><rect x="36.5" y="31" width="5" height="10" rx="2.5" fill="#0A0B0D"></rect><path d="M29.5 45 L34.5 45 L32 48 Z" fill="#0A0B0D"></path><path d="M10 41 L1 38 M10 46 L2 49 M54 41 L63 38 M54 46 L62 49" stroke="#FF7A2F" stroke-width="3" stroke-linecap="round"></path></svg>
+    <span style="font-size: 19px; font-weight: 600; letter-spacing: -0.02em">catalyst</span>
+  </a>
+  <nav aria-label="Main" style="display: flex; flex-direction: column; gap: 2px">
+    <div class="lbl" style="padding: 0 10px 8px">Analyse</div>
+    <a class="nav on" href="Main.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><circle cx="12" cy="12" r="3"></circle></svg>Identify tile</a>
+    <a class="nav" href="Compare-Focus.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="16" rx="1.5"></rect><rect x="14" y="4" width="7" height="16" rx="1.5"></rect></svg>Compare batch</a>
+    <a class="nav" href="Viewer.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>Library<span class="mono" style="margin-left: auto; font-size: 11px; color: #8A8C92">31</span></a>
+    <div class="lbl" style="padding: 20px 10px 8px">Trust</div>
+    <a class="nav" href="Audit.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"></path><path d="M9 12l2 2 4-4"></path></svg>Audit log</a>
+    <div class="lbl" style="padding: 20px 10px 8px">Labs</div>
+    <a class="nav" href="#" style="color: #8A8C92"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"></path></svg>Wear &amp; impact<span class="mono" style="margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">SOON</span></a>
+    <a class="nav" href="#" style="color: #8A8C92"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>Sample size<span class="mono" style="margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">SOON</span></a>
+  </nav>
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+    <a class="nav" href="Settings-Baseline.dc.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg>Settings</a>
+    <a class="glass" href="Settings-Baseline.dc.html" style="border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; color: inherit; text-decoration: none">
+      <div class="lbl">Default baseline</div>
+      <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500"><span style="width: 9px; height: 9px; border-radius: 3px; background: #2DD4BF"></span>Batch 3<span style="margin-left: auto; font-size: 12px; color: #8A8C92">17 tiles</span></div>
+      <div style="font-size: 12px; color: #A3A4A9; line-height: 1.45">What the supplier promised. <span style="color: #FF9A5C">Change</span></div>
+    </a>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; color: #A3A4A9"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Rules frozen · <span class="mono">f424aaf</span></div>
+  </div>
+</aside>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 64px; padding: 0 40px; border-bottom: 1px solid rgba(255,255,255,.07)">
+    <div style="font-size: 14px; color: #A3A4A9">Analyse <span style="color: #5F6166">/</span> <a href="Main.dc.html" style="color: #A3A4A9">Identify tile</a> <span style="color: #5F6166">/</span> <span class="mono" style="color: #EDECE8">r17byphk</span></div>
+    <label style="margin-left: auto; display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.03); color: #8A8C92; font-size: 13px; min-width: 240px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg><input type="search" placeholder="Search tiles and batches" aria-label="Search tiles and batches" style="flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: #EDECE8; font: 13px 'Geist',sans-serif"><span class="mono" style="font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12)">⌘K</span></label>
+    <button type="button" aria-label="Account: Patrik" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); background: #1B1C20; color: #EDECE8; font: 600 12px 'Geist',sans-serif">PH</button>
+  </header>
+  <div style="width: 100%; max-width: 1180px; box-sizing: border-box; padding: 36px 40px 64px; display: flex; flex-direction: column; gap: 24px">
+
+    <section aria-label="Answer" class="glass" style="border-radius: 24px; padding: 24px 28px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 28px; align-items: center">
+      <div style="grid-column: span 7; display: flex; flex-direction: column; gap: 12px; min-width: 0">
+        <div class="lbl">Tile <span class="mono" style="text-transform: none; color: #C4C5C9">r17byphk</span> · closest match</div>
+        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
+          <span style="width: 16px; height: 16px; border-radius: 5px; background: #B794FF; box-shadow: 0 0 20px rgba(183,148,255,.55)"></span>
+          <span style="font-size: 48px; line-height: 1; font-weight: 600; letter-spacing: -0.04em">Batch 2</span>
+          <span class="mono" style="font-size: 24px; color: #C9B3FF">81%</span>
+        </div>
+        <p style="margin: 0; font-size: 16px; line-height: 1.5; color: #C4C5C9">Clearly closer to Batch 2. Two reasons point there; one points away.</p>
+      </div>
+      <div style="grid-column: span 5; display: flex; flex-direction: column; gap: 10px; min-width: 0">
+        <div style="display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px"><span style="width: 81%; background: #B794FF"></span><span style="width: 14%; background: #6EA8FF"></span><span style="width: 5%; background: #2DD4BF"></span></div>
+        <div class="mono" style="display: flex; justify-content: space-between; font-size: 12px; color: #C4C5C9"><span>Batch 2 81%</span><span>Batch 1 14%</span><span>Batch 3 5%</span></div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; padding-top: 6px">
+          <span style="display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border-radius: 999px; background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.28); color: #86EFAC; font-size: 12px">Familiar tile</span>
+          <span style="display: inline-flex; align-items: center; min-height: 28px; padding: 0 10px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: #C4C5C9; font-size: 12px">Model right 55% of the time · chance 33%</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-label="Look here first" style="display: flex; flex-direction: column; gap: 16px">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h2 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.02em">Look here first</h2>
+          <span style="font-size: 13px; color: #8A8C92">{{srcNote}}</span>
+        </div>
+        <div role="group" aria-label="Who picks the highlights" class="glass" style="display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 14px">
+          <span class="lbl" style="padding: 0 8px 0 10px; font-size: 10px">Picked by</span>
+          <sc-for list="{{sources}}" as="x" hint-placeholder-count="2">
+            <button type="button" onClick="{{x.pick}}" style="min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; font: 500 13px 'Geist', sans-serif; cursor: pointer; {{x.style}}">{{x.label}}</button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="position: relative; aspect-ratio: 1800 / 536; margin-top: 8px">
+        <div style="position: absolute; inset: 0; border-radius: 22px; overflow: hidden; border: 1px solid rgba(255,255,255,.1); background: #000">
+          <img src="/_blob/effa497b0fd734e7cec5e9943ee881d3" alt="BSE micrograph of tile r17byphk" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(.8) saturate(0)">
+          <img src="/_blob/a770fa925452417aeb0005b5e356af39" alt="" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .8">
+        </div>
+        <sc-for list="{{regions}}" as="g" hint-placeholder-count="4">
+          <button type="button" aria-label="{{g.label}}" onMouseEnter="{{g.enter}}" onMouseLeave="{{g.leave}}" onFocus="{{g.enter}}" onBlur="{{g.leave}}" onClick="{{g.pin}}" style="{{g.box}}">
+            <sc-if value="{{g.first}}" hint-placeholder-val="{{true}}"><span style="{{g.badge}}">{{g.n}}</span></sc-if>
+          </button>
+        </sc-for>
+        <sc-if value="{{hasPeek}}" hint-placeholder-val="{{true}}">
+          <div class="glass" role="tooltip" style="{{peek.pos}}; border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: rgba(20,21,25,.82); pointer-events: none; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 30px 60px -20px rgba(0,0,0,.9)">
+            <div style="display: flex; align-items: center; gap: 8px; min-width: 0">
+              <span class="mono" style="flex: none; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; background: #F6F5F2; color: #0A0B0D; font-size: 12px; font-weight: 600">{{peek.n}}</span>
+              <span style="flex: 1; min-width: 0; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{peek.title}}</span>
+              <span class="mono" style="font-size: 11px; color: #A3A4A9">{{peek.zoom}}</span>
+            </div>
+            <div style="position: relative; width: 316px; height: 186px; border-radius: 12px; overflow: hidden; background: #000">
+              <img src="/_blob/effa497b0fd734e7cec5e9943ee881d3" alt="" style="{{peek.img}}; filter: saturate(0) brightness(.85)">
+              <img src="/_blob/a770fa925452417aeb0005b5e356af39" alt="" style="{{peek.img}}; opacity: .85">
+              <div style="{{peek.ring}}"></div>
+              <div class="mono" style="position: absolute; left: 10px; bottom: 9px; display: flex; align-items: center; gap: 6px; font-size: 10px; color: rgba(255,255,255,.9)"><span style="{{peek.barStyle}}"></span>{{peek.barLabel}}</div>
+              <span class="mono" style="position: absolute; right: 8px; top: 8px; font-size: 10px; padding: 2px 6px; border-radius: 5px; background: rgba(10,11,13,.7); color: #C4C5C9">{{peek.spot}}</span>
+            </div>
+            <span style="font-size: 12px; line-height: 1.45; color: #C4C5C9">{{peek.note}}</span>
+            <span class="mono" style="font-size: 10px; color: #8A8C92">Click to pin · keeps you on this page</span>
+          </div>
+        </sc-if>
+        <div class="glass" style="position: absolute; right: 12px; bottom: 12px; z-index: 3; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: rgba(14,15,18,.5); font-size: 11px; color: #D4D4D8"><span class="mono" style="font-size: 9px; padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,154,92,.5); color: #FF9A5C">PREVIEW</span>Hover a region to peek · click to pin</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+        <sc-for list="{{cards}}" as="c" hint-placeholder-count="3">
+          <article onMouseEnter="{{c.enter}}" onMouseLeave="{{c.leave}}" style="border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; {{c.cardStyle}}">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span class="mono" style="flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 600; {{c.badge}}">{{c.n}}</span>
+              <span style="display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12px; {{c.tagStyle}}">{{c.tag}}</span>
+              <span class="mono" style="margin-left: auto; font-size: 12px; color: #A3A4A9">pull {{c.pull}}</span>
+            </div>
+            <h3 style="margin: 0; font-size: 17px; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em">{{c.title}}</h3>
+            <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #C4C5C9">{{c.line}}</p>
+            <div style="position: relative; height: 24px">
+              <div style="position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: rgba(255,255,255,.12)"></div>
+              <div style="{{c.b3Style}}"></div>
+              <div style="{{c.b2Style}}"></div>
+              <div style="{{c.markStyle}}"></div>
+            </div>
+            <div style="display: flex; gap: 12px; font-size: 11px; color: #8A8C92"><span style="display: inline-flex; align-items: center; gap: 5px"><span style="width: 10px; height: 4px; border-radius: 2px; background: #2DD4BF"></span>Baseline</span><span style="display: inline-flex; align-items: center; gap: 5px"><span style="width: 10px; height: 4px; border-radius: 2px; background: #B794FF"></span>Batch 2</span><span style="display: inline-flex; align-items: center; gap: 5px"><span style="width: 2px; height: 10px; background: #F6F5F2"></span>This tile</span></div>
+            <div style="margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.07)">
+              <span class="mono" style="font-size: 11px; color: #8A8C92">{{c.code}}</span>
+              <button type="button" onFocus="{{c.enter}}" onBlur="{{c.leave}}" onClick="{{c.pin}}" style="min-height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.14); background: transparent; color: #EDECE8; font: 12px 'Geist', sans-serif; cursor: pointer">Inspect region</button>
+            </div>
+          </article>
+        </sc-for>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #86EFAC"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>No caveats: familiar tile, all three detectors read cleanly.</div>
+    </section>
+
+    <section aria-label="Everything else" style="border-radius: 22px; border: 1px solid rgba(255,255,255,.08); background: rgba(14,15,18,.82); overflow: hidden">
+      <div class="lbl" style="padding: 16px 20px 10px">Everything else</div>
+      <sc-for list="{{sections}}" as="x" hint-placeholder-count="4">
+        <div style="border-top: 1px solid rgba(255,255,255,.06)">
+          <button type="button" aria-expanded="{{x.expanded}}" onClick="{{x.toggle}}" style="display: flex; align-items: center; gap: 16px; width: 100%; min-height: 56px; padding: 0 20px; border: 0; background: transparent; color: #EDECE8; font: 15px 'Geist', sans-serif; text-align: left; cursor: pointer">
+            <span style="flex: 1">{{x.title}}</span>
+            <span class="mono" style="font-size: 12px; color: #8A8C92">{{x.sum}}</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A3A4A9" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="{{x.chev}}"><path d="M6 9l6 6 6-6"></path></svg>
+          </button>
+          <sc-if value="{{x.isOpen}}" hint-placeholder-val="{{false}}">
+            <p style="margin: 0; padding: 0 20px 18px; font-size: 13px; color: #A3A4A9">[Section content as in v1: <a href="Identify-Result.dc.html">see the full result</a>]</p>
+          </sc-if>
+        </div>
+      </sc-for>
+    </section>
+    <sc-if value="{{hasPin}}" hint-placeholder-val="{{false}}">
+      <aside class="glass" aria-label="Region inspector" style="position: fixed; top: 20px; right: 20px; bottom: 20px; z-index: 30; width: 400px; max-width: calc(100vw - 40px); box-sizing: border-box; overflow-y: auto; border-radius: 24px; padding: 16px; display: flex; flex-direction: column; gap: 14px; background: rgba(20,21,25,.88); box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 40px 80px -20px rgba(0,0,0,.9)">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span class="mono" style="flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: #F6F5F2; color: #0A0B0D; font-size: 13px; font-weight: 600">{{pin.n}}</span>
+          <span style="flex: 1; min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.3">{{pin.title}}</span>
+          <button type="button" aria-label="Close inspector" onClick="{{unpin}}" style="flex: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); background: transparent; color: #EDECE8; cursor: pointer; display: grid; place-items: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+        </div>
+        <div style="position: relative; width: 368px; height: 236px; border-radius: 14px; overflow: hidden; background: #000">
+          <img src="{{src}}" alt="Magnified region" style="{{pin.img}}">
+          <sc-if value="{{showPore}}" hint-placeholder-val="{{false}}"><img src="/_blob/cc62b2d9375e2b92971fccec440ac339" alt="" style="{{pin.img}}; opacity: .7"></sc-if>
+          <sc-if value="{{showSi}}" hint-placeholder-val="{{true}}"><img src="/_blob/a770fa925452417aeb0005b5e356af39" alt="" style="{{pin.img}}; opacity: .85"></sc-if>
+          <div style="{{pin.ring}}"></div>
+          <div class="mono" style="position: absolute; left: 10px; bottom: 10px; display: flex; align-items: center; gap: 6px; font-size: 10px; color: rgba(255,255,255,.9)"><span style="{{pin.barStyle}}"></span>{{pin.barLabel}}</div>
+          <span class="mono" style="position: absolute; right: 8px; top: 8px; font-size: 10px; padding: 2px 6px; border-radius: 5px; background: rgba(10,11,13,.7); color: #C4C5C9">{{pin.zoom}}</span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px">
+          <div role="group" aria-label="Detector" style="display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: rgba(0,0,0,.3)">
+            <sc-for list="{{dets}}" as="d" hint-placeholder-count="3"><button type="button" onClick="{{d.pick}}" class="mono" style="min-height: 32px; padding: 0 10px; border: 0; border-radius: 9px; font-size: 11px; cursor: pointer; {{d.style}}">{{d.d}}</button></sc-for>
+          </div>
+          <div style="display: flex; gap: 12px">
+            <sc-for list="{{layers}}" as="l" hint-placeholder-count="2">
+              <button type="button" role="switch" aria-checked="{{l.on}}" onClick="{{l.toggle}}" style="display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0; border: 0; background: transparent; color: #EDECE8; font: 12px 'Geist', sans-serif; cursor: pointer"><span style="position: relative; width: 34px; height: 20px; border-radius: 10px; {{l.track}}"><span style="{{l.knob}}"></span></span>{{l.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+        <span style="align-self: flex-start; display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12px; {{pin.tagStyle}}">{{pin.tag}}</span>
+        <p style="margin: 0; font-size: 14px; line-height: 1.55; color: #EDECE8">{{pin.line}}</p>
+        <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #A3A4A9">{{pin.note}}</p>
+        <div style="margin-top: auto; display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08)">
+          <button class="btn" type="button" aria-label="Previous region" onClick="{{pin.prev}}" style="min-height: 36px; padding: 0 12px">←</button>
+          <span class="mono" style="font-size: 12px; color: #A3A4A9">{{pin.count}}</span>
+          <button class="btn" type="button" aria-label="Next region" onClick="{{pin.next}}" style="min-height: 36px; padding: 0 12px">→</button>
+          <a href="Viewer.dc.html" style="margin-left: auto; font-size: 13px">Open full tile</a>
+        </div>
+      </aside>
+    </sc-if>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 1440, "height": 1420}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    // Starts with region 2 peeked so the board shows the hover state at rest.
+    this.state = { hover: { r: 1, g: 0 }, pin: null, det: 'BSE', si: true, pore: false, source: 'model', open: {} };
+  }
+  renderVals() {
+    const s = this.state;
+    const AR = 6984 / 2080;
+    const TILE_UM = 174.6;
+    const SRC = {
+      BSE: '/_blob/effa497b0fd734e7cec5e9943ee881d3',
+      ETD: '/_blob/65c03771479574c827dffb0cbb389d20',
+      InLens: '/_blob/798df531131fb21e42ca1d5a1bef12a2',
+    };
+    const pct = (z) => ((Math.max(-3, Math.min(3, z)) + 3) / 6) * 100;
+    const R = [
+      {
+        title: 'Fine, even texture in the BSE image', line: 'Tile +1.2σ vs baseline; Batch 2 tiles sit at +0.4 to +2.2σ.',
+        toward: true, pull: '+0.43', z: 1.2, b2: [0.4, 2.2], code: 'tex_bse_lbp_04',
+        regions: [{ x: 40, y: 12, w: 22, h: 76, note: 'BSE texture here reads +1.2σ against the baseline.' }],
+      },
+      {
+        title: 'Mid-sized silicon particles', line: 'Median 3.80 µm (+0.5σ), inside Batch 2’s usual range.',
+        toward: true, pull: '+0.14', z: 0.5, b2: [0.0, 1.6], code: 'par_d50_um',
+        regions: [
+          { x: 89.2, y: 21.6, w: 7, h: 23.6, round: true, note: 'Silicon particle · 6.91 µm · solidity 0.93 · no internal voids' },
+          { x: 25.8, y: 73.3, w: 6, h: 20, round: true, note: 'Silicon particle · 5.67 µm · solidity 0.95 · no internal voids' },
+        ],
+      },
+      {
+        title: 'Silicon spread more evenly than Batch 2 tiles usually are', line: 'Patchiness −0.8σ; Batch 2 tiles are usually patchier. This points away.',
+        toward: false, pull: '−0.29', z: -0.8, b2: [-0.2, 1.8], code: 'reg_si_frac_cv',
+        regions: [{ x: 2, y: 10, w: 26, h: 80, note: 'Silicon is evenly spread across this stretch.' }],
+      },
+    ];
+    const same = (a, b) => !!a && !!b && a.r === b.r && a.g === b.g;
+    const active = s.pin || s.hover;
+
+    // Magnified crop of one region inside a W×H box: image size, offset, ring and scale bar, all in px.
+    const crop = (g, W, H) => {
+      let k = Math.min(0.72 / (g.w / 100), (0.72 * H * AR) / (W * (g.h / 100)));
+      k = Math.max(1.4, Math.min(12, k));
+      const iw = k * W, ih = iw / AR;
+      const cx = g.x + g.w / 2, cy = g.y + g.h / 2;
+      let left = W / 2 - (cx / 100) * iw;
+      let top = H / 2 - (cy / 100) * ih;
+      left = Math.min(0, Math.max(W - iw, left));
+      top = ih <= H ? (H - ih) / 2 : Math.min(0, Math.max(H - ih, top));
+      const pxPerUm = iw / TILE_UM;
+      const bar = [20, 10, 5, 2, 1].find((u) => u * pxPerUm <= 110) || 1;
+      const img = `position: absolute; max-width: none; width: ${iw.toFixed(1)}px; height: ${ih.toFixed(1)}px; left: ${left.toFixed(1)}px; top: ${top.toFixed(1)}px`;
+      return {
+        img,
+        ring: `position: absolute; left: ${(left + (g.x / 100) * iw).toFixed(1)}px; top: ${(top + (g.y / 100) * ih).toFixed(1)}px; width: ${((g.w / 100) * iw).toFixed(1)}px; height: ${((g.h / 100) * ih).toFixed(1)}px; border-radius: ${g.round ? '50%' : '10px'}; border: 2px solid rgba(255,255,255,.9); box-shadow: 0 0 0 9999px rgba(0,0,0,.28)`,
+        barStyle: `width: ${(bar * pxPerUm).toFixed(1)}px; height: 2px; background: rgba(255,255,255,.9)`,
+        barLabel: `${bar} µm`,
+        zoom: `${k.toFixed(1)}×`,
+      };
+    };
+
+    const regions = [];
+    R.forEach((r, i) => r.regions.forEach((g, j) => {
+      const at = { r: i, g: j };
+      const on = same(active, at) || (active && active.r === i && !s.pin);
+      const col = r.toward ? '255,255,255' : '163,164,169';
+      regions.push({
+        n: i + 1, first: j === 0,
+        label: `Reason ${i + 1}${r.regions.length > 1 ? `, spot ${j + 1}` : ''}: ${r.title}. Peek; click to pin.`,
+        enter: () => this.setState({ hover: at }),
+        leave: () => this.setState({ hover: null }),
+        pin: () => this.setState({ pin: at, hover: null }),
+        box: `position: absolute; left: ${g.x}%; top: ${g.y}%; width: ${g.w}%; height: ${g.h}%; border-radius: ${g.round ? '50%' : '14px'}; border: ${on ? 2 : 1.5}px ${r.toward ? 'solid' : 'dashed'} rgba(${col},${on ? 1 : 0.45}); background: rgba(${col},${on ? 0.08 : 0}); box-shadow: ${on ? '0 0 24px rgba(255,255,255,.25)' : 'none'}; padding: 0; cursor: zoom-in; z-index: ${on ? 2 : 1}`,
+        badge: `position: absolute; left: 6px; top: 6px; min-width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; font: 600 12px 'Geist Mono', monospace; ${r.toward ? 'background: #F6F5F2; color: #0A0B0D' : 'background: rgba(10,11,13,.8); color: #F6F5F2; box-shadow: inset 0 0 0 1.5px #A3A4A9'}; opacity: ${on ? 1 : 0.7}`,
+      });
+    }));
+
+    // Hover peek: anchored beside its region, on the side with more room.
+    const hv = !s.pin && s.hover ? s.hover : null;
+    let peek = null;
+    if (hv) {
+      const r = R[hv.r], g = r.regions[hv.g];
+      const c = crop(g, 316, 186);
+      const cx = g.x + g.w / 2;
+      const side = cx > 50
+        ? `right: calc(${(100 - g.x).toFixed(1)}% + 14px)`
+        : `left: calc(${(g.x + g.w).toFixed(1)}% + 14px)`;
+      peek = {
+        ...c, n: hv.r + 1, title: r.title, note: g.note,
+        spot: r.regions.length > 1 ? `Spot ${hv.g + 1} of ${r.regions.length}` : '',
+        pos: `position: absolute; top: 50%; transform: translateY(-50%); ${side}; z-index: 5; width: 340px`,
+      };
+    }
+
+    // Pinned inspector: same crop, bigger, with detector and layer switches.
+    let pin = null;
+    if (s.pin) {
+      const r = R[s.pin.r], g = r.regions[s.pin.g];
+      const flat = [];
+      R.forEach((rr, i) => rr.regions.forEach((_, j) => flat.push({ r: i, g: j })));
+      const idx = flat.findIndex((f) => same(f, s.pin));
+      const go = (d) => () => this.setState({ pin: flat[(idx + d + flat.length) % flat.length] });
+      pin = {
+        ...crop(g, 368, 236), n: s.pin.r + 1, title: r.title, line: r.line, note: g.note, code: r.code,
+        tag: r.toward ? 'Points to Batch 2' : 'Points away',
+        tagStyle: r.toward
+          ? 'color: #D8C8FF; background: rgba(183,148,255,.12); border: 1px solid rgba(183,148,255,.35)'
+          : 'color: #C4C5C9; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.16)',
+        count: `${idx + 1} of ${flat.length}`, prev: go(-1), next: go(1),
+      };
+    }
+    const segOn = 'background: rgba(255,255,255,.14); color: #F6F5F2; box-shadow: inset 0 1px 0 rgba(255,255,255,.18)';
+    const dets = ['BSE', 'ETD', 'InLens'].map((d) => ({ d, pick: () => this.setState({ det: d }), style: s.det === d ? segOn : 'background: transparent; color: #C4C5C9' }));
+    const sw = (key, label, color) => ({
+      label, on: s[key] ? 'true' : 'false', toggle: () => this.setState({ [key]: !s[key] }),
+      track: s[key] ? `background: ${color}` : 'background: rgba(255,255,255,.14)',
+      knob: `position: absolute; top: 2px; left: ${s[key] ? 16 : 2}px; width: 16px; height: 16px; border-radius: 50%; background: ${s[key] ? '#fff' : '#A3A4A9'}`,
+    });
+
+    const cards = R.map((r, i) => {
+      const on = !!active && active.r === i;
+      return {
+        ...r, n: i + 1,
+        tag: r.toward ? 'Points to Batch 2' : 'Points away',
+        tagStyle: r.toward
+          ? 'color: #D8C8FF; background: rgba(183,148,255,.12); border: 1px solid rgba(183,148,255,.35)'
+          : 'color: #C4C5C9; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.16)',
+        badge: r.toward ? 'background: #F6F5F2; color: #0A0B0D' : 'background: transparent; color: #F6F5F2; box-shadow: inset 0 0 0 1.5px #A3A4A9',
+        cardStyle: on
+          ? 'border: 1px solid rgba(255,255,255,.4); background: #1A1B20; box-shadow: 0 0 0 4px rgba(255,255,255,.05)'
+          : 'border: 1px solid rgba(255,255,255,.1); background: #15161A',
+        enter: () => this.setState({ hover: { r: i, g: 0 } }),
+        leave: () => this.setState({ hover: null }),
+        pin: () => this.setState({ pin: { r: i, g: 0 }, hover: null }),
+        b3Style: `position: absolute; top: 4px; height: 6px; border-radius: 3px; left: ${pct(-1)}%; width: ${pct(1) - pct(-1)}%; background: #2DD4BF`,
+        b2Style: `position: absolute; top: 14px; height: 6px; border-radius: 3px; left: ${pct(r.b2[0])}%; width: ${pct(r.b2[1]) - pct(r.b2[0])}%; background: #B794FF`,
+        markStyle: `position: absolute; top: 0; bottom: 0; left: calc(${pct(r.z)}% - 1px); width: 2px; background: #F6F5F2; box-shadow: 0 0 0 3px #15161A`,
+      };
+    });
+    const sections = [
+      { id: 'reasons', title: 'All 5 model reasons', sum: '3 toward Batch 2 · 2 away' },
+      { id: 'kpis', title: 'Measured on this tile', sum: '8 properties · 2 beyond ±1σ' },
+      { id: 'run', title: 'Model and run', sum: 'right 7 of 9 at this confidence' },
+    ].map((x) => {
+      const isOpen = !!s.open[x.id];
+      return { ...x, isOpen, expanded: isOpen ? 'true' : 'false', toggle: () => this.setState({ open: { ...s.open, [x.id]: !isOpen } }), chev: isOpen ? 'transform: rotate(180deg)' : 'transform: none' };
+    });
+    return {
+      regions, cards, sections, dets,
+      layers: [sw('si', 'Silicon', '#FF9A3C'), sw('pore', 'Pores', '#38BDF8')],
+      hasPeek: !!peek, peek: peek || {}, hasPin: !!pin, pin: pin || {},
+      unpin: () => this.setState({ pin: null }),
+      src: SRC[s.det], showSi: s.si, showPore: s.pore,
+    };
+  }
+}
+</script>
+</body>
+</html>

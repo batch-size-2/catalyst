@@ -107,7 +107,9 @@ def imaging_check(ref_imaging: pd.DataFrame, batch_imaging: pd.DataFrame, cfg: d
     changed = set()
     metric_pad = cfg["imaging_min_pad"]
     for channel, rows in baseline.groupby("channel"):
-        batch_rows = batch_imaging[batch_imaging["channel"] == channel]
+        # the baseline's own outliers are already reported; they are not a change (baseline vs itself)
+        batch_rows = batch_imaging[(batch_imaging["channel"] == channel)
+                                   & ~batch_imaging["image_id"].astype(str).isin(outliers)]
         for metric in IMAGING_COLUMNS[4:]:
             if metric not in rows or metric not in batch_rows:
                 continue
@@ -571,7 +573,8 @@ if __name__ == "__main__":
         evidence = evaluate(tables, name, cfg)
         evidence.explanations = explain(evidence, load_dictionary())
         evidence.provenance = provenance(input_tables, cfg, Path(cfg["data_dir"]))
-        evidence_path(name).parent.mkdir(parents=True, exist_ok=True)
-        evidence_path(name).write_text(evidence.model_dump_json(indent=2))
+        path = evidence_path(name, cfg["baseline"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(evidence.model_dump_json(indent=2))
         n1, n2 = evidence.power.n_segments
         print(f"{name:20s} {evidence.verdict:12s} {evidence.unit}s {n1} vs {n2}")

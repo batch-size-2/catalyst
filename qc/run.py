@@ -5,7 +5,11 @@ Usage: uv run python -m qc.run --batch data/Batch_2 [data/Batch_3 ...]
 
 import argparse
 import importlib
+import inspect
 import json
+import os
+import re
+import threading
 from collections.abc import Callable
 from pathlib import Path
 
@@ -16,12 +20,12 @@ from skimage.io import imsave
 
 from qc.decide import evaluate, split_tables
 from qc.explain import explain, load_dictionary
-from qc.io import field_paths, load_field
+from qc.io import field_paths, load_field, tile_geometry
 from qc.measure import imaging, kpis, particles, segment
-from qc.provenance import provenance
+from qc.provenance import git, provenance, rules_frozen
 from qc.schema import (
     ATTRIBUTION_MODEL_PATH, CONFIG_PATH, IMAGING_COLUMNS, IMAGING_TABLE, KPI_TABLE, KPI_TABLE_COLUMNS, KPI_UNITS,
-    PARTICLE_COLUMNS, PARTICLE_TABLE, Evidence, Field, Phase, Tables, attribution_path, evidence_path,
+    PARTICLE_COLUMNS, PARTICLE_TABLE, Evidence, Field, Phase, Tables, attribution_path, evidence_path, phases_path,
     load_config, mask_path,
 )
 from qc.types import assign_types, load_types
@@ -46,15 +50,22 @@ def read_json(path: Path):
     return json.loads(path.read_text(), parse_constant=lambda _: None)
 
 
-def attribute(image_dir: Path, balanced: int | None = None) -> dict:
-    """Pat's attribute_images() with her frozen model; returns out/attribution/<folder>.json."""
+StageProgress = Callable[[str, int, int, str], None]
+
+
+def attribute(image_dir: Path, balanced: int | None = None, progress: StageProgress | None = None) -> dict:
+    """Pat's attribute_images() with her frozen model; returns out/attribution/<folder>.json.
+
+    `progress(stage, done, total, tile)` is passed on when her function takes it (feature-detected).
+    """
     module = attribution_module()
     if module is None:
         raise NotImplementedError("batch attribution is not available yet (qc/attribute.py)")
     model = module.load_model()
     if model is None:
         raise FileNotFoundError(f"no {ATTRIBUTION_MODEL_PATH}: run `uv run python -m qc.attribute --fit` first")
-    module.attribute_images(image_dir, model, balanced=balanced)
+    takes_progress = "progress" in inspect.signature(module.attribute_images).parameters
+    module.attribute_images(image_dir, model, balanced=balanced, **({"progress": progress} if progress and takes_progress else {}))
     return read_json(attribution_path(image_dir.name))
 
 
@@ -74,10 +85,77 @@ def run(batch_dirs: list[Path], cfg: dict, progress: Progress | None = None) -> 
         tiffs = sorted({p for d in (baseline_dir, batch_dir) for p in d.iterdir()
                         if p.suffix.lower() in TIFF_SUFFIXES})
         evidence.provenance = provenance(tiffs, cfg, data_dir)
-        evidence_path(evidence.batch).parent.mkdir(parents=True, exist_ok=True)
-        evidence_path(evidence.batch).write_text(evidence.model_dump_json(indent=2))
+        path = evidence_path(evidence.batch, evidence.baseline)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(evidence.model_dump_json(indent=2))
         results.append(evidence)
     return results
+
+
+def load_evidence(path: Path) -> Evidence:
+    """One evidence file. Files from before the plain-word texts get them written now, from their own numbers,
+    so an old comparison reads like a new one (its verdict, numbers and provenance are untouched)."""
+    evidence = Evidence.model_validate_json(path.read_text())
+    if not evidence.explanations.summary:
+        evidence = evidence.model_copy(update={"explanations": explain(evidence, load_dictionary())})
+    return evidence
+
+
+def tile_particles(image_dir: Path, image_id: str, top: int = 8) -> dict:
+    """A tile's size (cropped, full-resolution px) and its `top` largest silicon particles away from the edge,
+    from out/particles.csv, in the frame the previews use. No particles until the tile is measured."""
+    paths = field_paths(image_dir).get(image_id) if image_dir.is_dir() else None
+    if not paths:
+        raise FileNotFoundError(f"no tile {image_dir.name}/{image_id}")
+    height, width, px_um = tile_geometry(paths.get("BSE") or next(iter(paths.values())))
+    rows = []
+    if PARTICLE_TABLE.exists():
+        table = pd.read_csv(PARTICLE_TABLE, dtype={"batch": str, "image_id": str},
+                            usecols=lambda c: c in {"batch", "image_id", "d_um", "type", "x_px", "y_px", "border"})
+        mine = table[(table["batch"] == image_dir.name) & (table["image_id"] == image_id)].dropna(subset=["d_um", "x_px", "y_px"])
+        if "border" in mine:
+            mine = mine[~mine["border"].fillna(False).astype(bool)]
+        rows = [{"x": float(r.x_px), "y": float(r.y_px), "d_um": float(r.d_um),
+                 "type": None if pd.isna(getattr(r, "type", None)) else str(r.type)}
+                for r in mine.nlargest(max(0, min(top, 50)), "d_um").itertuples()]
+    return {"width": width, "height": height, "px_um": None if np.isnan(px_um) else float(px_um), "particles": rows}
+
+
+def measure_folder(image_dir: Path, progress: Progress | None = None) -> int:
+    """Measure one folder (e.g. an Identify drop) into out/ tables and masks, without comparing it."""
+    measured = measure([image_dir], progress)
+    save_tables(measured)
+    return len(measured.kpis)
+
+
+class RulesFrozen(Exception):
+    """The `rules-frozen` tag exists, so config/decision.yaml may not change (AGENTS.md)."""
+
+
+def set_baseline(baseline: str, path: Path = CONFIG_PATH) -> dict:
+    """Write the default `baseline` into config/decision.yaml, keeping the rest of the file as written.
+
+    Refuses once the `rules-frozen` tag exists, and when git can't tell (not a checkout, no git).
+    """
+    if git("rev-parse", "--git-dir") is None:
+        raise RulesFrozen("can't check the rules-frozen tag (no git checkout), so the config stays as it is")
+    frozen, _ = rules_frozen()
+    if frozen:
+        raise RulesFrozen(f"rules are frozen at {frozen[:7]}: the default baseline can't change without a new freeze")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", baseline):
+        raise ValueError(f"invalid batch name {baseline!r}")
+    cfg = load_config(path)
+    if not (Path(cfg["data_dir"]) / baseline).is_dir():
+        raise FileNotFoundError(f"no folder {cfg['data_dir']}/{baseline}")
+    line = f"baseline: {baseline}"
+    text, n = re.subn(r"(?m)^baseline:.*$", lambda _: line, path.read_text(), count=1)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(text if n else f"{text.rstrip()}\n{line}\n")
+    if load_config(tmp).get("baseline") != baseline:
+        tmp.unlink()
+        raise ValueError("the new config/decision.yaml didn't read back")
+    os.replace(tmp, path)
+    return load_config(path)
 
 
 def measure(batch_dirs: list[Path], progress: Progress | None = None) -> Tables:
@@ -141,21 +219,29 @@ def save_overlay(field: Field, mask: np.ndarray, step: int = 4) -> None:
     path = mask_path(field.batch, field.image_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     imsave(path, rgb.astype(np.uint8), check_contrast=False)
+    imsave(phases_path(field.batch, field.image_id), small.astype(np.uint8), check_contrast=False)
 
 
 def _replace_batch_rows(new: pd.DataFrame, path: Path) -> None:
-    """Replaces the rows of the batches just measured in one CSV, keeps the rest."""
+    """Replaces the rows of the batches just measured in one CSV, keeps the rest. Atomic, so a reader
+    never sees half a file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
         old = pd.read_csv(path)
         new = pd.concat([old[~old["batch"].isin(new["batch"])], new], ignore_index=True)
-    new.to_csv(path, index=False)
+    tmp = path.with_suffix(".tmp")
+    new.to_csv(tmp, index=False)
+    os.replace(tmp, path)
+
+
+TABLES_LOCK = threading.Lock()  # the API may measure a drop while a comparison runs
 
 
 def save_tables(tables: Tables) -> None:
-    _replace_batch_rows(tables.kpis, KPI_TABLE)
-    _replace_batch_rows(tables.particles, PARTICLE_TABLE)
-    _replace_batch_rows(tables.imaging, IMAGING_TABLE)
+    with TABLES_LOCK:
+        _replace_batch_rows(tables.kpis, KPI_TABLE)
+        _replace_batch_rows(tables.particles, PARTICLE_TABLE)
+        _replace_batch_rows(tables.imaging, IMAGING_TABLE)
 
 
 if __name__ == "__main__":

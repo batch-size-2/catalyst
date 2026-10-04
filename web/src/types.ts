@@ -88,11 +88,18 @@ export interface Fingerprint {
   type_shares: Descriptor[];
 }
 
+/** qc/explain.py: fixed templates. Audience texts are lists of sentences. */
 export interface Explanations {
-  operator: string;
-  engineer: string;
-  scientist: string;
-  manager: string;
+  summary: string;        // the answer in one plain sentence
+  rules: string[];        // the verdict rules that fired, in words
+  next_steps: string[];
+  ranked: string[];            // used key quantities not settled as similar, in driver order (the "Look here first" list)
+  twin: string | null;         // a particle-type share that mirrors the other one, so it isn't shown
+  within_tolerance: string[];  // settled as similar, minus paused ones and the twin
+  operator: string[];
+  engineer: string[];
+  scientist: string[];
+  manager: string[];
 }
 
 export interface InputFile {
@@ -133,16 +140,46 @@ export interface Evidence {
   config_version: string;
 }
 
+export interface ReasonClause {
+  feature: string;
+  label: string;
+  baseline_z: number;
+  direction: string;
+  closest_batch: string | null;
+  text: string;
+  r?: number;
+}
+
 export interface AttributionReason {
   feature: string;
-  z: number | null;
-  contribution: number | null;
+  z: number | null;             // against the training mean
+  contribution: number | null;  // coefficient × z, toward the call of its stage
+  stage?: "all" | "baseline" | "variation";
+  label?: string;
+  text?: string;                // plain-language sentence
+  baseline_z?: number;          // named features only: SD against the baseline
+  closest_batch?: string | null;
+  related?: ReasonClause[];     // deep components only: the named features they move with
 }
 
 export interface Deviation {
   feature: string;
+  label?: string;
   z: number | null;
   direction: string;
+}
+
+export type ConfidenceTier = "high" | "medium" | "low";
+
+export interface TierRecord {
+  right: number;
+  n: number;
+}
+
+export interface StageCall {
+  call: string;
+  confidence: number;
+  p_baseline?: number;
 }
 
 export interface AttributedImage {
@@ -150,14 +187,32 @@ export interface AttributedImage {
   strip_id: string | null;
   predicted: string;
   confidence: number | null;
+  confidence_raw?: number | null;
+  confidence_tier?: ConfidenceTier;
+  confidence_record?: TierRecord | null;  // held-out calls in this tier: right / n
+  stage_baseline?: StageCall | null;      // "different from the baseline?"
+  stage_variation?: StageCall | null;     // "in what way?", given it is not the baseline
+  prediction_set?: string[];
   assigned?: string | null;
   reasons: AttributionReason[];
   baseline_distance: number | null;
   baseline_threshold: number | null;
-  unfamiliar: boolean | null;
+  outside_baseline?: boolean | null;
+  predicted_distance?: number | null;     // distance to the batch it was assigned to
+  predicted_threshold?: number | null;
+  unfamiliar: boolean | null;             // outside the range of the batch it was assigned to
   n_deviating?: number | null;
   deviations: Deviation[];
   [key: `p_${string}`]: number | null;
+}
+
+export interface Calibration {
+  temperature: number;
+  n: number;
+  accuracy?: number;
+  tiers: ({ tier: ConfidenceTier; min_confidence: number } & TierRecord)[];
+  conformal: { alpha: number; qhat: number; n: number } | null;
+  stages: { baseline?: TierRecord; variation?: TierRecord };
 }
 
 export interface AttributionModelInfo {
@@ -165,6 +220,18 @@ export interface AttributionModelInfo {
   classes: string[];
   baseline: string;
   loso_balanced_accuracy: number | null;
+  kind?: "flat" | "staged";
+  families?: string[] | null;
+  staged?: string[][] | null;
+  calibration?: Calibration | null;
+}
+
+/** GET /api/attribution-model: the model the next run will use. */
+export interface ModelStatus extends AttributionModelInfo {
+  n_trained_on: Record<string, number>;
+  sha256: string;
+  rules_frozen_commit: string | null;
+  matches_frozen: boolean | null;  // the file is the one under the rules-frozen tag
 }
 
 export interface Attribution {
@@ -222,7 +289,55 @@ export interface AttributionEvaluation {
 export interface BatchSummary {
   name: string;
   has_images: boolean;
+  verdict: Verdict | null;  // against the default baseline
+}
+
+/** GET /api/evidence: one comparison on disk, against any baseline. */
+export interface Decision {
+  batch: string;
+  baseline: string;
   verdict: Verdict | null;
+  created_at: string | null;
+}
+
+/** GET /api/settings */
+export interface Settings {
+  baseline: string;
+  rules_frozen_commit: string | null;
+  rules_frozen_date: string | null;
+  rules_frozen_config: Record<string, { frozen: string | null; now: string | null }>;  // sha256 under the tag and now
+  claude: { available: boolean; model: string; reason: string | null };
+}
+
+/** qc/guide.py: summary and walkthrough. Text holds {kind:key} slots that Catalyst filled from the evidence. */
+export type GuideTarget = "verdict" | "moved" | "tiles" | "next";
+
+export interface GuideSlot {
+  text: string;
+  source: string;
+  label?: string;
+  tile?: string;
+  batch?: string;
+  quantity?: string;
+  tiles?: string[];
+  status?: Status;
+}
+
+export interface GuideStep {
+  target: GuideTarget;
+  title: string;
+  sentences: string[];
+  source: string | null;
+}
+
+export interface Guide {
+  source: "claude" | "template";
+  model: string | null;
+  fallback_reason: string | null;
+  summary: string[];
+  steps: GuideStep[];
+  slots: Record<string, GuideSlot>;
+  checks: { numbers: number; dropped: string[] };
 }
 
 /** One image in a data folder, joined with its out/kpis.csv row (GET /api/tiles). */
@@ -233,6 +348,7 @@ export interface Tile {
   detectors: string[];
   kpis: Record<string, number | null> | null;
   has_mask: boolean;
+  has_layers: boolean;  // per-phase layers exist (GET /api/layers/{batch}/{image_id}/{silicon|pore|binder})
 }
 
 /** config/kpi_dictionary.yaml entry: friendly name, unit and causes per descriptor. */
@@ -240,7 +356,7 @@ export interface KpiEntry {
   name?: string;
   unit?: string;
   key?: boolean;
-  meaning?: string;
+  meaning?: string;       // for particle types: the type's description from config/particle_types.json
   why_it_matters?: string;
   if_higher?: string;
   if_lower?: string;
@@ -268,12 +384,27 @@ export interface Config {
   [key: string]: unknown;
 }
 
+/** GET /api/particles/{batch}/{image_id}: tile size in full-res px and its largest Si particles. */
+export interface TileParticles {
+  width: number;
+  height: number;
+  px_um: number | null;
+  particles: { x: number; y: number; d_um: number; type: string | null }[];
+}
+
+export type AttributionStage = "features" | "deep" | "predict";
+
 export type RunEvent =
   | { type: "progress"; done: number; total: number; tile: string }
   | { type: "done"; evidence: Evidence }
   | { type: "error"; message: string };
 
-export type AttributionEvent =
+export type MeasureEvent =
   | { type: "progress"; done: number; total: number; tile: string }
+  | { type: "done"; measured: number }
+  | { type: "error"; message: string };
+
+export type AttributionEvent =
+  | { type: "progress"; done: number; total: number; tile: string; stage?: AttributionStage }
   | { type: "done"; attribution: Attribution }
   | { type: "error"; message: string };

@@ -4,7 +4,7 @@
 # "different" is not "bad" — a customer tolerance decides what matters.
 
 si_area_frac:
-  name: silicon area fraction
+  name: silicon content (share of image area)
   unit: fraction
   key: false
   meaning: Share of the image that is silicon.
