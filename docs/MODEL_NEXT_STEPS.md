@@ -6,7 +6,7 @@ Written 4 Oct 2026, after reading the external review "SEM electrode deviation m
 
 - The plan is five model candidates, fixed now, each scored the same way against the current model, then one refreeze.
 - The target is Batch_1 vs Batch_2, which is at chance today. "Batch_3 or not" already works at about 26 of 31 held-out images.
-- The current frozen model (staged `material > deep`, leave-one-strip-out 0.66) stays as the incumbent until a candidate beats it.
+- The current model (staged `material > deep`, leave-one-strip-out 0.66) stays as the incumbent until a candidate beats it. Its classifier is the one frozen on 3 Oct; its confidence was replaced on 4 Oct (T14 adoption, [MODEL.md](MODEL.md)).
 - We assume no hand labels. Segmentation is checked for consistency, not accuracy.
 
 ## 2. Where we are

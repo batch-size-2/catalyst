@@ -180,6 +180,7 @@ export interface StageCall {
   call: string;
   confidence: number;
   p_baseline?: number;
+  interval?: [number, number];  // stage_baseline only: the range of `confidence` the held-out tiles allow (Venn–Abers)
 }
 
 export interface AttributedImage {
@@ -206,13 +207,35 @@ export interface AttributedImage {
   [key: `p_${string}`]: number | null;
 }
 
+/** Held-out record of the calibrated calls (each strip calibrated with the other strips' tiles). */
 export interface Calibration {
-  temperature: number;
+  method?: "venn_abers" | "none";
+  temperature?: number;         // only in runs made before the Venn–Abers calibration
   n: number;
   accuracy?: number;
+  balanced_accuracy?: number;
+  log_loss?: number;
+  raw_log_loss?: number;        // the same calls without calibration
   tiers: ({ tier: ConfidenceTier; min_confidence: number } & TierRecord)[];
-  conformal: { alpha: number; qhat: number; n: number } | null;
+  venn_abers?: { scores: number[]; labels: number[]; mean_width: number } | null;
+  conformal: { alpha: number; qhat: number; n: number; coverage?: number; mean_size?: number } | null;
   stages: { baseline?: TierRecord; variation?: TierRecord };
+}
+
+export interface ImportantFeature {
+  feature: string;
+  label: string;
+  share: number;                // of the stage's total |coefficient × z| over its training tiles
+  higher_means: string;         // the call a higher value pulls towards
+  related?: { feature: string; label: string; r: number }[];  // deep components: the named features they move with
+  imaging?: { feature: string; label: string; r: number }[];  // deep components: the imaging descriptors they move with
+}
+
+/** What one stage of the model leans on overall (explain.importance in the model file). */
+export interface StageImportance {
+  n_features: number;
+  families: Record<string, number>;
+  features: ImportantFeature[];
 }
 
 export interface AttributionModelInfo {
@@ -224,6 +247,7 @@ export interface AttributionModelInfo {
   families?: string[] | null;
   staged?: string[][] | null;
   calibration?: Calibration | null;
+  importance?: Partial<Record<"all" | "baseline" | "variation", StageImportance>> | null;
 }
 
 /** GET /api/attribution-model: the model the next run will use. */

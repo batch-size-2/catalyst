@@ -30,7 +30,7 @@ Rules that have held throughout:
 - No Polaron models or tools, including their open-source HR-Dv2, ImageRep and TauFactor, until the mentors say otherwise.
 - `strip_id`, image height and width, `px_um` and XResolution are never features: they identify the strip, not the material. `features.assert_no_leakage()` enforces it.
 - Accuracy is only ever reported with whole strips held out, next to a permutation null. Never leave-one-image-out.
-- Don't edit `config/decision.yaml`, `config/particle_types.json` or `config/attribution_model.json` after the `rules-frozen` tag.
+- Don't edit `config/decision.yaml` or `config/particle_types.json` after the `rules-frozen` tag. `config/attribution_model.json` was refitted by its owner on 4 Oct (MODEL.md §8); refit it only with her agreement, and the tag moves only with both owners.
 
 ## 2. What the ML side provides
 
@@ -89,14 +89,16 @@ Written by `attribute_images(image_dir, model, balanced=None)`; the API serves i
 
 | Field | Meaning |
 |---|---|
-| `predicted`, `p_<batch>`, `confidence` | The call (never empty), the rescaled probabilities, and the probability of the call. `confidence_raw` is the value before rescaling |
+| `predicted`, `p_<batch>`, `confidence` | The call (never empty): the baseline if it is at least as likely as not, else the leading other batch. The calibrated probabilities, and the probability of the call. `confidence_raw` is the classifier's own value |
 | `confidence_tier`, `confidence_record` | high (≥ 0.75), medium (≥ 0.5) or low; and how often calls in that tier were right on held-out strips (`right`, `n`) |
-| `stage_baseline`, `stage_variation` | "Batch_3 or not" and "which other batch", each with `call` and `confidence`. `stage_variation` is null when the call is the baseline |
-| `prediction_set` | Batches that should contain the truth for about 8 in 10 images |
+| `stage_baseline`, `stage_variation` | "Batch_3 or not" and "which other batch", each with `call` and `confidence`. `stage_baseline.interval` is the range of its confidence that the held-out images allow (Venn–Abers). `stage_variation` is null when the call is the baseline |
+| `prediction_set` | Batches that should contain the truth for about 8 in 10 images, the call first. `model.calibration.conformal` has the held-out `coverage` and `mean_size` |
 | `reasons` | Up to five: `feature`, `z`, `contribution`, `stage`, and a plain-language `text` with `label`; deep components also list `related` named features |
 | `baseline_distance`, `baseline_threshold`, `outside_baseline`, `n_deviating`, `deviations` | Distance from Batch_3's strip segments, in SD |
 | `predicted_distance`, `predicted_threshold`, `unfamiliar` | The same against the batch the image was assigned to. `unfamiliar` means outside that batch's own range |
 | `assigned` | Only with `--balanced k`: the assignment with exactly k images per batch |
+
+The file's `model` block also carries `calibration` (the held-out record) and `importance` (what each stage leans on overall). The model is written up in [MODEL.md](MODEL.md). Since 4 Oct the confidence is a class-balanced Venn–Abers calibration; there is no temperature (experiments/T14.md, "Adoption").
 
 `model` in the same file carries `fitted_at`, `classes`, `baseline`, `loso_balanced_accuracy`, `kind` (flat or staged), `families` and the `calibration` record. `evaluation.json` and `feature_ranking.csv` come from `--evaluate`.
 

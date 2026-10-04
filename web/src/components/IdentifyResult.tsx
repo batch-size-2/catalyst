@@ -6,6 +6,7 @@ import { batchColor, batchLabel, dictEntry, featureLabel, fmtSigma, localTime, m
 import { href, replaceRoute } from "../router";
 import type {
   Attribution, AttributedImage, AttributionEvaluation, AttributionModelInfo, AttributionReason, KpiDictionary, ModelStatus,
+  StageImportance,
 } from "../types";
 import { Folds, IconWarn, kpisBeyond, PAGE, SigmaBand, TileKpiGrid } from "./bits";
 import { Peekable, type PeekItem } from "./Peek";
@@ -58,6 +59,7 @@ export default function IdentifyResult({
   const picks = against ? [...fors.slice(0, 2), against] : fors;
   const beyond = kpisBeyond(tile, tiles.data ?? [], baseline);
   const src = imageUrl(name, image.image_id, "BSE", 2048);
+  const importance = attribution.model.importance;
 
   return (
     <div className={`${PAGE} gap-6`}>
@@ -164,6 +166,14 @@ export default function IdentifyResult({
               </div>
             ),
           },
+          ...(importance && Object.keys(importance).length
+            ? [{
+                id: "importance",
+                title: "What the model leans on overall",
+                summary: leanSummary(importance),
+                body: () => <Importance importance={importance} />,
+              }]
+            : []),
           {
             id: "kpis",
             title: "Measured on this tile",
@@ -235,6 +245,15 @@ function Spots({ name, imageId, data, dict, hasLayers, detectors }: {
 
 const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)}%`);
 
+/** "80–92%": a range of probabilities, rounded outwards so it never reads narrower than it is. */
+const rangeText = ([low, high]: [number, number]) => `${Math.floor(low * 100)}–${Math.ceil(high * 100)}%`;
+
+const setsText = (sets: NonNullable<NonNullable<AttributionModelInfo["calibration"]>["conformal"]>) =>
+  `Prediction set aimed at ${Math.round((1 - sets.alpha) * 100)}%` +
+  (sets.coverage != null && sets.mean_size != null
+    ? ` · held the true batch for ${pct(sets.coverage)} of held-out tiles, ${sets.mean_size.toFixed(1)} batches on average`
+    : "");
+
 const distanceText = (d: number | null | undefined, limit: number | null | undefined) =>
   d != null && limit != null ? ` (distance ${d.toFixed(1)} against a limit of ${limit.toFixed(1)})` : "";
 
@@ -242,7 +261,8 @@ function Answer({ image, model }: { image: AttributedImage; model: AttributionMo
   const probs = model.classes.map((cls) => ({ cls, p: image[`p_${cls}`] ?? 0 }));
   const rec = image.unfamiliar ? null : image.confidence_record;
   const others = (image.prediction_set ?? []).filter((c) => c !== image.predicted);
-  const alpha = model.calibration?.conformal?.alpha;
+  const sets = model.calibration?.conformal;
+  const first = image.stage_baseline;
   return (
     <section aria-label="Answer" className="glass grid grid-cols-12 items-center gap-7 rounded-[24px] px-7 py-6">
       <div className="col-span-7 flex min-w-0 flex-col gap-3">
@@ -275,8 +295,13 @@ function Answer({ image, model }: { image: AttributedImage; model: AttributionMo
               When it's this sure, it was right {record(rec)} times
             </Chip>
           )}
+          {first?.interval && (
+            <Chip tone="plain" title="The range the held-out tiles allow for that probability (Venn–Abers)">
+              {first.call === model.baseline ? "Baseline" : "Not the baseline"}: {rangeText(first.interval)}
+            </Chip>
+          )}
           {others.length > 0 && (
-            <Chip tone="plain" title={alpha != null ? `Prediction set at ${Math.round((1 - alpha) * 100)}% coverage` : undefined}>
+            <Chip tone="plain" title={sets ? setsText(sets) : undefined}>
               Can't rule out {others.map(batchLabel).join(" or ")}
             </Chip>
           )}
@@ -438,9 +463,13 @@ function ModelAndRun({ image, attribution, current, evaluation }: { image: Attri
   ];
   if (current && !stale) rows.push(["Frozen with the rules", current.matches_frozen ? "Yes" : "No"]);
   if (image.stage_baseline)
-    rows.push(["Baseline or not", `${call(image.stage_baseline.call)} · ${pct(image.stage_baseline.confidence)}${stages?.baseline ? ` · this stage right ${record(stages.baseline)} held-out` : ""}`]);
+    rows.push(["Baseline or not", `${call(image.stage_baseline.call)} · ${pct(image.stage_baseline.confidence)}${image.stage_baseline.interval ? ` (range ${rangeText(image.stage_baseline.interval)})` : ""}${stages?.baseline ? ` · this stage right ${record(stages.baseline)} held-out` : ""}`]);
   if (image.stage_variation)
     rows.push(["Which other batch", `${batchLabel(image.stage_variation.call)} · ${pct(image.stage_variation.confidence)}${stages?.variation ? ` · this stage right ${record(stages.variation)} held-out` : ""}`]);
+  const cal = model.calibration;
+  if (cal?.method === "venn_abers")
+    rows.push(["Confidence", `Checked on held-out tiles (Venn–Abers)${cal.log_loss != null && cal.raw_log_loss != null ? ` · log loss ${cal.log_loss.toFixed(2)}, ${cal.raw_log_loss.toFixed(2)} unchecked` : ""}`]);
+  if (cal?.conformal?.coverage != null) rows.push(["Can't-rule-out sets", setsText(cal.conformal)]);
   if (image.baseline_distance != null)
     rows.push([`Distance from ${batchLabel(model.baseline)}`, `${image.baseline_distance.toFixed(1)} against a limit of ${image.baseline_threshold?.toFixed(1) ?? "?"}${image.outside_baseline ? " · outside the baseline range" : image.outside_baseline === false ? " · inside the baseline range" : ""}`]);
   if (image.predicted_distance != null && image.predicted !== model.baseline)
@@ -482,6 +511,84 @@ function ModelAndRun({ image, attribution, current, evaluation }: { image: Attri
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const STAGE_TITLES = { all: "Which batch", baseline: "Baseline or not", variation: "Which other batch" } as const;
+const STAGE_ORDER = ["all", "baseline", "variation"] as const;
+type ModelImportance = NonNullable<AttributionModelInfo["importance"]>;
+
+const stageList = (importance: ModelImportance) =>
+  STAGE_ORDER.flatMap((role) => (importance[role] ? [[role, importance[role]] as [typeof role, StageImportance]] : []));
+
+/** "Texture 61% · then DINOv2 image features": the leading family of each stage. */
+function leanSummary(importance: ModelImportance): string {
+  return stageList(importance)
+    .map(([, st]) => {
+      const [fam, share] = Object.entries(st.families)[0] ?? [];
+      return fam ? `${FAMILY_NAMES[fam] ?? fam}${share < 0.995 ? ` ${pct(share)}` : ""}` : "";
+    })
+    .filter(Boolean)
+    .join(" · then ");
+}
+
+/** What each stage weighs across all its training tiles: the families, then the heaviest single inputs. */
+function Importance({ importance }: { importance: ModelImportance }) {
+  const stages = stageList(importance);
+  const name = (label: string) => prettyText(label).replace(/^DINOv2 /, "").replace(/^./, (c) => c.toUpperCase());
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))` }}>
+        {stages.map(([role, st]) => {
+          const fams = Object.entries(st.families);
+          const max = Math.max(1e-9, ...st.features.map((f) => f.share));
+          return (
+            <div key={role} className="flex min-w-0 flex-col gap-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm font-medium">{STAGE_TITLES[role]}</span>
+                <span className="text-xs text-cx-faint">{st.n_features} inputs</span>
+              </div>
+              <div className="flex h-2 gap-0.5 overflow-hidden rounded">
+                {fams.map(([fam, share], i) => (
+                  <span key={fam} title={`${FAMILY_NAMES[fam] ?? fam} ${pct(share)}`}
+                    style={{ width: `${Math.max(1, share * 100)}%`, background: `rgba(246,245,242,${Math.max(0.18, 0.9 - i * 0.18)})` }} />
+                ))}
+              </div>
+              <span className="mono text-[11px] text-cx-faint">
+                {fams.map(([fam, share]) => `${FAMILY_NAMES[fam] ?? fam} ${pct(share)}`).join(" · ")}
+              </span>
+              <ul className="m-0 flex list-none flex-col p-0">
+                {st.features.slice(0, 5).map((f) => (
+                  <li key={f.feature} className="flex flex-col gap-1.5 border-t border-cx-line-soft py-2.5">
+                    <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                      <span className="min-w-0">{name(f.label)}</span>
+                      <span className="mono flex-none text-xs text-cx-text-2">{(f.share * 100).toFixed(f.share < 0.1 ? 1 : 0)}%</span>
+                    </div>
+                    <div className="h-1 rounded bg-white/[0.06]">
+                      <div className="h-full rounded bg-cx-text" style={{ width: `${(f.share / max) * 100}%` }} />
+                    </div>
+                    <span className="text-xs leading-snug text-cx-muted">
+                      Higher points to {prettyText(f.higher_means)}
+                      {f.related && (f.related.length
+                        ? ` · moves with ${f.related.map((r) => `${prettyText(r.label)} (r ${prettyText(r.r.toFixed(2))})`).join(", ")}`
+                        : " · no single named measurement tracks it")}
+                    </span>
+                    {!!f.imaging?.length && (
+                      <span className="text-xs leading-snug text-cx-investigate-text">
+                        Also tracks imaging, not material: {f.imaging.map((r) => `${prettyText(r.label).replace(/ imaging:/, "")} (r ${prettyText(r.r.toFixed(2))})`).join(", ")}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+      <p className="m-0 text-[13px] leading-normal text-cx-faint">
+        A share is how much of that stage's total pull an input carries across the training tiles. The cards above say what moved this tile; this says what the model weighs in general. An image pattern that tracks imaging may partly reflect the microscope settings.
+      </p>
     </div>
   );
 }
