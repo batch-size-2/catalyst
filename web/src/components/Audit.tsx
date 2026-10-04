@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getEvidence, getKpiDictionary, getSettings, listDecisions, verifyBatch } from "../api";
+import lawsuitSound from "../assets/generate-lawsuit.mp3";
 import { batchLabel, dropTwinShare, quantityLabel, shortHash, useApi, utc } from "../lib";
 import type { Evidence, KpiDictionary, VerifyResult } from "../types";
 import { BatchDot, CAT, Cat, IconCheck, IconWarn, Panel, Spinner, VerdictPill } from "./bits";
@@ -192,7 +193,10 @@ export default function Audit() {
 
         <div className="col-span-5 flex min-w-0 flex-col gap-4">
           {current ? (
-            <Passport entry={current} index={list.length - sel} result={results[current.key]} dict={dict.data} />
+            <>
+              <Passport entry={current} index={list.length - sel} result={results[current.key]} dict={dict.data} />
+              <Lawsuit key={current.key} entry={current} index={list.length - sel} dict={dict.data} />
+            </>
           ) : (
             <Panel className="print-hidden flex items-center gap-3 text-sm text-cx-muted">
               <Cat mood="ready" size={34} />
@@ -202,6 +206,119 @@ export default function Audit() {
         </div>
       </div>
     </div>
+  );
+}
+
+function driverLabels(ev: Evidence, dict: KpiDictionary | null) {
+  const byName = new Map(ev.differences.map((d) => [d.name, d]));
+  return dropTwinShare(ev.drivers.map((name) => ({ name })), ev)
+    .filter(({ name }) => byName.get(name)?.status !== "SIMILAR")
+    .slice(0, 4)
+    .map(({ name }) => quantityLabel(name, dict));
+}
+
+// Parody: plays the announcer, then pretends to assemble a claims pack from this record. Nothing is generated.
+function Lawsuit({ entry, index, dict }: { entry: Entry; index: number; dict: KpiDictionary | null }) {
+  const ev = entry.evidence;
+  const prov = ev.provenance;
+  const drivers = driverLabels(ev, dict);
+  const steps = [
+    `Exhibit A: batch passport #${String(index).padStart(4, "0")}, stamped ${ev.verdict}`,
+    `Exhibit B: ${prov?.inputs.length ?? 0} image hashes, SHA-256, notarised`,
+    prov?.rules_frozen_commit
+      ? `Exhibit C: rules frozen ${utc(prov.rules_frozen_date)}, before the batch arrived`
+      : "Exhibit C: rules not frozen yet (counsel winces)",
+    `Exhibit D: ${ev.n_images.batch} vs ${ev.n_images.baseline} micrographs`,
+    drivers.length
+      ? `Claim: ${batchLabel(ev.batch)} is not what ${batchLabel(ev.baseline)} promised (${drivers.join(", ")})`
+      : `Claim: ${batchLabel(ev.batch)} matches ${batchLabel(ev.baseline)}. Drafting it anyway`,
+    "Couriering to Fictional & Partners LLP",
+  ];
+  const [step, setStep] = useState(-1);
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const running = step >= 0 && step < steps.length;
+  const done = step >= steps.length;
+
+  useEffect(() => {
+    if (!running) return;
+    const t = window.setTimeout(() => setStep(step + 1), step === 0 ? 1500 : 700);
+    return () => window.clearTimeout(t);
+  }, [running, step]);
+  useEffect(() => () => audio.current?.pause(), []);
+
+  function generate() {
+    audio.current ??= new Audio(lawsuitSound);
+    audio.current.currentTime = 0;
+    void audio.current.play().catch(() => undefined);
+    setStep(0);
+  }
+
+  return (
+    <section
+      aria-label="Generate lawsuit"
+      className="print-hidden flex flex-col gap-3.5 rounded-[22px] border border-[rgba(248,113,113,.3)] bg-[rgba(127,29,29,.18)] p-5"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[15px] font-medium">Recall mode</span>
+        <span className="mono rounded-[5px] border border-[rgba(248,113,113,.5)] px-1.5 py-px text-[10px] text-[#FCA5A5]">
+          PARODY
+        </span>
+      </div>
+      <p className="m-0 text-[13px] leading-[1.5] text-[#D4D4D8]">
+        Supplier shipped something other than the batch they promised? Turn this record into a claims pack for
+        your lawyers: the passport, hashes and freeze time become the exhibits.
+      </p>
+      <button
+        type="button"
+        className={`lawsuit-btn ${running ? "lawsuit-run" : ""}`}
+        disabled={running}
+        onClick={generate}
+      >
+        {running ? (
+          <Spinner size={20} color="#fff" />
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="m14.5 12.5-8 8a2.12 2.12 0 1 1-3-3l8-8M16 16l6-6M8 8l6-6M9 7l8 8M21 11l-8-8" />
+          </svg>
+        )}
+        {running ? "GENERATING LAWSUIT" : done ? "GENERATE ANOTHER" : "GENERATE LAWSUIT"}
+      </button>
+      {step >= 0 && (
+        <ol className="m-0 flex list-none flex-col gap-1.5 p-0 text-[13px]" aria-live="polite">
+          {steps.slice(0, Math.min(step + 1, steps.length)).map((s, i) => (
+            <li key={s} className="animate-rise flex items-start gap-2">
+              <span className="mt-px grid w-4 shrink-0 place-items-center">
+                {i < step ? <IconCheck size={14} /> : <Spinner size={12} color="#FCA5A5" />}
+              </span>
+              <span className={i < step ? "text-[#D4D4D8]" : "text-cx-text"}>{s}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {done && (
+        <div
+          className="animate-rise rounded-[14px] px-4 py-3.5 text-[#16171A]"
+          style={{ background: "var(--cx-paper)" }}
+        >
+          <div className="mono text-[10px] tracking-[0.12em] text-[#5A5C62]">IN THE MATTER OF</div>
+          <div className="mt-1 text-[15px] font-semibold">Fictional Cells Ltd v. Fictional Silicon Co.</div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs text-[#4A4C52]">
+              Exhibits A–D attached · re: {batchLabel(ev.batch)} vs {batchLabel(ev.baseline)}
+            </span>
+            <span
+              className="mono rounded-md border-2 border-[#B91C1C] px-2 py-1 text-[11px] font-bold tracking-[0.1em] text-[#B91C1C]"
+              style={{ transform: "rotate(-4deg)" }}
+            >
+              READY FOR COUNSEL*
+            </span>
+          </div>
+        </div>
+      )}
+      <span className="text-[11px] text-cx-faint">
+        {done ? "* Not really. " : ""}Parody, not legal advice. Made-up parties; nothing is generated or filed.
+      </span>
+    </section>
   );
 }
 
@@ -218,11 +335,7 @@ function Passport({
 }) {
   const ev = entry.evidence;
   const prov = ev.provenance;
-  const byName = new Map(ev.differences.map((d) => [d.name, d]));
-  const drivers = dropTwinShare(ev.drivers.map((name) => ({ name })), ev)
-    .filter(({ name }) => byName.get(name)?.status !== "SIMILAR")
-    .slice(0, 4)
-    .map(({ name }) => quantityLabel(name, dict));
+  const drivers = driverLabels(ev, dict);
   return (
     <section
       aria-label="Batch passport"

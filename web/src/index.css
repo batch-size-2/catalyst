@@ -150,10 +150,55 @@ a:hover {
 .spin {
   animation: cxspin 0.9s linear infinite;
 }
+/* Audit: the parody GENERATE LAWSUIT button. */
+.lawsuit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 68px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ef4444, #dc2626 55%, #b91c1c);
+  color: #fff;
+  font: 700 18px var(--cx-mono);
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 0 #7f1d1d, 0 14px 34px -10px rgba(220, 38, 38, 0.85);
+  transition: transform 0.08s, box-shadow 0.08s, filter 0.15s;
+}
+.lawsuit-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.lawsuit-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 0 #7f1d1d, 0 6px 18px -8px rgba(220, 38, 38, 0.85);
+}
+.lawsuit-btn:focus-visible {
+  outline: 2px solid #fca5a5;
+  outline-offset: 3px;
+}
+.lawsuit-btn:disabled {
+  cursor: progress;
+}
+@keyframes cxsiren {
+  0%,
+  100% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 0 #7f1d1d, 0 0 0 0 rgba(239, 68, 68, 0.55);
+  }
+  50% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 0 #7f1d1d, 0 0 0 14px rgba(239, 68, 68, 0);
+  }
+}
+.lawsuit-run {
+  animation: cxsiren 0.9s ease-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .spin,
   .scan,
-  .sweep {
+  .sweep,
+  .lawsuit-run {
     animation: none;
   }
 }
