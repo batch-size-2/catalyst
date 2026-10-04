@@ -1,5 +1,52 @@
 # Tickets after the freeze (written 3 Oct 2026, ~23:00)
 
+> Historical: written for the night before submission. The model has since been refitted (MODEL.md §8); the frozen model below is the 3 Oct one.
+
+## Status (4 Oct 2026, ~03:00)
+
+**PR stack.** #21 and #36 (T14) were closed on 4 Oct: their commits went in through #44, which also adopted T14. The other ticket PRs are report-only; each one's record (`experiments/T*.md`) is on its branch, not on `main`.
+
+```
+main
+└─ #21 pat/experiments-base (this file, scaffold)
+   ├─ #29 T1 invariance audit ── #38 T8 train-time augmentation
+   ├─ #25 T2 dark-graphite share ── #28 T9 imaging erasure ─┬─ #30 T10 texture at material scale
+   │                                                        └─ #31 T4 reason wording (text only)
+   ├─ #22 T3 shared-strip pair test
+   ├─ #32 T5 What's different (variance ratio, silicon %, statements; touches Patrik's files)
+   ├─ #34 T6 drop runbook (rehearsed)
+   ├─ #26 T13 report-only materials descriptors
+   ├─ #35 T11 familiarity distances ── #37 T12 tile-type pooling
+   └─ #36 T14 confidence methods
+```
+
+Expected conflicts: #29 and #25 both extend `_fit_parts` (per-stage `C` vs `residualize`). #25 and #26 both append to `qc/measure.py` and `tests/test_ml.py`.
+
+| Ticket | Result in one line | Doc |
+|---|---|---|
+| T1 | σ = 5 noise flips "Batch_3 or not" for 12 of 17 Batch_3 images; adding dark-graphite zones moves all 7 Batch_1 images to Batch_3 | `experiments/T1.md` |
+| T2 | The dark-graphite share is a reproducible descriptor; removing it costs the deep stage only 0.02 (still above the null); pc03 and pc04 track it | `experiments/T2.md` |
+| T3 | Inside a strip, Batch_1 and Batch_2 images are no more different than same-batch images; the positive control fails too (blunt test) | `experiments/T3.md` |
+| T4 | Reasons now carry `basis: imaging \| material` and caveats; the reworded results match the frozen numbers exactly | PR #31 |
+| T5 | Batch_1 silicon SD 3.3× the baseline's; silicon % shown; fixed batch statements | PR #32 |
+| T6 | Last-minute path rehearsed: about 12 s per sample from the CLI, offline; `matches_frozen: true` | `RUNBOOK_DROP.md` |
+| T7 | **Not done:** its gate (stable calls in T1) failed | – |
+| T8 | Training with imaging and dark-graphite copies keeps staged accuracy (0.675) and cuts noise flips 11→2 and dark-graphite flips 7→0. **v2 candidate** | `experiments/T8.md` |
+| T9 | **Erasing the measured imaging takes every attribution signal to chance**; a shuffled-covariate control shows this is imaging-specific | `experiments/T9.md` |
+| T10 | Material-scale texture is less noise-sensitive but still collapses under erasure | `experiments/T10.md` |
+| T11 | No familiarity distance flags more Batch_1/Batch_2 images, because Batch_3's strips are themselves widely spread; tile heatmaps added | `experiments/T11.md` |
+| T12 | Tile quantiles 0.65 (one image above flat deep); the gallery shows Batch_3's distinctive tiles are the dark-graphite contrast | `experiments/T12.md` |
+| T13 | The rule-based "dim, ragged" Si class is exactly strip 2316; Batch_1's difference is spread, not mean | `experiments/T13.md` |
+| T14 | Venn–Abers and leave-one-out conformal are worth adopting; held-out temperature scaling adds nothing | `experiments/T14.md` |
+| T15 | **Not done:** DINOv3 weights are gated and MicroNet needs new dependencies; after T9 a new backbone is low value | – |
+
+**Follow-ups this opened:**
+
+1. Run T9's erasure on the T8 arm-(b) model: does robustness to simulated changes also remove the acquisition signal?
+2. Score any v2 candidate against a best-of-all-entries null (9 entries so far), or on new labelled images.
+3. Download the 2.8 GB NMC811 set for T11's foreign test.
+4. Break T12's Batch_1 tile type 6 down per strip.
+
 One ticket per agent. Paste **Common context** plus the ticket into each agent. Tickets are self-contained.
 
 ## State these tickets start from
